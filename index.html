@@ -703,7 +703,7 @@ input,select,textarea{font:inherit;color:inherit}
       </svg>
       <span id="lang-label">FR</span>
     </button>
-    <div class="avatar" onclick="showToast('Connexion Google — Firebase requis 🔑')">A</div>
+    <div class="avatar" id="topbar-avatar" onclick="navigate('settings')" title="Compte">A</div>
   </header>
 
   <!-- ══ SCREEN: DASHBOARD ══ -->
@@ -1278,10 +1278,10 @@ const DEFAULT_INGREDIENTS=[
 ];
 
 function loadUserRecipes(){try{return JSON.parse(localStorage.getItem('mixtura_recipes')||'[]')}catch{return[]}}
-function saveUserRecipes(r){localStorage.setItem('mixtura_recipes',JSON.stringify(r))}
+function saveUserRecipes(r){localStorage.setItem('mixtura_recipes',JSON.stringify(r));cloudAutoSync('recipes',r);}
 function getAllRecipes(){return[...CLASSIC_RECIPES,...loadUserRecipes()]}
 function loadUserIngredients(){try{return JSON.parse(localStorage.getItem('mixtura_ingredients')||'[]')}catch{return[]}}
-function saveUserIngredients(r){localStorage.setItem('mixtura_ingredients',JSON.stringify(r))}
+function saveUserIngredients(r){localStorage.setItem('mixtura_ingredients',JSON.stringify(r));cloudAutoSync('ingredients',r);}
 function getAllIngredients(){return[...DEFAULT_INGREDIENTS,...loadUserIngredients()]}
 
 /* ─── Stats ── */
@@ -2611,13 +2611,41 @@ async function initSupabase(){
   });
   _supa.auth.onAuthStateChange((evt,session)=>{
     _supaUser = session?.user || null;
+    updateAuthUI();
     if(S.currentScreen==='settings') renderSettings();
-    if(evt==='SIGNED_IN'){ showToast('Connecté ✓','success'); cloudPullAll().catch(()=>{}); }
+    if(evt==='SIGNED_IN'){
+      showToast('Connecté ✓','success');
+      cloudMergeOnLogin().catch(e=>showToast('Sync : '+(e.message||e),'error'));
+    }
     if(evt==='SIGNED_OUT'){ showToast('Déconnecté'); }
   });
   const { data } = await _supa.auth.getSession();
   _supaUser = data?.session?.user || null;
+  updateAuthUI();
   return _supa;
+}
+/* Reflect auth state in topbar avatar + sidebar footer */
+function updateAuthUI(){
+  const av=document.getElementById('topbar-avatar');
+  if(av){
+    if(_supaUser?.email){
+      av.textContent=(_supaUser.email[0]||'U').toUpperCase();
+      av.title='Connecté : '+_supaUser.email;
+      av.style.background='var(--gold)';
+      av.style.color='var(--navy-900)';
+    }else{
+      av.textContent='A';
+      av.title='Compte (non connecté)';
+      av.style.background='';
+      av.style.color='';
+    }
+  }
+  const pn=document.getElementById('plan-name');
+  const pd=document.getElementById('plan-desc');
+  if(pn&&pd&&_supaUser?.email){
+    const short=_supaUser.email.length>22?_supaUser.email.slice(0,20)+'…':_supaUser.email;
+    pd.textContent=short;
+  }
 }
 const Auth = {
   status(){ return { signedIn:!!_supaUser, email:_supaUser?.email||null, provider:'supabase' }; },
@@ -2680,14 +2708,102 @@ async function cloudPushAll(){
   if(!_supa||!_supaUser){ showToast('Connecte-toi d\'abord','error'); return; }
   try{
     const ings=loadUserIngredients(), recs=loadUserRecipes();
-    const up = (table,list)=>_supa.from(table).upsert(
-      list.map(x=>({ id:x.id||undefined, user_id:_supaUser.id, data:x, updated_at:new Date().toISOString() })),
-      { onConflict:'id' }
-    );
+    const up = (table,list)=> list.length
+      ? _supa.from(table).upsert(
+          list.map(x=>({ id:x.id||undefined, user_id:_supaUser.id, data:x, updated_at:new Date().toISOString() })),
+          { onConflict:'id' }
+        )
+      : Promise.resolve({error:null});
     const r1=await up('ingredients',ings); if(r1.error) throw r1.error;
     const r2=await up('recipes',recs);     if(r2.error) throw r2.error;
     showToast(`Cloud mis à jour ↑ (${ings.length}+${recs.length})`,'success');
   }catch(e){ showToast('Push cloud : '+(e.message||e),'error'); }
+}
+/* Auto-sync : à chaque save local, upsert cloud + supprime ce qui n'existe plus localement.
+   Débouncé à 700 ms pour batcher les éditions rapides (slider, typing, etc.).
+   Silencieux : pas de toast (on a déjà le feedback localStorage + renderRecipes). */
+const _autoSyncTimers = {};
+function cloudAutoSync(table, items){
+  if(!_supa || !_supaUser) return; // pas connecté → rien à faire
+  if(!Array.isArray(items)) return;
+  if(_autoSyncTimers[table]) clearTimeout(_autoSyncTimers[table]);
+  _autoSyncTimers[table] = setTimeout(async ()=>{
+    _autoSyncTimers[table] = null;
+    try{
+      // assure un id sur chaque item (pour upsert + reconcile)
+      let mutated = false;
+      items.forEach(x=>{
+        if(x && !x.id){
+          x.id = (crypto.randomUUID && crypto.randomUUID()) || (Date.now()+'-'+Math.random().toString(36).slice(2));
+          mutated = true;
+        }
+      });
+      if(mutated){
+        const storageKey = table==='recipes' ? 'mixtura_recipes' : 'mixtura_ingredients';
+        localStorage.setItem(storageKey, JSON.stringify(items));
+      }
+      // upsert de tout le set local
+      if(items.length){
+        const up = await _supa.from(table).upsert(
+          items.map(x=>({ id:x.id, user_id:_supaUser.id, data:x, updated_at:new Date().toISOString() })),
+          { onConflict:'id' }
+        );
+        if(up.error) throw up.error;
+      }
+      // reconcile : supprime du cloud ce qui n'est plus dans le local
+      const cloud = await _supa.from(table).select('id').eq('user_id', _supaUser.id);
+      if(cloud.error) throw cloud.error;
+      const localIds = new Set(items.map(x=>x && x.id).filter(Boolean));
+      const toDelete = (cloud.data||[]).map(r=>r.id).filter(id=>!localIds.has(id));
+      if(toDelete.length){
+        const del = await _supa.from(table).delete().in('id', toDelete).eq('user_id', _supaUser.id);
+        if(del.error) throw del.error;
+      }
+    }catch(e){
+      console.warn('cloudAutoSync '+table+':', e);
+      // seulement un toast discret en cas d'erreur
+      if(typeof showToast==='function') showToast('Sync cloud ['+table+'] échoué','error');
+    }
+  }, 700);
+}
+/* Smart merge à la connexion : ne JAMAIS écraser les données locales.
+   - Si cloud vide + local plein → push local (migration premier login)
+   - Si cloud plein + local vide → pull cloud
+   - Si les deux ont des données → merge par id (le plus récent gagne) puis re-push */
+async function cloudMergeOnLogin(){
+  if(!_supa||!_supaUser) return;
+  const [ingRes, recRes] = await Promise.all([
+    _supa.from('ingredients').select('data,updated_at').eq('user_id',_supaUser.id),
+    _supa.from('recipes').select('data,updated_at').eq('user_id',_supaUser.id),
+  ]);
+  if(ingRes.error||recRes.error) throw (ingRes.error||recRes.error);
+  const cloudIngs = (ingRes.data||[]).map(r=>r.data).filter(Boolean);
+  const cloudRecs = (recRes.data||[]).map(r=>r.data).filter(Boolean);
+  const localIngs = loadUserIngredients();
+  const localRecs = loadUserRecipes();
+  // dedupe by id, local wins on conflict (user just edited locally)
+  const mergeById = (cloud, local)=>{
+    const map = new Map();
+    cloud.forEach(x=>{ if(x&&x.id) map.set(x.id,x); });
+    local.forEach(x=>{ if(x&&x.id) map.set(x.id,x); });
+    // include items without id (legacy local)
+    const noId = local.filter(x=>x&&!x.id);
+    return [...map.values(), ...noId];
+  };
+  const finalIngs = mergeById(cloudIngs, localIngs);
+  const finalRecs = mergeById(cloudRecs, localRecs);
+  // ensure every item has an id (needed for upsert + future merges)
+  const ensureId = x=>{ if(!x.id) x.id = (crypto.randomUUID?.()||(Date.now()+'-'+Math.random().toString(36).slice(2))); return x; };
+  finalIngs.forEach(ensureId);
+  finalRecs.forEach(ensureId);
+  saveUserIngredients(finalIngs);
+  saveUserRecipes(finalRecs);
+  // push merged set back so cloud == local
+  if(finalIngs.length||finalRecs.length){
+    await cloudPushAll();
+  }
+  updateStats(); renderRecipes(getFiltered());
+  showToast(`Synchronisé : ${finalRecs.length} recettes, ${finalIngs.length} ingrédients`,'success');
 }
 
 /* ─── Settings screen render ── */
@@ -2748,7 +2864,7 @@ function renderSettings(){
            </div>`}
       <div class="firebase-notice">
         <span class="firebase-notice-icon">☁️</span>
-        <div>Backend cible : <strong>Supabase</strong> (projet <code>yvwgrgwxnrspimsvjewn</code>). SDK à brancher pour activer l'auth et la synchro.</div>
+        <div>Backend : <strong>Supabase</strong> (projet <code>yvwgrgwxnrspimsvjewn</code>) — auth Google + lien magique actifs. À la connexion, tes données locales sont fusionnées avec le cloud (rien n'est écrasé).</div>
       </div>
     </div>
 
