@@ -363,8 +363,8 @@ input,select,textarea{font:inherit;color:inherit}
       <h3 data-i18n="settings.account">Compte</h3>
       <div class="setting-row">
         <div>
-          <div class="setting-label" data-i18n="settings.notLogged">Non connecté</div>
-          <div class="setting-sub" data-i18n="settings.accountSub">Synchro multi-appareils (bientôt)</div>
+          <div class="setting-label" id="authLabel" data-i18n="settings.notLogged">Non connecté</div>
+          <div class="setting-sub" id="authSub" data-i18n="settings.accountSub">Synchro multi-appareils (bientôt)</div>
         </div>
         <button class="btn btn-ghost btn-sm" id="btnLogin" data-i18n="settings.login">Se connecter</button>
       </div>
@@ -497,8 +497,99 @@ input,select,textarea{font:inherit;color:inherit}
 
 <div class="toast" id="toast"></div>
 
+<script src="supabase.min.js"></script>
 <script>
 const LS_KEY = 'mixtura_v3';
+/* ── Supabase ── */
+const SUPABASE_URL  = 'https://yvwgrgwxnrspimsvjewn.supabase.co';
+const SUPABASE_KEY  = 'sb_publishable_Ea7j_qfa3V67wM7h01uOEg_gaFFdIKf';
+let sb = null, sbUser = null, sbSyncTimer = null;
+function initSupabase(){
+  if(typeof window.supabase==='undefined'||SUPABASE_KEY.startsWith('REMPLACE')) return;
+  sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  sb.auth.onAuthStateChange(async(event,session)=>{
+    sbUser = session?.user||null;
+    updateAuthUI();
+    if(sbUser && (event==='SIGNED_IN'||event==='INITIAL_SESSION')) await sbPull();
+  });
+}
+function updateAuthUI(){
+  const lbl=document.getElementById('authLabel'),sub=document.getElementById('authSub'),btn=document.getElementById('btnLogin');
+  if(!lbl) return;
+  if(sbUser){
+    lbl.textContent=sbUser.email; sub.textContent='☁️ Données synchronisées';
+    btn.textContent='Se déconnecter'; btn.dataset.action='logout';
+  } else {
+    lbl.textContent=t('settings.notLogged'); sub.textContent=t('settings.accountSub');
+    btn.textContent=t('settings.login'); btn.dataset.action='login';
+  }
+}
+async function sbPull(){
+  if(!sb||!sbUser) return;
+  try{
+    const [ir,rr]=await Promise.all([
+      sb.from('ingredients').select('data').eq('user_id',sbUser.id),
+      sb.from('recipes').select('data').eq('user_id',sbUser.id)
+    ]);
+    if(ir.data?.length) state.ingredients=ir.data.map(r=>r.data);
+    if(rr.data?.length) state.cocktails=rr.data.map(r=>r.data);
+    localStorage.setItem(LS_KEY, JSON.stringify(state));
+    if(currentScreen==='Ingredients') renderIngredients();
+    if(currentScreen==='Cocktails') renderCocktails();
+    toast('☁️ Données chargées depuis le cloud');
+  }catch(e){console.error('sbPull',e);}
+}
+async function sbPush(){
+  if(!sb||!sbUser) return;
+  try{
+    await Promise.all([
+      sb.from('ingredients').delete().eq('user_id',sbUser.id),
+      sb.from('recipes').delete().eq('user_id',sbUser.id)
+    ]);
+    const ir=state.ingredients.map(d=>({user_id:sbUser.id,data:d}));
+    const rr=state.cocktails.map(d=>({user_id:sbUser.id,data:d}));
+    await Promise.all([
+      ir.length?sb.from('ingredients').insert(ir):Promise.resolve(),
+      rr.length?sb.from('recipes').insert(rr):Promise.resolve()
+    ]);
+  }catch(e){console.error('sbPush',e);}
+}
+function sbDebouncedPush(){
+  clearTimeout(sbSyncTimer);
+  sbSyncTimer=setTimeout(sbPush, 1500);
+}
+function openLoginModal(){
+  const m=document.getElementById('modal');
+  document.getElementById('modalTitle').textContent='Connexion';
+  document.getElementById('modalContent').innerHTML=`
+    <p style="color:var(--text-2);font-size:14px;margin-bottom:16px">Entrez votre email pour recevoir un code à 6 chiffres.</p>
+    <div class="field"><label>Email</label><input id="loginEmail" type="email" placeholder="vous@example.com" autofocus></div>
+    <div id="otpStep" style="display:none">
+      <div class="field" style="margin-top:10px"><label>Code reçu par email</label><input id="loginOtp" type="text" inputmode="numeric" maxlength="6" placeholder="123456"></div>
+    </div>
+    <div class="form-actions"><button class="btn btn-primary btn-block" id="btnLoginAction">Envoyer le code ✉️</button></div>`;
+  let otpSent = false;
+  document.getElementById('btnLoginAction').addEventListener('click', async()=>{
+    const email=document.getElementById('loginEmail').value.trim();
+    if(!email){toast('Email requis');return;}
+    if(!otpSent){
+      const{error}=await sb.auth.signInWithOtp({email, options:{shouldCreateUser:true}});
+      if(error){toast('Erreur: '+error.message);return;}
+      otpSent=true;
+      document.getElementById('otpStep').style.display='block';
+      document.getElementById('loginEmail').readOnly=true;
+      document.getElementById('btnLoginAction').textContent='Vérifier le code ✓';
+      toast('✉️ Code envoyé ! Vérifiez votre email.');
+    } else {
+      const token=document.getElementById('loginOtp').value.trim();
+      if(!token){toast('Code requis');return;}
+      const{error}=await sb.auth.verifyOtp({email, token, type:'email'});
+      if(error){toast('Code invalide: '+error.message);return;}
+      closeModal();
+    }
+  });
+  m.classList.add('show');
+}
 const BUILD = '2026-04-19';
 document.getElementById('buildDate').textContent = BUILD;
 
@@ -633,7 +724,7 @@ function load(){
     return {...structuredClone(DEFAULT_STATE), ...JSON.parse(raw)};
   }catch(e){return structuredClone(DEFAULT_STATE)}
 }
-function save(){localStorage.setItem(LS_KEY, JSON.stringify(state))}
+function save(){localStorage.setItem(LS_KEY,JSON.stringify(state));sbDebouncedPush();}
 
 /* Nav */
 const SCREENS = ['Home','Cocktails','Ingredients','Batch','Settings'];
@@ -1189,12 +1280,16 @@ function openIngredientForm(i){
       </div>
     </div>
     <div id="boughtBlock" style="display:${i.type==='bought'?'block':'none'}">
-      <div class="field-row-3">
-        <div class="field"><label>${t('unit')}</label>
-          <input list="unitsDLForm" id="gUnit" value="${escapeHtml(i.unit||'cl')}" placeholder="${t('unit')}">
-          <datalist id="unitsDLForm">${[...new Set([...UNITS, ...state.ingredients.map(x=>x.unit).filter(Boolean)])].map(u=>`<option value="${escapeHtml(u)}">`).join('')}</datalist>
+      <div class="field-row">
+        <div class="field">
+          <label>${t('format')}</label>
+          <div style="display:flex;gap:6px;align-items:center">
+            <input id="gBottleSize" type="number" step="0.1" value="${i.bottleSize||''}" style="flex:1;min-width:0" placeholder="ex: 70">
+            <select id="gUnit" style="width:76px;background:var(--navy-700);border:1px solid rgba(200,169,110,.12);border-radius:var(--radius-sm);padding:9px 6px;color:var(--text-1);outline:none">
+              ${[...new Set([...UNITS, ...state.ingredients.map(x=>x.unit).filter(Boolean)])].map(u=>`<option value="${escapeHtml(u)}"${(i.unit||'cl')===u?' selected':''}>${escapeHtml(u)}</option>`).join('')}
+            </select>
+          </div>
         </div>
-        <div class="field"><label>${t('format')} <span id="gUnitLabel" style="color:var(--text-3);font-weight:400">(${escapeHtml(i.unit||'cl')})</span></label><input id="gBottleSize" type="number" step="0.1" value="${i.bottleSize||''}"></div>
         <div class="field"><label>${t('price')} (€)</label><input id="gBottlePrice" type="number" step="0.01" value="${i.bottlePrice||''}"></div>
       </div>
       <button type="button" class="btn btn-ghost btn-sm" id="btnScan" style="margin-bottom:10px">📷 ${t('scan.invoice')}</button>
@@ -1246,15 +1341,6 @@ function openIngredientForm(i){
     document.getElementById('boughtBlock').style.display = i.type==='bought'?'block':'none';
     document.getElementById('homemadeBlock').style.display = i.type==='homemade'?'block':'none';
   });
-  const gUnitEl = document.getElementById('gUnit');
-  if(gUnitEl){
-    const updateLbl = ()=>{
-      const lbl = document.getElementById('gUnitLabel');
-      if(lbl) lbl.textContent = '('+(gUnitEl.value||'—')+')';
-    };
-    gUnitEl.addEventListener('input', updateLbl);
-    gUnitEl.addEventListener('change', updateLbl);
-  }
   const scanBtn = document.getElementById('btnScan');
   const fileIn = document.getElementById('invoiceFile');
   if(scanBtn){
@@ -1502,7 +1588,11 @@ document.querySelectorAll('.lang-toggle button').forEach(b=>{
     document.getElementById('screenTitle').textContent = currentScreen==='Home' ? 'MIXTURA' : t(currentScreen.toLowerCase());
   });
 });
-document.getElementById('btnLogin').addEventListener('click', ()=>toast('Connexion bientôt'));
+document.getElementById('btnLogin').addEventListener('click', async()=>{
+  if(!sb){toast('⚠️ Remplace SUPABASE_KEY dans le code pour activer la synchro');return;}
+  if(sbUser){await sb.auth.signOut();sbUser=null;updateAuthUI();toast('Déconnecté');}
+  else openLoginModal();
+});
 document.getElementById('btnReset').addEventListener('click', ()=>{
   if(confirm(t('reset.confirm'))){
     localStorage.removeItem(LS_KEY);
@@ -1602,8 +1692,9 @@ document.getElementById('batchSearch').addEventListener('input', ()=>renderBatch
 
 /* Init */
 applyI18n();
-syncAllMissing(); // auto-ajout ingrédients manquants au démarrage
+syncAllMissing();
 go('Home');
+window.addEventListener('load', initSupabase);
 
 /* SW */
 if('serviceWorker' in navigator){
