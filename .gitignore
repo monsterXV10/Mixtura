@@ -1,0 +1,9 @@
+.~lock.*
+*.bak
+*.bak_*
+.DS_Store
+node_modules/
+index.html.bak_*
+.vercel
+.claude/
+Cahier_des_charges_MIXTURA.docx

@@ -1,2 +1,0 @@
-This is a much longer test content to check if the Write tool correctly expands files past their original size when needed. Line two.
-And line three.

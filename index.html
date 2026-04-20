@@ -423,6 +423,21 @@ input,select,textarea{font:inherit;color:inherit}
         </div>
         <button class="btn btn-ghost btn-sm" id="btnExportAll" data-i18n="settings.export">Exporter</button>
       </div>
+      <div class="setting-row" style="border-top:1px solid rgba(200,169,110,.1);margin-top:8px;padding-top:12px">
+        <div>
+          <div class="setting-label">📊 Exporter Excel</div>
+          <div class="setting-sub">Cocktails + ingrédients (.xlsx)</div>
+        </div>
+        <button class="btn btn-ghost btn-sm" id="btnExportXlsx">Exporter</button>
+      </div>
+      <div class="setting-row">
+        <div>
+          <div class="setting-label">📥 Importer Excel</div>
+          <div class="setting-sub">Format MIXTURA (.xlsx)</div>
+        </div>
+        <button class="btn btn-ghost btn-sm" id="btnImportXlsx">Importer</button>
+        <input type="file" id="fileImportXlsx" accept=".xlsx,.xls" hidden>
+      </div>
       <div class="setting-row">
         <div>
           <div class="setting-label" data-i18n="settings.importAll">Importer tout</div>
@@ -498,6 +513,7 @@ input,select,textarea{font:inherit;color:inherit}
 <div class="toast" id="toast"></div>
 
 <script src="supabase.min.js"></script>
+<script src="xlsx.mini.min.js"></script>
 <script>
 const LS_KEY = 'mixtura_v3';
 /* ── Supabase ── */
@@ -1607,6 +1623,9 @@ document.getElementById('fileImportIng').addEventListener('change', e=>readJson(
   else toast('Format invalide');
 }));
 document.getElementById('btnImportAll').addEventListener('click', ()=>document.getElementById('fileImportAll').click());
+document.getElementById('btnExportXlsx').addEventListener('click', exportXlsx);
+document.getElementById('btnImportXlsx').addEventListener('click', ()=>document.getElementById('fileImportXlsx').click());
+document.getElementById('fileImportXlsx').addEventListener('change', e=>{ importXlsx(e.target.files[0]); e.target.value=''; });
 document.getElementById('fileImportAll').addEventListener('change', e=>readJson(e.target.files[0], data=>{
   if(data && typeof data==='object'){ state = {...state, ...data}; save(); applyI18n(); renderSettings(); toast(t('imported')); }
   else toast('Format invalide');
@@ -1621,6 +1640,131 @@ function readJson(file, cb){
   const r = new FileReader();
   r.onload = ()=>{ try{ cb(JSON.parse(r.result)); }catch(e){ toast('Fichier invalide'); } };
   r.readAsText(file);
+}
+
+/* ── Excel Export ── */
+function exportXlsx(){
+  if(typeof XLSX==='undefined'){toast('SheetJS non chargé');return;}
+  const wb = XLSX.utils.book_new();
+
+  // Feuille Recettes — une ligne par ingrédient
+  const recRows = [];
+  state.cocktails.forEach(c=>{
+    const ings = c.ingredients||[];
+    ings.forEach((ing,idx)=>{
+      recRows.push({
+        'Nom de la recette': idx===0 ? c.name : '',
+        'Catégorie': idx===0 ? (c.family||'') : '',
+        'Verre': idx===0 ? (c.glass||'') : '',
+        'Carte': idx===0 ? (c.menu||'') : '',
+        'Description': idx===0 ? (c.steps||'') : '',
+        'Ingrédient': ing.name||'',
+        'Qté base': ing.qty||'',
+        'Unité': ing.unit||''
+      });
+    });
+    if(!ings.length) recRows.push({'Nom de la recette':c.name,'Catégorie':c.family||'','Verre':c.glass||'','Carte':c.menu||'','Description':c.steps||'','Ingrédient':'','Qté base':'','Unité':''});
+  });
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(recRows), 'Recettes');
+
+  // Feuille Ingrédients
+  const ingRows = state.ingredients.map(i=>({
+    'Nom': i.name||'',
+    'Famille': i.category||'',
+    'Type': i.type||'bought',
+    'Prix achat (€)': i.bottlePrice||0,
+    'Contenant': i.bottleSize||0,
+    'Unité': i.unit||'cl',
+    'Stock': i.stock||0,
+    'Unité stock': i.stockUnit||'',
+    'Seuil mini': i.minStock||0
+  }));
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(ingRows), 'Ingrédients');
+
+  XLSX.writeFile(wb, 'mixtura-export.xlsx');
+  toast('📊 Excel exporté !');
+}
+
+/* ── Excel Import ── */
+function importXlsx(file){
+  if(!file) return;
+  if(typeof XLSX==='undefined'){toast('SheetJS non chargé');return;}
+  const r = new FileReader();
+  r.onload = e=>{
+    try{
+      const wb = XLSX.read(e.target.result, {type:'array'});
+
+      // Import Ingrédients
+      const ingSheet = wb.Sheets['Ingrédients'] || wb.Sheets[wb.SheetNames[1]];
+      if(ingSheet){
+        const rows = XLSX.utils.sheet_to_json(ingSheet);
+        let added=0, updated=0;
+        rows.forEach(row=>{
+          const name = (row['Nom']||row['Name']||'').trim();
+          if(!name) return;
+          const existing = state.ingredients.find(i=>i.name.toLowerCase()===name.toLowerCase());
+          const data = {
+            id: existing?.id||uid(), name,
+            category: row['Famille']||row['Family']||row['Catégorie']||'misc',
+            type: row['Type']==='homemade'?'homemade':'bought',
+            unit: row['Unité']||row['Unit']||'cl',
+            bottleSize: parseFloat(row['Contenant'])||0,
+            bottlePrice: parseFloat(row['Prix achat (€)']||row['Prix achat']||row['Price'])||0,
+            stock: parseFloat(row['Stock'])||0,
+            stockUnit: row['Unité stock']||row['Stock Unit']||'bouteilles',
+            minStock: parseFloat(row['Seuil mini'])||0,
+            recipe:[], steps:''
+          };
+          if(existing){ Object.assign(existing,data); updated++; }
+          else{ state.ingredients.push(data); added++; }
+        });
+        toast(`📥 Ingrédients: +${added} ajoutés, ${updated} mis à jour`);
+      }
+
+      // Import Recettes
+      const recSheet = wb.Sheets['Recettes'] || wb.Sheets[wb.SheetNames[0]];
+      if(recSheet){
+        const rows = XLSX.utils.sheet_to_json(recSheet);
+        let currentCocktail=null, addedC=0;
+        rows.forEach(row=>{
+          const name = (row['Nom de la recette']||row['Name']||'').trim();
+          if(name){
+            if(currentCocktail) {
+              const ex = state.cocktails.find(c=>c.name.toLowerCase()===currentCocktail.name.toLowerCase());
+              if(!ex){ state.cocktails.push(currentCocktail); addedC++; }
+            }
+            currentCocktail = {
+              id:uid(), name,
+              family: row['Catégorie']||row['Category']||'',
+              glass: row['Verre']||row['Glass']||'',
+              menu: row['Carte']||row['Menu']||'',
+              alcohol: '',
+              steps: row['Description']||row['Steps']||'',
+              ingredients:[]
+            };
+          }
+          const ing = (row['Ingrédient']||row['Ingredient']||'').trim();
+          if(ing && currentCocktail){
+            currentCocktail.ingredients.push({
+              name:ing,
+              qty: parseFloat(row['Qté base']||row['Qty']||0)||0,
+              unit: row['Unité']||row['Unit']||'cl'
+            });
+          }
+        });
+        if(currentCocktail){
+          const ex = state.cocktails.find(c=>c.name.toLowerCase()===currentCocktail.name.toLowerCase());
+          if(!ex){ state.cocktails.push(currentCocktail); addedC++; }
+        }
+        if(addedC) toast(`🍹 Recettes: +${addedC} ajoutées`);
+      }
+
+      syncAllMissing();
+      save();
+      renderSettings();
+    }catch(err){ toast('Erreur import: '+err.message); console.error(err); }
+  };
+  r.readAsArrayBuffer(file);
 }
 
 /* Modal */
