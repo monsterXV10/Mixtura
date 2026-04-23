@@ -25,12 +25,15 @@
   --shadow-gold:0 0 20px rgba(200,169,110,.2);
   --tr:.2s cubic-bezier(.4,0,.2,1);
 }
-*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;
+  user-select:none;-webkit-user-select:none}
 html,body{height:100%;background:var(--navy-900);color:var(--text-1);
   font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Inter',sans-serif;
   font-size:15px;line-height:1.5;overflow:hidden}
 button{cursor:pointer;border:none;background:none;font:inherit;color:inherit}
-input,select,textarea{font:inherit;color:inherit}
+input,select,textarea{font:inherit;color:inherit;user-select:text;-webkit-user-select:text}
+/* Autoriser la sélection dans les zones de lecture */
+.item-name,.item-meta,.cocktail-detail-text{user-select:text;-webkit-user-select:text}
 ::-webkit-scrollbar{width:6px;height:6px}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:var(--navy-600);border-radius:3px}
@@ -523,10 +526,17 @@ let sb = null, sbUser = null, sbSyncTimer = null;
 function initSupabase(){
   if(typeof window.supabase==='undefined'||SUPABASE_KEY.startsWith('REMPLACE')) return;
   sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  let lastUserId = null;
   sb.auth.onAuthStateChange(async(event,session)=>{
     sbUser = session?.user||null;
     updateAuthUI();
-    if(sbUser && (event==='SIGNED_IN'||event==='INITIAL_SESSION')) await sbPull();
+    // Déclencher sbPull uniquement lors d'une vraie nouvelle connexion
+    // (pas sur TOKEN_REFRESHED ou si même utilisateur déjà chargé)
+    if(sbUser && (event==='SIGNED_IN'||event==='INITIAL_SESSION') && sbUser.id !== lastUserId){
+      lastUserId = sbUser.id;
+      await sbPull();
+    }
+    if(event==='SIGNED_OUT') lastUserId = null;
   });
 }
 function updateAuthUI(){
@@ -1661,8 +1671,14 @@ document.querySelectorAll('.lang-toggle button').forEach(b=>{
 });
 document.getElementById('btnLogin').addEventListener('click', async()=>{
   if(!sb){toast('⚠️ Remplace SUPABASE_KEY dans le code pour activer la synchro');return;}
-  if(sbUser){await sb.auth.signOut();sbUser=null;updateAuthUI();toast('Déconnecté');}
-  else openLoginModal();
+  if(sbUser){
+    await sb.auth.signOut();
+    sbUser=null;
+    updateAuthUI();
+    // Nettoyer les tokens OAuth de l'URL
+    if(window.location.hash) history.replaceState(null,'',window.location.pathname);
+    toast('👋 Déconnecté');
+  } else openLoginModal();
 });
 document.getElementById('btnReset').addEventListener('click', ()=>{
   if(confirm(t('reset.confirm'))){
