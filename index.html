@@ -1670,7 +1670,7 @@ function renderBatches(){
     el.addEventListener('click', e=>{
       const act = e.target.closest('[data-act]')?.dataset.act;
       if(act==='edit'){ openBatchForm(b); return; }
-      if(act==='del'){ if(confirm(t('confirm.delete'))){ state.batches=state.batches.filter(x=>x.id!==b.id); save(); renderBatches(); toast(t('deleted')); } return; }
+      if(act==='del'){ state.batches=state.batches.filter(x=>x.id!==b.id); save(); renderBatches(); toast(t('deleted')); return; }
       openBatchDetail(b);
     });
     listEl.appendChild(el);
