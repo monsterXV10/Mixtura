@@ -532,19 +532,22 @@ const SUPABASE_KEY  = 'sb_publishable_Ea7j_qfa3V67wM7h01uOEg_gaFFdIKf';
 let sb = null, sbUser = null, sbSyncTimer = null;
 function initSupabase(){
   if(typeof window.supabase==='undefined'||SUPABASE_KEY.startsWith('REMPLACE')) return;
-  sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  let lastUserId = null;
-  sb.auth.onAuthStateChange(async(event,session)=>{
-    sbUser = session?.user||null;
-    updateAuthUI();
-    // Déclencher sbPull uniquement lors d'une vraie nouvelle connexion
-    // (pas sur TOKEN_REFRESHED ou si même utilisateur déjà chargé)
-    if(sbUser && (event==='SIGNED_IN'||event==='INITIAL_SESSION') && sbUser.id !== lastUserId){
-      lastUserId = sbUser.id;
-      await sbPull();
-    }
-    if(event==='SIGNED_OUT') lastUserId = null;
-  });
+  try{
+    sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    let lastUserId = null;
+    sb.auth.onAuthStateChange(async(event,session)=>{
+      sbUser = session?.user||null;
+      updateAuthUI();
+      if(sbUser && (event==='SIGNED_IN'||event==='INITIAL_SESSION') && sbUser.id !== lastUserId){
+        lastUserId = sbUser.id;
+        await sbPull();
+      }
+      if(event==='SIGNED_OUT') lastUserId = null;
+    });
+  }catch(e){
+    console.error('Supabase init error:', e);
+    sb = null;
+  }
 }
 function updateAuthUI(){
   const lbl=document.getElementById('authLabel'),sub=document.getElementById('authSub'),btn=document.getElementById('btnLogin');
