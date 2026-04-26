@@ -284,6 +284,7 @@ input,select,textarea{font:inherit;color:inherit;user-select:text;-webkit-user-s
     <div class="home-logo">
       <div class="lname">MIXTURA</div>
       <div class="lsub" data-i18n="tagline">Cocktail Manager</div>
+      <div id="homeBuild" style="font-size:10px;color:var(--text-3);letter-spacing:.1em;margin-top:4px"></div>
     </div>
     <div class="home-grid">
       <button class="tile" data-go="cocktails">
@@ -482,8 +483,8 @@ input,select,textarea{font:inherit;color:inherit;user-select:text;-webkit-user-s
       </div>
     </div>
 
-    <div style="text-align:center;font-size:11px;color:var(--text-3);padding:20px 0">
-      MIXTURA v3 · <span id="buildDate"></span>
+    <div style="text-align:center;font-size:12px;color:var(--text-3);padding:20px 0 32px">
+      MIXTURA · <span id="buildDate"></span>
     </div>
   </div>
 
@@ -593,19 +594,28 @@ async function sbPull(){
   }catch(e){console.error('sbPull',e); toast('❌ Erreur de synchronisation');}
 }
 async function sbPush(){
-  if(!sb||!sbUser) return;
+  if(!sb||!sbUser){ console.warn('sbPush: non authentifié, sync ignoré'); return; }
   try{
-    await Promise.all([
+    const [delIng, delRec] = await Promise.all([
       sb.from('ingredients').delete().eq('user_id',sbUser.id),
       sb.from('recipes').delete().eq('user_id',sbUser.id)
     ]);
+    if(delIng.error) throw delIng.error;
+    if(delRec.error) throw delRec.error;
     const ir=state.ingredients.map(d=>({user_id:sbUser.id,data:d}));
     const rr=state.cocktails.map(d=>({user_id:sbUser.id,data:d}));
-    await Promise.all([
-      ir.length?sb.from('ingredients').insert(ir):Promise.resolve(),
-      rr.length?sb.from('recipes').insert(rr):Promise.resolve()
+    const [insIng, insRec] = await Promise.all([
+      ir.length?sb.from('ingredients').insert(ir):Promise.resolve({error:null}),
+      rr.length?sb.from('recipes').insert(rr):Promise.resolve({error:null})
     ]);
-  }catch(e){console.error('sbPush',e);}
+    if(insIng?.error) throw insIng.error;
+    if(insRec?.error) throw insRec.error;
+    const sub = document.getElementById('authSub');
+    if(sub) sub.textContent = '☁️ Sync · ' + new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+  }catch(e){
+    console.error('sbPush',e);
+    toast('❌ Erreur sync cloud : ' + (e.message||JSON.stringify(e)));
+  }
 }
 function sbDebouncedPush(){
   clearTimeout(sbSyncTimer);
@@ -667,8 +677,9 @@ function openLoginModal(mode='login'){
   renderLoginForm(mode);
   m.classList.add('show');
 }
-const BUILD = '2026-04-19';
-document.getElementById('buildDate').textContent = BUILD;
+const BUILD = '2026-04-26';
+document.getElementById('buildDate').textContent = 'build ' + BUILD;
+document.getElementById('homeBuild').textContent = BUILD;
 
 /* i18n */
 const I18N = {
