@@ -1546,19 +1546,30 @@ function renderIngredientItem(i){
 function openIngredientForm(i){
   const isNew = !i;
   if(isNew) i = {id:uid(), name:'', category:'spirits', type:'bought', unit:'cl',
-    bottleSize:70, bottlePrice:0, stock:0, stockUnit:'bouteilles', minStock:0, recipe:[], steps:'', outputs:[]};
-  else i = structuredClone(i);
+    bottleSize:70, bottlePrice:0, stock:0, stockUnit:'bouteilles', minStock:0,
+    recipe:[], steps:'', mainOutput:{name:'',qtyMin:null,qtyMax:null,unit:'cl'}, byproducts:[]};
+  else {
+    i = structuredClone(i);
+    // Compat ascendante : ancien champ outputs → nouveau format
+    if(!i.mainOutput && i.outputs?.length){
+      const [first,...rest]=i.outputs;
+      i.mainOutput={name:first.name,qtyMin:first.qty,qtyMax:null,unit:first.unit};
+      i.byproducts=rest.map(o=>({name:o.name,qtyMin:o.qty,qtyMax:null,unit:o.unit}));
+    }
+    if(!i.mainOutput) i.mainOutput={name:'',qtyMin:null,qtyMax:null,unit:'cl'};
+    if(!i.byproducts) i.byproducts=[];
+  }
   const m = document.getElementById('modal');
   document.getElementById('modalTitle').textContent = (isNew?t('add'):t('edit'))+' · '+t('ingredient');
   document.getElementById('modalContent').innerHTML = `
     ${i.incomplete?`<div style="background:rgba(232,184,75,.12);border:1px solid rgba(232,184,75,.4);color:var(--warn);padding:10px 14px;border-radius:var(--radius-sm);margin-bottom:14px;font-size:13px">⚠️ ${t('incomplete.tooltip')}</div>`:''}
-    <div class="field"><label>${t('name')}</label><input id="gName" value="${escapeHtml(i.name)}"></div>
+    <div class="field"><label>Nom de la recette</label><input id="gName" value="${escapeHtml(i.name)}"></div>
     <div class="field-row">
       <div class="field"><label>${t('category')}</label>
         <input list="catDL" id="gCat" value="${escapeHtml(i.category||'spirits')}" placeholder="${t('category')}">
         <datalist id="catDL">${[...new Set([...ING_CATEGORIES, ...state.ingredients.map(x=>x.category).filter(Boolean)])].map(c=>`<option value="${escapeHtml(c)}">`).join('')}</datalist>
       </div>
-      <div class="field"><label>${t('type')}</label>
+      <div class="field"><label>Type</label>
         <select id="gType">
           <option value="bought" ${i.type==='bought'?'selected':''}>${t('bought')}</option>
           <option value="homemade" ${i.type==='homemade'?'selected':''}>${t('homemade')}</option>
@@ -1582,15 +1593,18 @@ function openIngredientForm(i){
       <input type="file" id="invoiceFile" accept="image/*" capture="environment" hidden>
     </div>
     <div id="homemadeBlock" style="display:${i.type==='homemade'?'block':'none'}">
-      <div class="section-title">${t('recipe')}</div>
-      <div style="font-size:12px;color:var(--text-3);margin-bottom:8px">Pour les ingrédients relatifs (ex: lait de clarification), utilise <strong style="color:var(--gold)">%</strong> comme unité.</div>
+      <div class="section-title">La recette</div>
+      <div class="field"><label>Description</label><textarea id="gSteps" placeholder="Étapes de préparation…">${escapeHtml(i.steps||'')}</textarea></div>
+      <div style="font-size:12px;color:var(--text-3);margin:10px 0 6px">Liste d'ingrédients · utilise <strong style="color:var(--gold)">%</strong> pour les doses relatives (ex: lait de clarification)</div>
       <div id="recRows"></div>
-      <button type="button" class="btn btn-ghost btn-sm" id="btnAddRec" style="margin-top:6px">+ ${t('ingredient')}</button>
-      <div class="field" style="margin-top:12px"><label>${t('steps')}</label><textarea id="gSteps">${escapeHtml(i.steps||'')}</textarea></div>
-      <div class="section-title" style="margin-top:16px">🎁 Produits obtenus</div>
-      <div style="font-size:12px;color:var(--text-3);margin-bottom:8px">Quantités produites par ${escapeHtml(i.stockUnit||'unité')}. Le rendement tient compte des pertes (filtration, etc.)</div>
-      <div id="outRows"></div>
-      <button type="button" class="btn btn-ghost btn-sm" id="btnAddOut" style="margin-top:6px">+ Ajouter un produit</button>
+      <button type="button" class="btn btn-ghost btn-sm" id="btnAddRec" style="margin-top:6px">+ Ingrédient</button>
+      <div class="section-title" style="margin-top:18px">🎯 Résultat de la recette</div>
+      <div style="font-size:12px;color:var(--text-3);margin-bottom:8px">Produit principal obtenu. La quantité peut être une fourchette (ex: 3 à 4 cl selon le citron).</div>
+      <div id="mainOutRow"></div>
+      <div class="section-title" style="margin-top:16px">🎁 Produits en plus</div>
+      <div style="font-size:12px;color:var(--text-3);margin-bottom:8px">Sous-produits obtenus en parallèle (ex: zeste, pulpe…)</div>
+      <div id="byproductRows"></div>
+      <button type="button" class="btn btn-ghost btn-sm" id="btnAddByproduct" style="margin-top:6px">+ Ajouter un produit en plus</button>
       <datalist id="ingListDL">${state.ingredients.map(x=>`<option value="${escapeHtml(x.name)}">`).join('')}</datalist>
       <datalist id="unitsDL">${[...UNITS,'%'].map(u=>`<option value="${u}">`).join('')}</datalist>
     </div>
@@ -1603,95 +1617,110 @@ function openIngredientForm(i){
     <div class="form-actions">
       <button class="btn btn-primary btn-block" id="btnSaveI">${t('save')}</button>
     </div>`;
+
+  /* ── Ingrédients de la recette ── */
   const recRows = document.getElementById('recRows');
   function renderRec(){
     recRows.innerHTML='';
-    i.recipe = i.recipe || [];
+    i.recipe = i.recipe||[];
     i.recipe.forEach((r,idx)=>{
-      const row = document.createElement('div'); row.className='ing-row';
-      row.innerHTML = `
-        <input list="ingListDL" placeholder="${t('name')}" value="${escapeHtml(r.name||'')}" data-k="name">
-        <input type="number" step="0.1" placeholder="${t('quantity')}" value="${r.qty||''}" data-k="qty">
-        <input list="unitsDL" placeholder="${t('unit')}" value="${escapeHtml(r.unit||'')}" data-k="unit">
+      const row=document.createElement('div'); row.className='ing-row';
+      row.innerHTML=`
+        <input list="ingListDL" placeholder="Ingrédient" value="${escapeHtml(r.name||'')}" data-k="name">
+        <input type="number" step="0.01" placeholder="Qté" value="${r.qty||''}" data-k="qty">
+        <input list="unitsDL" placeholder="cl/g/%" value="${escapeHtml(r.unit||'')}" data-k="unit" style="width:56px">
         <button type="button" class="rm">✕</button>`;
-      row.querySelectorAll('input').forEach(inp=>{
-        inp.addEventListener('input', ()=>{
-          i.recipe[idx][inp.dataset.k] = inp.dataset.k==='qty' ? parseFloat(inp.value)||0 : inp.value;
-        });
-      });
-      row.querySelector('.rm').addEventListener('click', ()=>{i.recipe.splice(idx,1);renderRec();});
+      row.querySelectorAll('input').forEach(inp=>inp.addEventListener('input',()=>{
+        i.recipe[idx][inp.dataset.k]=inp.dataset.k==='qty'?parseFloat(inp.value)||0:inp.value;
+      }));
+      row.querySelector('.rm').addEventListener('click',()=>{i.recipe.splice(idx,1);renderRec();});
       recRows.appendChild(row);
     });
   }
   renderRec();
-  document.getElementById('btnAddRec')?.addEventListener('click', ()=>{
-    i.recipe.push({name:'',qty:0,unit:''}); renderRec();
-  });
-  const outRows = document.getElementById('outRows');
-  function renderOutputs(){
-    if(!outRows) return;
-    outRows.innerHTML='';
-    i.outputs = i.outputs||[];
-    i.outputs.forEach((o,idx)=>{
-      const row=document.createElement('div'); row.className='ing-row';
-      row.innerHTML=`
-        <input list="ingListDL" placeholder="Produit obtenu" value="${escapeHtml(o.name||'')}" data-k="name" style="flex:2">
-        <input type="number" step="0.01" placeholder="Qté" value="${o.qty||''}" data-k="qty">
-        <input list="unitsDL" placeholder="cl/g…" value="${escapeHtml(o.unit||'cl')}" data-k="unit" style="width:52px">
-        <input type="number" min="1" max="100" placeholder="%" value="${o.yieldPct!=null?o.yieldPct:100}" data-k="yieldPct" style="width:52px" title="Rendement % (pertes à la filtration, etc.)">
-        <button type="button" class="rm">✕</button>`;
-      row.querySelectorAll('input').forEach(inp=>{
-        inp.addEventListener('input',()=>{
-          i.outputs[idx][inp.dataset.k]=inp.dataset.k==='name'||inp.dataset.k==='unit'?inp.value:parseFloat(inp.value)||0;
-        });
-      });
-      row.querySelector('.rm').addEventListener('click',()=>{i.outputs.splice(idx,1);renderOutputs();});
-      outRows.appendChild(row);
+  document.getElementById('btnAddRec')?.addEventListener('click',()=>{i.recipe.push({name:'',qty:0,unit:''});renderRec();});
+
+  /* ── Résultat principal ── */
+  function makeResultRow(obj, container, removable){
+    container.innerHTML='';
+    const row=document.createElement('div');
+    row.style.cssText='display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:6px';
+    row.innerHTML=`
+      <input list="ingListDL" placeholder="Nom du produit" value="${escapeHtml(obj.name||'')}" data-k="name" style="flex:2;min-width:120px">
+      <input type="number" step="0.01" placeholder="min" value="${obj.qtyMin!=null?obj.qtyMin:''}" data-k="qtyMin" style="width:58px" title="Quantité minimale">
+      <span style="color:var(--text-3);font-size:12px;white-space:nowrap">à</span>
+      <input type="number" step="0.01" placeholder="max" value="${obj.qtyMax!=null?obj.qtyMax:''}" data-k="qtyMax" style="width:58px" title="Quantité maximale (optionnel)">
+      <input list="unitsDL" placeholder="cl" value="${escapeHtml(obj.unit||'cl')}" data-k="unit" style="width:52px">
+      ${removable?'<button type="button" class="rm">✕</button>':''}`;
+    row.querySelectorAll('input').forEach(inp=>inp.addEventListener('input',()=>{
+      const k=inp.dataset.k;
+      obj[k]=(k==='name'||k==='unit')?inp.value:(inp.value===''?null:parseFloat(inp.value)||0);
+    }));
+    container.appendChild(row);
+    return row;
+  }
+  makeResultRow(i.mainOutput, document.getElementById('mainOutRow'), false);
+
+  /* ── Produits en plus ── */
+  const byproductRows=document.getElementById('byproductRows');
+  function renderByproducts(){
+    byproductRows.innerHTML='';
+    i.byproducts=i.byproducts||[];
+    i.byproducts.forEach((b,idx)=>{
+      const wrapper=document.createElement('div');
+      makeResultRow(b, wrapper, false);
+      const rmBtn=document.createElement('button');
+      rmBtn.type='button'; rmBtn.className='rm'; rmBtn.textContent='✕';
+      rmBtn.style.cssText='margin-left:auto;margin-bottom:6px';
+      rmBtn.addEventListener('click',()=>{i.byproducts.splice(idx,1);renderByproducts();});
+      wrapper.querySelector('div').appendChild(rmBtn);
+      byproductRows.appendChild(wrapper);
     });
   }
-  renderOutputs();
-  document.getElementById('btnAddOut')?.addEventListener('click',()=>{
-    i.outputs.push({name:'',qty:0,unit:'cl',yieldPct:100}); renderOutputs();
+  renderByproducts();
+  document.getElementById('btnAddByproduct')?.addEventListener('click',()=>{
+    i.byproducts.push({name:'',qtyMin:null,qtyMax:null,unit:'cl'}); renderByproducts();
   });
+
   document.getElementById('gType').addEventListener('change', e=>{
-    i.type = e.target.value;
-    document.getElementById('boughtBlock').style.display = i.type==='bought'?'block':'none';
-    document.getElementById('homemadeBlock').style.display = i.type==='homemade'?'block':'none';
+    i.type=e.target.value;
+    document.getElementById('boughtBlock').style.display=i.type==='bought'?'block':'none';
+    document.getElementById('homemadeBlock').style.display=i.type==='homemade'?'block':'none';
   });
-  const scanBtn = document.getElementById('btnScan');
-  const fileIn = document.getElementById('invoiceFile');
+  const scanBtn=document.getElementById('btnScan');
+  const fileIn=document.getElementById('invoiceFile');
   if(scanBtn){
-    scanBtn.addEventListener('click', ()=>fileIn.click());
-    fileIn.addEventListener('change', async ()=>{
-      const f = fileIn.files[0]; if(!f) return;
-      closeModal(); // ferme le form d'ingrédient, le résultat du scan ouvrira une nouvelle modale
+    scanBtn.addEventListener('click',()=>fileIn.click());
+    fileIn.addEventListener('change',async()=>{
+      const f=fileIn.files[0]; if(!f) return;
+      closeModal();
       await runScan(f);
       fileIn.value='';
     });
   }
-  document.getElementById('btnSaveI').addEventListener('click', ()=>{
-    i.name = document.getElementById('gName').value.trim();
-    i.category = document.getElementById('gCat').value;
-    i.type = document.getElementById('gType').value;
+  document.getElementById('btnSaveI').addEventListener('click',()=>{
+    i.name=document.getElementById('gName').value.trim();
+    i.category=document.getElementById('gCat').value;
+    i.type=document.getElementById('gType').value;
     if(i.type==='bought'){
-      i.unit = document.getElementById('gUnit').value;
-      i.bottleSize = parseFloat(document.getElementById('gBottleSize').value)||0;
-      i.bottlePrice = parseFloat(document.getElementById('gBottlePrice').value)||0;
+      i.unit=document.getElementById('gUnit').value;
+      i.bottleSize=parseFloat(document.getElementById('gBottleSize').value)||0;
+      i.bottlePrice=parseFloat(document.getElementById('gBottlePrice').value)||0;
     } else {
-      i.steps = document.getElementById('gSteps').value;
-      i.outputs = (i.outputs||[]).filter(o=>o.name.trim());
+      i.steps=document.getElementById('gSteps').value;
+      if(i.mainOutput&&!i.mainOutput.name.trim()) i.mainOutput=null;
+      i.byproducts=(i.byproducts||[]).filter(b=>b.name.trim());
     }
-    i.stock = parseFloat(document.getElementById('gStock').value)||0;
-    i.stockUnit = document.getElementById('gStockUnit').value;
-    i.minStock = parseFloat(document.getElementById('gMinStock').value)||0;
-    if(!i.name){ toast('Nom requis'); return; }
-    // Si user édite un ingrédient "incomplete", ne plus l'être dès qu'il a rempli des infos
-    if(i.incomplete && (i.bottleSize>0 || i.bottlePrice>0 || i.stock>0 || (i.recipe&&i.recipe.length))) i.incomplete = false;
+    i.stock=parseFloat(document.getElementById('gStock').value)||0;
+    i.stockUnit=document.getElementById('gStockUnit').value;
+    i.minStock=parseFloat(document.getElementById('gMinStock').value)||0;
+    if(!i.name){toast('Nom requis');return;}
+    if(i.incomplete&&(i.bottleSize>0||i.bottlePrice>0||i.stock>0||(i.recipe&&i.recipe.length))) i.incomplete=false;
     if(isNew) state.ingredients.push(i);
-    else state.ingredients = state.ingredients.map(x=>x.id===i.id?i:x);
-    const added = i.type==='homemade' ? syncMissingIngredients(i.recipe||[]) : 0;
+    else state.ingredients=state.ingredients.map(x=>x.id===i.id?i:x);
+    const added=i.type==='homemade'?syncMissingIngredients(i.recipe||[]):0;
     save(); closeModal(); renderIngredients();
-    toast(added>0 ? `${t('saved')} · +${added} ${t('ingredients.plural').toLowerCase()}` : t('saved'));
+    toast(added>0?`${t('saved')} · +${added} ${t('ingredients.plural').toLowerCase()}`:t('saved'));
   });
   m.classList.add('show');
 }
@@ -1707,26 +1736,35 @@ function openIngredientDetail(i){
     <div class="item"><div class="item-body"><div class="item-name ${stockClass}">${i.stock||0} ${escapeHtml(i.stockUnit||'')}</div>
     ${i.minStock?`<div class="item-meta">${t('stock.min')}: ${i.minStock}</div>`:''}</div></div>
     ${i.type==='homemade' && i.recipe?.length ? `
-      <div class="section-title">${t('recipe')}</div>
+      <div class="section-title">La recette</div>
+      ${i.steps?`<div style="background:var(--navy-700);padding:14px;border-radius:var(--radius);white-space:pre-wrap;margin-bottom:10px;font-size:13px">${escapeHtml(i.steps)}</div>`:''}
       <div class="list">${i.recipe.map(r=>`<div class="item"><div class="item-body"><div class="item-name">${escapeHtml(r.name)}</div></div><div style="color:var(--gold);font-weight:600">${r.unit==='%'?`${r.qty}% du vol.`:`${r.qty||''} ${escapeHtml(r.unit||'')}`}</div></div>`).join('')}</div>
-      ${i.steps?`<div class="section-title">${t('steps')}</div><div style="background:var(--navy-700);padding:14px;border-radius:var(--radius);white-space:pre-wrap">${escapeHtml(i.steps)}</div>`:''}
     `:''}
-    ${(i.outputs||[]).length ? `
-      <div class="section-title" style="margin-top:14px">🎁 Produits obtenus <span style="color:var(--text-3);font-weight:400;font-size:11px">/ ${escapeHtml(i.stockUnit||'unité')}</span></div>
-      <div class="list">${i.outputs.map(o=>`<div class="item">
-        <div class="item-body"><div class="item-name">${escapeHtml(o.name)}</div>${(o.yieldPct!=null&&o.yieldPct<100)?`<div class="item-meta">Rendement : ${o.yieldPct}%</div>`:''}</div>
-        <div style="color:var(--gold);font-weight:600">${o.qty} ${escapeHtml(o.unit||'')}</div>
-      </div>`).join('')}</div>
-      ${i.stock>0?`
-        <div class="section-title">📦 Stock disponible (${i.stock} ${escapeHtml(i.stockUnit||'')})</div>
-        <div class="list">${i.outputs.map(o=>{
-          const avail=(i.stock*o.qty*((o.yieldPct!=null?o.yieldPct:100)/100));
-          return `<div class="item">
+    ${(()=>{
+      const fmtQty=(o)=>o.qtyMax!=null?`${o.qtyMin??''} – ${o.qtyMax}`:`${o.qtyMin??''}`;
+      const calcStock=(o)=>{
+        if(!i.stock||o.qtyMin==null) return '';
+        const lo=(i.stock*(o.qtyMin||0)), hi=o.qtyMax!=null?(i.stock*o.qtyMax):null;
+        const fmt=v=>v%1===0?v:v.toFixed(1);
+        return hi?`${fmt(lo)} – ${fmt(hi)} ${escapeHtml(o.unit||'')}`:` ${fmt(lo)} ${escapeHtml(o.unit||'')}`;
+      };
+      const all=[];
+      if(i.mainOutput?.name) all.push({...i.mainOutput,_main:true});
+      (i.byproducts||[]).filter(b=>b.name).forEach(b=>all.push(b));
+      if(!all.length) return '';
+      return `
+        <div class="section-title" style="margin-top:14px">🎯 Résultats <span style="color:var(--text-3);font-weight:400;font-size:11px">/ ${escapeHtml(i.stockUnit||'unité')}</span></div>
+        <div class="list">${all.map(o=>`<div class="item">
+          <div class="item-body"><div class="item-name">${escapeHtml(o.name)}${o._main?` <span style="font-size:10px;color:var(--gold);opacity:.7">principal</span>`:''}</div></div>
+          <div style="color:var(--gold);font-weight:600">${fmtQty(o)} ${escapeHtml(o.unit||'')}</div>
+        </div>`).join('')}</div>
+        ${i.stock>0?`
+          <div class="section-title">📦 Stock disponible (${i.stock} ${escapeHtml(i.stockUnit||'')})</div>
+          <div class="list">${all.map(o=>`<div class="item">
             <div class="item-body"><div class="item-name">${escapeHtml(o.name)}</div></div>
-            <div style="color:var(--gold);font-weight:700;font-size:16px">${avail%1===0?avail:avail.toFixed(1)} ${escapeHtml(o.unit||'')}</div>
-          </div>`;
-        }).join('')}</div>`:''}
-    `:''}
+            <div style="color:var(--gold);font-weight:700">${calcStock(o)}</div>
+          </div>`).join('')}</div>`:''}`;
+    })()}
     <div class="form-actions">
       <button class="btn btn-ghost" id="btnIEdit">${t('edit')}</button>
       <button class="btn btn-primary btn-block" id="btnIClose">OK</button>
