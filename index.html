@@ -1986,7 +1986,8 @@ document.querySelectorAll('.lang-toggle button').forEach(b=>{
 });
 document.getElementById('btnLogin').addEventListener('click', async()=>{
   if(!sb){toast('⚠️ Remplace SUPABASE_KEY dans le code pour activer la synchro');return;}
-  if(sbUser){
+  const btn = document.getElementById('btnLogin');
+  if(btn.dataset.action==='logout' || sbUser){
     try{ await sb.auth.signOut(); }catch(e){ console.warn('signOut err',e); }
     sbUser=null;
     updateAuthUI();
