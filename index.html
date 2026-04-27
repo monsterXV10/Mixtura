@@ -2008,21 +2008,31 @@ function toCl(qty, unit){
   return qty; // cl ou autre → tel quel
 }
 function renderHomemadeTable(h){
-  // Yield de base = mainOutput.qtyMin converti en cl, sinon somme des ingrédients en cl
   const ing = h.ingredient;
+  // Yield de base en cl (ignorer les ingrédients en %)
   let baseCl;
   if(ing.mainOutput?.qtyMin){
     baseCl = toCl(ing.mainOutput.qtyMin, ing.mainOutput.unit||'cl');
   } else {
-    baseCl = (ing.recipe||[]).reduce((s,r)=>s+toCl(r.qty||0, r.unit||'cl'),0) || 1;
+    baseCl = (ing.recipe||[])
+      .filter(r=>(r.unit||'').trim()!=='%')
+      .reduce((s,r)=>s+toCl(r.qty||0, r.unit||'cl'),0) || 1;
   }
   const requiredCl = toCl(h.required, h.unit);
   const ratio = requiredCl / baseCl;
+  // Nombre de préparations
+  const nbPrep = Math.ceil(ratio);
   return `<table class="batch-table" style="margin-bottom:10px">
-    <thead><tr><th colspan="2">${escapeHtml(ing.name)} · ${h.required.toFixed(2)} ${escapeHtml(h.unit)}</th></tr></thead>
+    <thead><tr><th colspan="2">${escapeHtml(ing.name)} · ${h.required.toFixed(2)} ${escapeHtml(h.unit)} <span style="color:var(--text-3);font-size:11px">(×${ratio.toFixed(1)} prépa.)</span></th></tr></thead>
     <tbody>
-      ${ing.recipe.map(r=>`<tr class="sub-row"><td>${escapeHtml(r.name)}</td><td>${((r.qty||0)*ratio).toFixed(2)} ${escapeHtml(r.unit||'')}</td></tr>`).join('')}
-      ${ing.steps?`<tr class="sub-row"><td colspan="2" style="white-space:pre-wrap">📝 ${escapeHtml(ing.steps)}</td></tr>`:''}
+      ${ing.recipe.map(r=>{
+        const isPercent = (r.unit||'').trim()==='%';
+        const displayQty = isPercent
+          ? `${r.qty}% du vol.` // % = proportion fixe, ne change pas
+          : `${((r.qty||0)*ratio).toFixed(2)} ${escapeHtml(r.unit||'')}`;
+        return `<tr class="sub-row"><td>${escapeHtml(r.name)}</td><td>${displayQty}</td></tr>`;
+      }).join('')}
+      ${ing.steps?`<tr class="sub-row"><td colspan="2" style="white-space:pre-wrap;color:var(--text-3);font-size:12px">📝 ${escapeHtml(ing.steps)}</td></tr>`:''}
     </tbody>
   </table>`;
 }
