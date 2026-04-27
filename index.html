@@ -1986,11 +1986,13 @@ document.querySelectorAll('.lang-toggle button').forEach(b=>{
 });
 document.getElementById('btnLogin').addEventListener('click', async()=>{
   if(!sb){toast('⚠️ Remplace SUPABASE_KEY dans le code pour activer la synchro');return;}
-  if(sbUser){
+  // Vérifie la session courante directement (sbUser peut être null si la page vient de charger)
+  const {data:{session}} = await sb.auth.getSession();
+  const loggedIn = sbUser || session?.user;
+  if(loggedIn){
     await sb.auth.signOut();
     sbUser=null;
     updateAuthUI();
-    // Nettoyer les tokens OAuth de l'URL
     if(window.location.hash) history.replaceState(null,'',window.location.pathname);
     toast('👋 Déconnecté');
   } else openLoginModal();
@@ -2005,10 +2007,18 @@ document.getElementById('btnPromo').addEventListener('click', ()=>{
     toast('❌ Code invalide');
   }
 });
-document.getElementById('btnReset').addEventListener('click', ()=>{
+document.getElementById('btnReset').addEventListener('click', async()=>{
   if(confirm(t('reset.confirm'))){
     localStorage.removeItem(LS_KEY);
-    state = load(); save(); applyI18n(); renderSettings(); toast(t('saved'));
+    state = load(); save(); applyI18n(); renderCocktails(); renderIngredients(); renderBatches(); renderSettings();
+    toast('🗑️ Données locales effacées');
+    // Si connecté, re-télécharger depuis Supabase
+    if(sbUser && sb){
+      toast('☁️ Récupération depuis Supabase…');
+      await sbPull();
+      renderCocktails(); renderIngredients(); renderBatches(); renderSettings();
+      toast('✅ Données restaurées depuis le cloud');
+    }
   }
 });
 document.getElementById('btnExportIng').addEventListener('click', ()=>download('mixtura-ingredients.json', state.ingredients));
