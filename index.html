@@ -1253,8 +1253,31 @@ function renderCocktails(){
   const userCount = state.cocktails.length;
   const hUser = document.createElement('div');
   hUser.className='section-title';
-  hUser.innerHTML = `🍸 Mes cocktails <span style="color:var(--text-3);font-weight:400">${userCount}${maxCreate===Infinity?'':'/' +maxCreate}</span>`;
+  hUser.style.cssText='display:flex;align-items:center;justify-content:space-between';
+  hUser.innerHTML = `<span>🍸 Mes cocktails <span style="color:var(--text-3);font-weight:400">${userCount}${maxCreate===Infinity?'':'/' +maxCreate}</span></span>${userList.length?`<button id="btnIngTotale" class="btn btn-ghost btn-sm" style="font-size:11px;padding:4px 8px">📋 Liste totale</button>`:''}`;
   container.appendChild(hUser);
+  if(userList.length){
+    hUser.querySelector('#btnIngTotale')?.addEventListener('click',()=>{
+      // Agréger tous les ingrédients des cocktails filtrés
+      const agg = {};
+      userList.forEach(c=>{
+        (c.ingredients||[]).forEach(ing=>{
+          const key = (ing.name||'').toLowerCase();
+          if(!agg[key]) agg[key]={name:ing.name, qty:0, unit:ing.unit||'cl'};
+          agg[key].qty += (ing.qty||0);
+        });
+      });
+      const rows = Object.values(agg).sort((a,b)=>a.name.localeCompare(b.name));
+      document.getElementById('modalTitle').textContent = `📋 Ingrédients — ${userList.length} cocktails`;
+      document.getElementById('modalContent').innerHTML = `
+        <div style="font-size:12px;color:var(--text-3);margin-bottom:12px">${userList.map(c=>escapeHtml(c.name)).join(' · ')}</div>
+        <table class="batch-table">
+          <thead><tr><th>Ingrédient</th><th>Total</th></tr></thead>
+          <tbody>${rows.map(r=>`<tr><td>${escapeHtml(r.name)}</td><td style="color:var(--gold);font-weight:600">${r.qty % 1 === 0 ? r.qty : r.qty.toFixed(2)} ${escapeHtml(r.unit)}</td></tr>`).join('')}</tbody>
+        </table>`;
+      document.getElementById('modal').classList.add('show');
+    });
+  }
 
   if(userCount >= maxCreate && maxCreate !== Infinity){
     const limitBanner = document.createElement('div');
@@ -1963,14 +1986,31 @@ function openBatchDetail(b){
   document.getElementById('btnBClose').addEventListener('click', closeModal);
   m.classList.add('show');
 }
+/* Conversion vers cl (unité de base) */
+function toCl(qty, unit){
+  const u = (unit||'cl').toLowerCase().trim();
+  if(u==='l')   return qty * 100;
+  if(u==='ml')  return qty * 0.1;
+  if(u==='oz')  return qty * 3;
+  if(u==='dl')  return qty * 10;
+  return qty; // cl ou autre → tel quel
+}
 function renderHomemadeTable(h){
-  const baseTotal = (h.ingredient.recipe||[]).reduce((s,r)=>s+(r.qty||0),0) || 1;
-  const ratio = h.required / baseTotal;
+  // Yield de base = mainOutput.qtyMin converti en cl, sinon somme des ingrédients en cl
+  const ing = h.ingredient;
+  let baseCl;
+  if(ing.mainOutput?.qtyMin){
+    baseCl = toCl(ing.mainOutput.qtyMin, ing.mainOutput.unit||'cl');
+  } else {
+    baseCl = (ing.recipe||[]).reduce((s,r)=>s+toCl(r.qty||0, r.unit||'cl'),0) || 1;
+  }
+  const requiredCl = toCl(h.required, h.unit);
+  const ratio = requiredCl / baseCl;
   return `<table class="batch-table" style="margin-bottom:10px">
-    <thead><tr><th colspan="2">${escapeHtml(h.ingredient.name)} · ${h.required.toFixed(2)} ${escapeHtml(h.unit)}</th></tr></thead>
+    <thead><tr><th colspan="2">${escapeHtml(ing.name)} · ${h.required.toFixed(2)} ${escapeHtml(h.unit)}</th></tr></thead>
     <tbody>
-      ${h.ingredient.recipe.map(r=>`<tr class="sub-row"><td>${escapeHtml(r.name)}</td><td>${((r.qty||0)*ratio).toFixed(2)} ${escapeHtml(r.unit||'')}</td></tr>`).join('')}
-      ${h.ingredient.steps?`<tr class="sub-row"><td colspan="2" style="white-space:pre-wrap">📝 ${escapeHtml(h.ingredient.steps)}</td></tr>`:''}
+      ${ing.recipe.map(r=>`<tr class="sub-row"><td>${escapeHtml(r.name)}</td><td>${((r.qty||0)*ratio).toFixed(2)} ${escapeHtml(r.unit||'')}</td></tr>`).join('')}
+      ${ing.steps?`<tr class="sub-row"><td colspan="2" style="white-space:pre-wrap">📝 ${escapeHtml(ing.steps)}</td></tr>`:''}
     </tbody>
   </table>`;
 }
@@ -2224,7 +2264,7 @@ document.getElementById('modal').addEventListener('click', e=>{ if(e.target.id==
 document.getElementById('btnHelp').addEventListener('click', ()=>{
   const m = document.getElementById('modal');
   document.getElementById('modalTitle').textContent = '📖 Guide d\'utilisation';
-  document.getElementById('modalBody').innerHTML = `
+  document.getElementById('modalContent').innerHTML = `
     <div style="line-height:1.7;color:var(--text-2);font-size:14px">
 
       <div style="margin-bottom:18px">
