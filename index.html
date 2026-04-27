@@ -665,17 +665,23 @@ function openLoginModal(mode='login'){
         const pwd2=document.getElementById('loginPwd2').value;
         if(pwd!==pwd2){toast('Les mots de passe ne correspondent pas');return;}
         if(pwd.length<6){toast('Mot de passe trop court (min. 6 caractères)');return;}
-        const{error}=await sb.auth.signUp({email,password:pwd});
+        const{data,error}=await sb.auth.signUp({email,password:pwd});
         if(error){toast('Erreur: '+error.message);return;}
-        toast('✅ Compte créé ! Vérifiez votre email pour confirmer.');
-        closeModal();
+        if(data?.session){
+          // Email confirmation disabled — user is immediately logged in
+          closeModal();
+          toast('✅ Compte créé et connecté !');
+        } else {
+          closeModal();
+          toast('📧 Compte créé ! Confirmez votre email pour activer la synchronisation.', 5000);
+        }
       }
     });
   };
   renderLoginForm(mode);
   m.classList.add('show');
 }
-const BUILD = '2026-04-26';
+const BUILD = '2026-04-27';
 document.getElementById('buildDate').textContent = 'build ' + BUILD;
 document.getElementById('homeBuild').textContent = BUILD;
 
@@ -800,6 +806,10 @@ function load(){
 
 function save(){
   localStorage.setItem(LS_KEY, JSON.stringify(state));
+  if(sb && !sbUser){
+    const sub = document.getElementById('authSub');
+    if(sub) sub.textContent = '⚠️ Connectez-vous pour synchroniser';
+  }
   sbDebouncedPush();
 }
 
@@ -842,10 +852,10 @@ const ICON = {
   chevron:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>'
 };
 const uid = ()=>Math.random().toString(36).slice(2,10);
-function toast(msg){
+function toast(msg, duration=1800){
   const el=document.getElementById('toast'); el.textContent=msg;
   el.classList.add('show'); clearTimeout(toast._t);
-  toast._t=setTimeout(()=>el.classList.remove('show'),1800);
+  toast._t=setTimeout(()=>el.classList.remove('show'), duration);
 }
 function uniq(arr){return [...new Set(arr.filter(Boolean))]}
 function escapeHtml(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
