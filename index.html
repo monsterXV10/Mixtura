@@ -1986,11 +1986,8 @@ document.querySelectorAll('.lang-toggle button').forEach(b=>{
 });
 document.getElementById('btnLogin').addEventListener('click', async()=>{
   if(!sb){toast('⚠️ Remplace SUPABASE_KEY dans le code pour activer la synchro');return;}
-  // Vérifie la session courante directement (sbUser peut être null si la page vient de charger)
-  const {data:{session}} = await sb.auth.getSession();
-  const loggedIn = sbUser || session?.user;
-  if(loggedIn){
-    await sb.auth.signOut();
+  if(sbUser){
+    try{ await sb.auth.signOut(); }catch(e){ console.warn('signOut err',e); }
     sbUser=null;
     updateAuthUI();
     if(window.location.hash) history.replaceState(null,'',window.location.origin+window.location.pathname);
