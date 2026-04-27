@@ -648,7 +648,7 @@ function openLoginModal(mode='login'){
         </button>
       </div>`;
     document.getElementById('btnGoogle').addEventListener('click', async()=>{
-      const{error}=await sb.auth.signInWithOAuth({provider:'google',options:{redirectTo:window.location.origin+window.location.pathname}});
+      const{error}=await sb.auth.signInWithOAuth({provider:'google',options:{redirectTo:window.location.origin+window.location.pathname,queryParams:{prompt:'select_account'}}});
       if(error) toast('Erreur Google: '+error.message);
     });
     document.getElementById('btnToggleMode').addEventListener('click',()=>renderLoginForm(isLogin?'signup':'login'));
@@ -1990,9 +1990,8 @@ document.getElementById('btnLogin').addEventListener('click', async()=>{
   if(btn.dataset.action==='logout' || sbUser){
     try{ await sb.auth.signOut(); }catch(e){ console.warn('signOut err',e); }
     sbUser=null;
-    updateAuthUI();
-    if(window.location.hash) history.replaceState(null,'',window.location.origin+window.location.pathname);
-    toast('👋 Déconnecté');
+    toast('👋 Déconnecté — rechargement…');
+    setTimeout(()=>{ location.href=window.location.origin+window.location.pathname; }, 800);
   } else openLoginModal();
 });
 document.getElementById('btnPromo').addEventListener('click', ()=>{
