@@ -2026,10 +2026,18 @@ function renderHomemadeTable(h){
     <thead><tr><th colspan="2">${escapeHtml(ing.name)} · ${h.required.toFixed(2)} ${escapeHtml(h.unit)} <span style="color:var(--text-3);font-size:11px">(×${ratio.toFixed(1)} prépa.)</span></th></tr></thead>
     <tbody>
       ${ing.recipe.map(r=>{
-        const isPercent = (r.unit||'').trim()==='%';
-        const displayQty = isPercent
-          ? `${r.qty}% du vol.` // % = proportion fixe, ne change pas
-          : `${((r.qty||0)*ratio).toFixed(2)} ${escapeHtml(r.unit||'')}`;
+        const isPercent = (r.unit||'').toLowerCase().includes('%');
+        let displayQty;
+        if(isPercent){
+          // Convertir % en volume absolu : % × baseCl × ratio = % × requiredCl
+          const qtyInCl = (r.qty||0) / 100 * requiredCl;
+          // Afficher en cl ou ml selon la taille
+          displayQty = qtyInCl >= 1
+            ? `${qtyInCl.toFixed(2)} cl`
+            : `${(qtyInCl*10).toFixed(2)} ml`;
+        } else {
+          displayQty = `${((r.qty||0)*ratio).toFixed(2)} ${escapeHtml(r.unit||'')}`;
+        }
         return `<tr class="sub-row"><td>${escapeHtml(r.name)}</td><td>${displayQty}</td></tr>`;
       }).join('')}
       ${ing.steps?`<tr class="sub-row"><td colspan="2" style="white-space:pre-wrap;color:var(--text-3);font-size:12px">📝 ${escapeHtml(ing.steps)}</td></tr>`:''}
