@@ -276,7 +276,12 @@ input,select,textarea{font:inherit;color:inherit;user-select:text;-webkit-user-s
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
     </button>
     <div class="topbar-title" id="screenTitle">MIXTURA</div>
-    <div class="topbar-actions" id="topbarActions"></div>
+    <div class="topbar-actions" id="topbarActions">
+      <div id="topbarUser" style="display:none;align-items:center;gap:8px;cursor:pointer" onclick="go('Settings')" title="Paramètres du compte">
+        <div style="width:30px;height:30px;border-radius:50%;background:rgba(200,169,110,.15);border:1.5px solid rgba(200,169,110,.3);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:var(--gold)" id="topbarAvatar">?</div>
+        <span id="topbarName" style="font-size:12px;color:var(--text-2);max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
+      </div>
+    </div>
   </div>
 
   <!-- Home -->
@@ -324,6 +329,8 @@ input,select,textarea{font:inherit;color:inherit;user-select:text;-webkit-user-s
         </div>
       </button>
     </div>
+    <!-- Bouton aide -->
+    <button id="btnHelp" title="Guide d'utilisation" style="position:fixed;bottom:24px;left:24px;width:44px;height:44px;border-radius:50%;background:rgba(200,169,110,.12);border:1.5px solid rgba(200,169,110,.3);color:var(--gold);font-size:20px;font-weight:700;display:flex;align-items:center;justify-content:center;z-index:50;box-shadow:0 2px 12px rgba(0,0,0,.3)">?</button>
   </div>
 
   <!-- Cocktails -->
@@ -559,13 +566,22 @@ function initSupabase(){
 }
 function updateAuthUI(){
   const lbl=document.getElementById('authLabel'),sub=document.getElementById('authSub'),btn=document.getElementById('btnLogin');
+  const topbarUser=document.getElementById('topbarUser');
+  const topbarName=document.getElementById('topbarName');
+  const topbarAvatar=document.getElementById('topbarAvatar');
   if(!lbl) return;
   if(sbUser){
     lbl.textContent=sbUser.email; sub.textContent='☁️ Données synchronisées';
     btn.textContent='Se déconnecter'; btn.dataset.action='logout';
+    // Topbar : prénom ou email court
+    const name = sbUser.user_metadata?.full_name || sbUser.user_metadata?.name || sbUser.email?.split('@')[0] || '';
+    topbarName.textContent = name;
+    topbarAvatar.textContent = name.charAt(0).toUpperCase();
+    if(topbarUser) topbarUser.style.display='flex';
   } else {
     lbl.textContent=t('settings.notLogged'); sub.textContent=t('settings.accountSub');
     btn.textContent=t('settings.login'); btn.dataset.action='login';
+    if(topbarUser) topbarUser.style.display='none';
   }
   updatePlanUI();
 }
@@ -2193,6 +2209,64 @@ function importXlsx(file){
 function closeModal(){ document.getElementById('modal').classList.remove('show'); }
 document.getElementById('modalClose').addEventListener('click', closeModal);
 document.getElementById('modal').addEventListener('click', e=>{ if(e.target.id==='modal') closeModal(); });
+
+/* ── Guide d'utilisation ── */
+document.getElementById('btnHelp').addEventListener('click', ()=>{
+  const m = document.getElementById('modal');
+  document.getElementById('modalTitle').textContent = '📖 Guide d\'utilisation';
+  document.getElementById('modalBody').innerHTML = `
+    <div style="line-height:1.7;color:var(--text-2);font-size:14px">
+
+      <div style="margin-bottom:18px">
+        <div style="color:var(--gold);font-weight:700;font-size:15px;margin-bottom:6px">🍸 Cocktails</div>
+        <p>Crée et gère tes recettes de cocktails. Pour chaque recette tu peux :</p>
+        <ul style="margin:6px 0 0 16px;display:flex;flex-direction:column;gap:4px">
+          <li>Ajouter les ingrédients avec les quantités</li>
+          <li>Calculer le <strong style="color:var(--cream)">food cost</strong> automatiquement</li>
+          <li>Définir un prix de vente et voir la marge</li>
+          <li>Filtrer par catégorie ou chercher par nom</li>
+          <li>Appuyer longuement pour sélectionner plusieurs recettes</li>
+        </ul>
+      </div>
+
+      <div style="margin-bottom:18px">
+        <div style="color:var(--gold);font-weight:700;font-size:15px;margin-bottom:6px">🧪 Ingrédients</div>
+        <p>Gère ton stock d'ingrédients. Deux types :</p>
+        <ul style="margin:6px 0 0 16px;display:flex;flex-direction:column;gap:4px">
+          <li><strong style="color:var(--cream)">Acheté</strong> — bouteille, produit du marché. Tu renseignes prix et taille de bouteille → coût au cl calculé automatiquement</li>
+          <li><strong style="color:var(--cream)">Maison</strong> — sirop, infusion, liqueur… Tu décris la recette et les produits obtenus (principal + sous-produits)</li>
+        </ul>
+        <p style="margin-top:6px">Filtre par catégorie avec les chips en haut (Spirit, Liqueur, Sirop…)</p>
+      </div>
+
+      <div style="margin-bottom:18px">
+        <div style="color:var(--gold);font-weight:700;font-size:15px;margin-bottom:6px">📦 Batch</div>
+        <p>Planifie des <strong style="color:var(--cream)">préparations en grande quantité</strong> pour un événement ou un service.</p>
+        <ul style="margin:6px 0 0 16px;display:flex;flex-direction:column;gap:4px">
+          <li>Choisir un cocktail ou un ingrédient maison à préparer</li>
+          <li>Indiquer le nombre de portions souhaitées</li>
+          <li>L'app calcule toutes les quantités à acheter</li>
+          <li>Marquer les étapes comme faites au fur et à mesure</li>
+        </ul>
+      </div>
+
+      <div style="margin-bottom:18px">
+        <div style="color:var(--gold);font-weight:700;font-size:15px;margin-bottom:6px">⚙️ Paramètres</div>
+        <ul style="margin:6px 0 0 16px;display:flex;flex-direction:column;gap:4px">
+          <li><strong style="color:var(--cream)">Connexion Google</strong> — synchronise tes données sur tous tes appareils via le cloud</li>
+          <li><strong style="color:var(--cream)">Export / Import</strong> — sauvegarde tes données en JSON ou Excel</li>
+          <li><strong style="color:var(--cream)">Langue</strong> — Français / English</li>
+          <li><strong style="color:var(--cream)">Réinitialiser</strong> — remet l'app à zéro (les données cloud restent intactes)</li>
+        </ul>
+      </div>
+
+      <div style="background:rgba(200,169,110,.07);border:1px solid rgba(200,169,110,.2);border-radius:10px;padding:12px;font-size:13px">
+        💡 <strong style="color:var(--gold)">Astuce</strong> — Appuie longuement sur un élément dans une liste pour activer la sélection multiple et supprimer ou exporter plusieurs éléments à la fois.
+      </div>
+    </div>
+  `;
+  m.classList.add('show');
+});
 
 /* FAB */
 const fabEl = document.getElementById('fab');
