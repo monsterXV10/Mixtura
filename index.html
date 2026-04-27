@@ -644,7 +644,7 @@ function openLoginModal(mode='login'){
         </button>
       </div>`;
     document.getElementById('btnGoogle').addEventListener('click', async()=>{
-      const{error}=await sb.auth.signInWithOAuth({provider:'google',options:{redirectTo:window.location.href}});
+      const{error}=await sb.auth.signInWithOAuth({provider:'google',options:{redirectTo:window.location.origin+window.location.pathname}});
       if(error) toast('Erreur Google: '+error.message);
     });
     document.getElementById('btnToggleMode').addEventListener('click',()=>renderLoginForm(isLogin?'signup':'login'));
