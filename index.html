@@ -1604,7 +1604,7 @@ function openCocktailDetail(c, isCatalog=false){
 
 /* Ingredients */
 const ING_CATEGORIES = ['spirits','liqueur','wine','juice','syrup','bitter','fruit','herb','dairy','soda','misc'];
-const UNITS = ['cl','ml','l','g','kg','pièce','feuilles','brins','gouttes','traits','cuillère','pincée','zeste'];
+const UNITS = ['cl','ml','l','oz','g','kg','pièce','feuilles','brins','gouttes','traits','cuillère','pincée','zeste'];
 
 function renderIngredients(){
   const cats = uniq(state.ingredients.map(i=>i.category));
@@ -2008,25 +2008,32 @@ function openBatchForm(b){
   m.classList.add('show');
 }
 function openBatchDetail(b){
+  // aggregate : {name, normQty (en cl ou g), origUnit (première unité vue)}
   const aggregate = {};
+  function aggAdd(name, qty, unit){
+    const key = name.toLowerCase();
+    const norm = toCl(qty, unit);
+    if(!aggregate[key]) aggregate[key] = {name, normQty:0, origUnit: unit||'cl'};
+    aggregate[key].normQty += norm;
+  }
   (b.items||[]).forEach(it=>{
     if(it.kind==='cocktail'){
       const c = state.cocktails.find(x=>x.id===it.refId); if(!c) return;
       (c.ingredients||[]).forEach(ing=>{
-        const totalQty = (ing.qty||0) * (it.qty||1);
-        const key = (ing.name||'').toLowerCase();
-        if(!aggregate[key]) aggregate[key] = {name:ing.name, qty:0, unit:ing.unit||'cl'};
-        aggregate[key].qty += totalQty;
+        aggAdd(ing.name, (ing.qty||0)*(it.qty||1), ing.unit||'cl');
       });
     } else {
       const i = state.ingredients.find(x=>x.id===it.refId); if(!i) return;
-      const key = i.name.toLowerCase();
-      if(!aggregate[key]) aggregate[key] = {name:i.name, qty:0, unit:it.unit||i.unit||'cl'};
-      aggregate[key].qty += (it.qty||0);
+      aggAdd(i.name, it.qty||0, it.unit||i.unit||'cl');
     }
   });
+  // Convertit normQty en affichage lisible
+  const aggregate_display = {};
+  Object.entries(aggregate).forEach(([k,v])=>{
+    aggregate_display[k] = {name:v.name, qty:v.normQty, unit:v.origUnit, display: fmtNorm(v.normQty, v.origUnit)};
+  });
   const homemadeExpand = [];
-  Object.values(aggregate).forEach(a=>{
+  Object.values(aggregate_display).forEach(a=>{
     const matched = state.ingredients.find(i=>i.name.toLowerCase()===a.name.toLowerCase() && i.type==='homemade');
     if(matched && matched.recipe?.length) homemadeExpand.push({ingredient:matched, required:a.qty, unit:a.unit});
   });
@@ -2040,7 +2047,7 @@ function openBatchDetail(b){
     <table class="batch-table">
       <thead><tr><th>${t('ingredient')}</th><th>${t('quantity')}</th></tr></thead>
       <tbody>
-        ${Object.values(aggregate).map(a=>`<tr><td>${escapeHtml(a.name)}</td><td style="color:var(--gold);font-weight:600">${a.qty.toFixed(2)} ${escapeHtml(a.unit)}</td></tr>`).join('')}
+        ${Object.values(aggregate_display).map(a=>`<tr><td>${escapeHtml(a.name)}</td><td style="color:var(--gold);font-weight:600">${a.display}</td></tr>`).join('')}
       </tbody>
     </table>
     ${homemadeExpand.length ? `<div class="batch-section">
@@ -2056,13 +2063,32 @@ function openBatchDetail(b){
   m.classList.add('show');
 }
 /* Conversion vers cl (unité de base) */
+// Normalise vers cl (volumes) ou g (poids) pour comparaison de ratio
 function toCl(qty, unit){
   const u = (unit||'cl').toLowerCase().trim();
   if(u==='l')   return qty * 100;
-  if(u==='ml')  return qty * 0.1;
-  if(u==='oz')  return qty * 3;
   if(u==='dl')  return qty * 10;
-  return qty; // cl ou autre → tel quel
+  if(u==='ml')  return qty * 0.1;
+  if(u==='oz')  return qty * 2.957;   // 1 oz = 2.957 cl (standard bar)
+  if(u==='kg')  return qty * 1000;    // normalise en g quand unité poids
+  return qty; // cl, g, pièce, etc. → tel quel
+}
+// Affiche une quantité normalisée dans l'unité la plus lisible
+function fmtNorm(clVal, origUnit){
+  const u = (origUnit||'cl').toLowerCase().trim();
+  // Volumes → cl ou ml selon taille
+  if(['cl','ml','l','dl','oz'].includes(u)){
+    if(clVal < 1)   return `${(clVal*10).toFixed(1)} ml`;
+    if(clVal >= 100) return `${(clVal/100).toFixed(2)} l`;
+    return `${clVal.toFixed(1)} cl`;
+  }
+  // Poids → g ou kg
+  if(['g','kg'].includes(u)){
+    if(clVal >= 1000) return `${(clVal/1000).toFixed(3)} kg`;
+    return `${clVal.toFixed(1)} g`;
+  }
+  // Unités non convertibles (pièce, feuilles…) → garder brut
+  return `${clVal.toFixed(2)} ${origUnit}`;
 }
 function renderHomemadeTable(h){
   const ing = h.ingredient;
