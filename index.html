@@ -981,9 +981,9 @@ async function ocrImage(file, onProgress){
       if(m.status==='recognizing text') onProgress?.(Math.round(m.progress*100));
     }
   });
-  const { data:{ text } } = await worker.recognize(file);
+  const { data } = await worker.recognize(file);
   await worker.terminate();
-  return text.trim();
+  return data; // text + lines avec bboxes
 }
 
 // -- Parser local (fallback sans cle) ----------------
@@ -1036,44 +1036,110 @@ function fileToBase64(file){
   });
 }
 
+// -- Vue interactive : image + lignes surlignees ------
+function showOCRViewer(imageURL, ocrData){
+  const m = document.getElementById('modal');
+  const lines = (ocrData.lines||[]).filter(l=>l.text.trim().length > 1);
+  const imgW = ocrData.width || 1;
+  const imgH = ocrData.height || 1;
+  const selected = new Set(lines.map((_,i)=>i));
+
+  document.getElementById('modalTitle').textContent = String.fromCodePoint(0x2702)+String.fromCodePoint(0xFE0F)+' Selectionne les lignes a garder';
+  document.getElementById('modalContent').innerHTML = `
+    <div style="font-size:12px;color:var(--text-3);margin-bottom:10px">
+      Appuie pour deselectionner <span style="color:var(--gold)">${lines.length} lignes</span>
+    </div>
+    <div id="ocrImgWrap" style="position:relative;display:block;width:100%;user-select:none;border-radius:var(--radius);overflow:hidden;background:#000">
+      <img id="ocrImg" src="${imageURL}" style="width:100%;height:auto;display:block;opacity:.55">
+      <div id="ocrOverlay" style="position:absolute;inset:0;pointer-events:none"></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:10px">
+      <button class="btn btn-ghost btn-sm" id="btnOcrSelAll" style="flex:1">Tout selectionner</button>
+      <button class="btn btn-ghost btn-sm" id="btnOcrSelNone" style="flex:1">Tout deselectionner</button>
+    </div>
+    <div class="form-actions" style="margin-top:8px">
+      <button class="btn btn-primary btn-block" id="btnOcrValidate">Analyser la selection</button>
+    </div>`;
+  m.classList.add('show');
+
+  const overlay = document.getElementById('ocrOverlay');
+  function renderOverlay(){
+    overlay.innerHTML = '';
+    lines.forEach((line, idx)=>{
+      const b = line.bbox;
+      const isSel = selected.has(idx);
+      const box = document.createElement('div');
+      box.style.cssText = [
+        'position:absolute',
+        'left:'+(b.x0/imgW*100).toFixed(2)+'%',
+        'top:'+(b.y0/imgH*100).toFixed(2)+'%',
+        'width:'+((b.x1-b.x0)/imgW*100).toFixed(2)+'%',
+        'height:'+((b.y1-b.y0)/imgH*100).toFixed(2)+'%',
+        'box-sizing:border-box',
+        'border-radius:2px',
+        'cursor:pointer',
+        'pointer-events:all',
+        'transition:all .15s',
+        isSel ? 'background:rgba(200,169,110,0.4)' : 'background:rgba(255,255,255,0.04)',
+        isSel ? 'border:1.5px solid rgba(200,169,110,.95)' : 'border:1px solid rgba(255,255,255,.12)',
+        'display:flex',
+        'align-items:center',
+        'overflow:hidden'
+      ].join(';');
+      const label = document.createElement('span');
+      label.textContent = line.text.trim();
+      label.style.cssText = 'font-size:9px;padding:0 3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 1px 2px #000;pointer-events:none;color:'+(isSel?'#fff':'rgba(255,255,255,.35)');
+      box.appendChild(label);
+      const toggle = ()=>{ if(selected.has(idx)) selected.delete(idx); else selected.add(idx); renderOverlay(); };
+      box.addEventListener('click', toggle);
+      box.addEventListener('touchend', e=>{ e.preventDefault(); toggle(); });
+      overlay.appendChild(box);
+    });
+  }
+  renderOverlay();
+
+  document.getElementById('btnOcrSelAll').addEventListener('click',()=>{ lines.forEach((_,i)=>selected.add(i)); renderOverlay(); });
+  document.getElementById('btnOcrSelNone').addEventListener('click',()=>{ selected.clear(); renderOverlay(); });
+  document.getElementById('btnOcrValidate').addEventListener('click',()=>{
+    const selText = lines.filter((_,i)=>selected.has(i)).map(l=>l.text.trim()).join('\n');
+
+    m.classList.remove('show');
+    URL.revokeObjectURL(imageURL);
+    if(!selText.trim()){ toast('Aucune ligne selectionnee'); return; }
+    processScanResult(parseOCRLocal(selText));
+  });
+}
+
 // -- Point d'entree principal -------------------------
 async function runScan(file){
   if(!file) return;
   const m = document.getElementById('modal');
-  document.getElementById('modalTitle').textContent = '🔍 Lecture en cours…';
-  document.getElementById('modalContent').innerHTML = `
-    <div style="text-align:center;padding:30px 0">
-      <div id="scanProgress" style="font-size:32px;color:var(--gold);margin-bottom:12px">0%</div>
-      <div style="color:var(--text-3);font-size:13px">Analyse de l'image…</div>
-      <div style="margin-top:16px;height:4px;background:var(--navy-700);border-radius:2px;overflow:hidden">
-        <div id="scanBar" style="height:100%;background:var(--gold);width:0%;transition:width .3s;border-radius:2px"></div>
-      </div>
-    </div>`;
+  document.getElementById('modalTitle').textContent = 'Lecture en cours...';
+  document.getElementById('modalContent').innerHTML = '<div style="text-align:center;padding:30px 0"><div id="scanProgress" style="font-size:32px;color:var(--gold);margin-bottom:12px">0%</div><div style="color:var(--text-3);font-size:13px">Analyse de l&#39;image...</div><div style="margin-top:16px;height:4px;background:var(--navy-700);border-radius:2px;overflow:hidden"><div id="scanBar" style="height:100%;background:var(--gold);width:0%;transition:width .3s;border-radius:2px"></div></div></div>';
   m.classList.add('show');
+  const imageURL = URL.createObjectURL(file);
   try{
-    const rawText = await ocrImage(file, p=>{
+    const ocrData = await ocrImage(file, p=>{
       const el=document.getElementById('scanProgress');
       const bar=document.getElementById('scanBar');
       if(el) el.textContent=p+'%';
       if(bar) bar.style.width=p+'%';
     });
-    if(!rawText || rawText.length < 5){
+    if(!ocrData || !ocrData.text || ocrData.text.trim().length < 3){
       m.classList.remove('show');
-      toast('❌ Aucun texte détecté dans l\'image');
+      URL.revokeObjectURL(imageURL);
+      toast('Aucun texte detecte');
       return;
     }
-    document.getElementById('modalTitle').textContent = '🧠 Analyse du texte…';
-    const el2=document.getElementById('scanProgress'); if(el2) el2.textContent='…';
-    const result = parseOCRLocal(rawText);
     m.classList.remove('show');
-    processScanResult(result);
+    showOCRViewer(imageURL, ocrData);
   }catch(err){
     m.classList.remove('show');
+    URL.revokeObjectURL(imageURL);
     console.error(err);
-    toast('❌ Scan échoué : '+err.message);
+    toast('Scan echoue : '+err.message);
   }
 }
-
 /* ══════════════════════════════════════════
    PLANS & CATALOGUE
 ══════════════════════════════════════════ */
