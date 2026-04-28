@@ -3,7 +3,7 @@
    Gestion du cache hors-ligne
 ═══════════════════════════════════════ */
 
-const CACHE_NAME = 'mixtura-v4.0';
+const CACHE_NAME = 'mixtura-v4.1';
 const ASSETS = [
   './',
   './index.html',
@@ -34,7 +34,11 @@ self.addEventListener('activate', event => {
       )
     )
   );
-  self.clients.claim();
+  self.clients.claim().then(()=>{
+    self.clients.matchAll({type:'window'}).then(clients=>{
+      clients.forEach(c=>c.postMessage({type:'SW_UPDATED'}));
+    });
+  });
 });
 
 /* ── Fetch : cache-first pour les assets, network-first pour Firebase ── */
