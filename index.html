@@ -294,7 +294,7 @@ input,select,textarea{font:inherit;color:inherit;user-select:text;-webkit-user-s
 <body>
 <div id="app">
   <div class="topbar">
-    <button class="topbar-back" id="btnBack" aria-label="back">
+    <button class="topbar-back" id="btnBack" aria-label="Retour">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
     </button>
     <div class="topbar-title" id="screenTitle">MIXTURA</div>
@@ -615,7 +615,7 @@ function updateAuthUI(){
   if(!lbl) return;
   if(sbUser){
     lbl.textContent=sbUser.email; sub.textContent='☁️ Données synchronisées';
-    btn.textContent='Se déconnecter'; btn.dataset.action='logout';
+    btn.textContent=t('settings.logout'); btn.dataset.action='logout';
     // Topbar : prénom ou email court
     const name = sbUser.user_metadata?.full_name || sbUser.user_metadata?.name || sbUser.email?.split('@')[0] || '';
     topbarName.textContent = name;
@@ -762,7 +762,7 @@ const I18N = {
     'scan.invoice':'Scanner facture','stock.current':'Stock actuel',
     'stock.unit':'Unité stock','stock.min':'Seuil mini',
     'settings.account':'Compte','settings.notLogged':'Non connecté',
-    'settings.accountSub':'Synchro multi-appareils (bientôt)','settings.login':'Se connecter',
+    'settings.accountSub':'Synchro multi-appareils (bientôt)','settings.login':'Se connecter','settings.logout':'Se déconnecter',
     'settings.personal':'Coordonnées perso','settings.firstName':'Prénom','settings.lastName':'Nom',
     'settings.email':'Email','settings.phone':'Téléphone',
     'settings.venue':'Bar / Restaurant','settings.venueName':"Nom de l'établissement",
@@ -804,7 +804,7 @@ const I18N = {
     'scan.invoice':'Scan invoice','stock.current':'Current stock',
     'stock.unit':'Stock unit','stock.min':'Min threshold',
     'settings.account':'Account','settings.notLogged':'Not signed in',
-    'settings.accountSub':'Cross-device sync (soon)','settings.login':'Sign in',
+    'settings.accountSub':'Cross-device sync (soon)','settings.login':'Sign in','settings.logout':'Sign out',
     'settings.personal':'Personal info','settings.firstName':'First name','settings.lastName':'Last name',
     'settings.email':'Email','settings.phone':'Phone',
     'settings.venue':'Bar / Restaurant','settings.venueName':'Venue name',
@@ -1387,8 +1387,8 @@ function renderCocktailItem(c, isCatalog=false){
     <div class="item-actions">
       ${isCatalog
         ? `<button class="item-act" data-act="add" title="Ajouter à mes cocktails" style="color:var(--gold)">＋</button>`
-        : `<button class="item-act" data-act="edit" aria-label="edit">${ICON.edit}</button>
-           <button class="item-act del" data-act="del" aria-label="delete">${ICON.del}</button>`
+        : `<button class="item-act" data-act="edit" aria-label="${t('edit')}">${ICON.edit}</button>
+           <button class="item-act del" data-act="del" aria-label="${t('delete')}">${ICON.del}</button>`
       }
     </div>`;
   el.addEventListener('click', e=>{
