@@ -886,6 +886,8 @@ let filters = {cocktail:{glass:'all',family:'all',alcohol:'all',search:''},
 
 function go(screen){
   currentScreen = screen;
+  // Persister l'écran dans le hash pour survivre au F5
+  history.replaceState(null, '', '#' + screen);
   selection.clear(); updateSelectionBar();
   SCREENS.forEach(s=>document.getElementById('screen'+s).classList.toggle('active', s===screen));
   document.getElementById('btnBack').classList.toggle('show', screen!=='Home');
@@ -974,17 +976,56 @@ function loadTesseract(){
   return _tesseractReady;
 }
 
+// -- Prétraitement image pour améliorer l'OCR --------
+async function preprocessImageForOCR(file){
+  return new Promise((resolve)=>{
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = ()=>{
+      const canvas = document.createElement('canvas');
+      // Upscale x2 pour améliorer la résolution Tesseract
+      const scale = Math.max(1, Math.min(3, 2000 / Math.max(img.naturalWidth, img.naturalHeight)));
+      canvas.width  = Math.round(img.naturalWidth  * scale);
+      canvas.height = Math.round(img.naturalHeight * scale);
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      // Niveaux de gris + boost contraste + binarisation douce
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const d = imageData.data;
+      for(let i = 0; i < d.length; i += 4){
+        let gray = 0.299*d[i] + 0.587*d[i+1] + 0.114*d[i+2];
+        gray = (gray - 128) * 1.6 + 128; // contraste ×1.6
+        gray = gray > 155 ? 255 : Math.max(0, gray); // binarisation
+        d[i] = d[i+1] = d[i+2] = Math.max(0, Math.min(255, gray));
+      }
+      ctx.putImageData(imageData, 0, 0);
+      URL.revokeObjectURL(url);
+      canvas.toBlob(blob => resolve(new File([blob], 'preprocessed.png', {type:'image/png'})), 'image/png');
+    };
+    img.onerror = ()=>{ URL.revokeObjectURL(url); resolve(file); };
+    img.src = url;
+  });
+}
+
 // -- OCR via Tesseract.js -----------------------------
 async function ocrImage(file, onProgress){
   await loadTesseract();
+  const processedFile = await preprocessImageForOCR(file);
   const worker = await Tesseract.createWorker('fra+eng', 1, {
     logger: m => {
       if(m.status==='recognizing text') onProgress?.(Math.round(m.progress*100));
     }
   });
-  const { data } = await worker.recognize(file);
+  // PSM 6 = bloc uniforme (évite la fusion de colonnes)
+  await worker.setParameters({
+    tessedit_pageseg_mode: '6',
+    preserve_interword_spaces: '1',
+  });
+  const { data } = await worker.recognize(processedFile);
   await worker.terminate();
-  return data; // text + lines avec bboxes
+  return data;
 }
 
 // -- Parser local -----------------------------------------------
@@ -1011,32 +1052,42 @@ function parseOCRLocal(text){
   //   "1*3,07" (ligne seule = col QU seule)  → ignorée (pas de nom)
 
   const ticketItems = [];
-  // Prix seul en fin de ligne (obligatoire : 1–4 chiffres + virgule/point + 2 chiffres)
-  const endPriceRx = /(\d{1,4}[.,]\d{2})\s*€?\s*$/;
-  // Motif quantité × prix unitaire (n'importe où dans la ligne)
-  const qtyPuRx = /\b(\d{1,3})\s*[*x×%]\s*(\d+[.,]\d{2})\b/;
+  // Tous les nombres XX,XX ou XX.XX (prix potentiels)
+  const priceRx = /\d{1,4}[.,]\d{2}/g;
+  // QTY * PRIX : "2*1,59" "1x3,07" "2%1,59" — le séparateur peut être OCR'd bizarrement
+  // On tolère aussi "21,59" → qty=2 pu=1,59 si le chiffre de gauche est ≤ 2 digits
+  const qtyPuRx = /\b(\d{1,2})\s*[*x×%4]\s*(\d+[.,]\d{2})\b/; // 4 car * → 4 en OCR
 
   lines.forEach(l=>{
     if(SKIP_RX.test(l)) return;
-    // 1. Extraire le prix total (dernier nombre XX,XX de la ligne)
-    const priceM = l.match(endPriceRx);
-    if(!priceM) return;
-    const price = parseFloat(priceM[1].replace(',','.'));
-    if(price <= 0 || price > 500) return; // hors plage raisonnable
 
-    // 2. Isoler le nom : tout ce qui précède le premier bloc numérique
-    const beforePrice = l.slice(0, l.lastIndexOf(priceM[1])).trim();
-    // Retirer la partie QTY*PU si présente (ex: "2*1,59")
-    const clean = beforePrice.replace(qtyPuRx,'').replace(/\s+/g,' ').trim();
-    // Retirer trailing points/tirets/espaces
-    let name = clean.replace(/[\s.\-_*]+$/,'').trim();
-    // Retirer codes rayon en début (chiffres seuls ≤ 3 chars : "14", "3")
-    name = name.replace(/^\d{1,3}\s+/,'').trim();
-    if(name.length < 3) return; // pas de nom = ligne de total/TVA
+    // 1. Trouver TOUS les prix dans la ligne
+    const allPrices = [...l.matchAll(priceRx)];
+    if(allPrices.length === 0) return;
 
-    // 3. Quantité
+    // Prendre le DERNIER prix comme total (colonne de droite du ticket)
+    const lastMatch = allPrices[allPrices.length - 1];
+    const price = parseFloat(lastMatch[0].replace(',','.'));
+    if(price <= 0 || price > 999) return;
+
+    // 2. Nom = tout ce qui précède le PREMIER bloc numérique dans la ligne
+    //    On coupe à la première séquence "espace + chiffre"
+    const firstNumIdx = l.search(/\s+\d/);
+    let name = (firstNumIdx > 2 ? l.slice(0, firstNumIdx) : l)
+      .replace(/[.\-_:]+$/,'').replace(/\s+/g,' ').trim();
+    // Supprimer code rayon en début (1-2 chiffres seuls)
+    name = name.replace(/^\d{1,2}\s+/,'').trim();
+    if(name.length < 3) return;
+
+    // 3. Quantité via motif QTY*PU
     const qtyM = l.match(qtyPuRx);
-    const qty = qtyM ? parseInt(qtyM[1]) : 1;
+    // Vérifier cohérence : qty * pu ≈ price (tolérance 5%)
+    let qty = 1;
+    if(qtyM){
+      const q = parseInt(qtyM[1]);
+      const pu = parseFloat(qtyM[2].replace(',','.'));
+      if(q >= 2 && Math.abs(q*pu - price) < price*0.1) qty = q;
+    }
 
     ticketItems.push({name, quantity:qty, unit:'pièce', price});
   });
@@ -1071,113 +1122,200 @@ function processScanResult(parsed){
     const items = parsed.items||[];
     if(!items.length){ toast('Aucun article détecté'); return; }
 
-    // Pré-analyser : classer chaque article (nouveau / existant même prix / conflit prix)
+    // ── Étape 1 : sélection des articles ──
     const today = new Date().toISOString().slice(0,10);
     const classified = items.map(it=>{
       const existing = state.ingredients.find(x=>x.name.toLowerCase()===it.name.toLowerCase());
-      if(!existing) return {...it, _status:'new', _existing:null};
+      if(!existing) return {...it, _status:'new', _existing:null, _skip:false};
       const oldPrice = existing.bottlePrice||0;
       const priceDiff = Math.abs(oldPrice - it.price) > 0.01;
-      return {...it, _status: priceDiff && oldPrice > 0 ? 'conflict' : 'update', _existing:existing, _oldPrice:oldPrice};
+      return {...it, _status: priceDiff && oldPrice > 0 ? 'conflict' : 'update', _existing:existing, _oldPrice:oldPrice, _skip:false};
     });
 
-    const _is = 'background:var(--navy-700);border:1px solid rgba(200,169,110,.12);border-radius:var(--radius-sm);color:var(--text-1);padding:6px 8px;font-size:12px;outline:none;width:100%';
-
-    document.getElementById('modalTitle').textContent = '🧾 Import facture';
-    document.getElementById('modalContent').innerHTML = `
-      <div style="font-size:12px;color:var(--text-3);margin-bottom:12px">${classified.length} article(s) détecté(s)</div>
-      <div id="invoiceList" style="max-height:60vh;overflow-y:auto">
-        ${classified.map((it,i)=>{
-          const statusColor = it._status==='new' ? 'var(--gold)' : it._status==='conflict' ? '#e55' : '#4caf93';
-          const statusLabel = it._status==='new' ? '🆕 Nouveau' : it._status==='conflict' ? `⚠️ Prix modifié (était ${it._oldPrice.toFixed(2)} €)` : '✓ Existe';
-          return `
-          <div style="border:1px solid rgba(255,255,255,.07);border-radius:10px;padding:10px 12px;margin-bottom:8px" data-idx="${i}">
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-              <input type="checkbox" data-idx="${i}" checked style="accent-color:var(--gold);width:15px;height:15px;flex-shrink:0">
-              <div style="flex:1;font-size:13px;font-weight:600">${escapeHtml(it.name)}</div>
-              <span style="font-size:10px;color:${statusColor};white-space:nowrap">${statusLabel}</span>
-            </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr ${it._status==='new'?'1fr':'0fr'};gap:6px">
-              <div>
-                <div style="font-size:10px;color:var(--text-3);margin-bottom:3px">Qté reçue</div>
-                <input type="number" min="0" step="1" value="${it.quantity}" data-field="qty" data-idx="${i}" style="${_is}">
+    function showSelectionStep(){
+      const _is = 'background:var(--navy-700);border:1px solid rgba(200,169,110,.12);border-radius:var(--radius-sm);color:var(--text-1);padding:6px 8px;font-size:12px;outline:none;width:100%';
+      document.getElementById('modalTitle').textContent = `🧾 Import — Sélectionne les articles (${classified.length})`;
+      document.getElementById('modalContent').innerHTML = `
+        <div style="font-size:12px;color:var(--text-3);margin-bottom:10px">Coche les articles à importer puis clique sur <b>Suivant</b>.</div>
+        <div id="invoiceList" style="max-height:55vh;overflow-y:auto;display:flex;flex-direction:column;gap:8px">
+          ${classified.map((it,i)=>{
+            const statusColor = it._status==='new' ? 'var(--gold)' : it._status==='conflict' ? '#e07' : '#4caf93';
+            const statusLabel = it._status==='new' ? '🆕 Nouveau' : it._status==='conflict' ? `⚠️ Conflit prix` : '✓ Existe';
+            return `
+            <label style="display:flex;align-items:center;gap:10px;border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:10px 12px;cursor:pointer;background:rgba(255,255,255,.02)">
+              <input type="checkbox" data-idx="${i}" ${it._skip?'':'checked'} style="accent-color:var(--gold);width:16px;height:16px;flex-shrink:0">
+              <div style="flex:1;min-width:0">
+                <div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(it.name)}</div>
+                <div style="font-size:11px;color:var(--text-3);margin-top:2px">Qté : ${it.quantity} · Prix : ${it.price.toFixed(2)} €</div>
               </div>
-              <div>
-                <div style="font-size:10px;color:var(--text-3);margin-bottom:3px">Prix unitaire (€)</div>
-                <input type="number" min="0" step="0.01" value="${it.price.toFixed(2)}" data-field="price" data-idx="${i}" style="${_is}">
-              </div>
-              ${it._status==='new'?`
-              <div>
-                <div style="font-size:10px;color:var(--text-3);margin-bottom:3px">Fournisseur</div>
-                <input type="text" value="${escapeHtml(it._supplier||'')}" data-field="supplier" data-idx="${i}" style="${_is}" placeholder="ex: Auchan">
-              </div>`:''}
+              <span style="font-size:10px;color:${statusColor};white-space:nowrap;flex-shrink:0">${statusLabel}</span>
+            </label>`;
+          }).join('')}
+        </div>
+        <div class="form-actions" style="margin-top:12px;gap:8px">
+          <button class="btn btn-ghost" id="btnInvoiceCancel" style="flex:1">Annuler</button>
+          <button class="btn btn-primary" id="btnInvoiceNext" style="flex:2">Suivant →</button>
+        </div>`;
+      m.classList.add('show');
+
+      document.getElementById('btnInvoiceCancel').addEventListener('click', closeModal);
+      document.getElementById('invoiceList').addEventListener('change', e=>{
+        if(e.target.type==='checkbox'){
+          classified[parseInt(e.target.dataset.idx)]._skip = !e.target.checked;
+        }
+      });
+      document.getElementById('btnInvoiceNext').addEventListener('click', ()=>{
+        const toProcess = classified.filter(it=>!it._skip);
+        if(!toProcess.length){ toast('Aucun article sélectionné'); return; }
+        showProductWizard(toProcess, 0, {added:0, updated:0, conflicts:0});
+      });
+    }
+
+    // ── Étape 2 : wizard produit par produit ──
+    function showProductWizard(items, idx, stats){
+      if(idx >= items.length){
+        // Tout terminé
+        save(); renderIngredients(); closeModal();
+        const parts = [];
+        if(stats.added)     parts.push(`${stats.added} créé(s)`);
+        if(stats.updated)   parts.push(`${stats.updated} stock mis à jour`);
+        if(stats.conflicts) parts.push(`${stats.conflicts} ⚠️ conflit(s) noté(s)`);
+        toast('✅ ' + (parts.join(' · ') || 'Import terminé'));
+        return;
+      }
+
+      const it = items[idx];
+      const isLast = idx === items.length - 1;
+      const progress = `${idx+1} / ${items.length}`;
+      const _is = 'background:var(--navy-700);border:1px solid rgba(200,169,110,.18);border-radius:var(--radius-sm);color:var(--text-1);padding:8px 10px;font-size:13px;outline:none;width:100%';
+
+      // Champs éditables locaux
+      let localName     = it.name;
+      let localQty      = it.quantity;
+      let localPrice    = it.price;
+      let localSupplier = it._supplier || (it._existing?.supplier) || '';
+      let localUnit     = it._existing?.unit || 'pièce';
+      let localCategory = it._existing?.category || '';
+
+      const statusBadge = it._status==='new'
+        ? `<span style="background:rgba(200,169,110,.15);color:var(--gold);padding:2px 8px;border-radius:20px;font-size:11px">🆕 Nouveau produit</span>`
+        : it._status==='conflict'
+        ? `<span style="background:rgba(220,50,50,.15);color:#e55;padding:2px 8px;border-radius:20px;font-size:11px">⚠️ Conflit de prix</span>`
+        : `<span style="background:rgba(76,175,147,.15);color:#4caf93;padding:2px 8px;border-radius:20px;font-size:11px">✓ Produit existant</span>`;
+
+      const conflictBlock = it._status==='conflict' ? `
+        <div style="background:rgba(220,50,50,.08);border:1px solid rgba(220,50,50,.2);border-radius:8px;padding:10px;margin-bottom:12px;font-size:12px">
+          <div style="color:#e77;font-weight:600;margin-bottom:4px">⚠️ Changement de prix détecté</div>
+          <div style="color:var(--text-2)">Ancien prix en base : <b>${it._oldPrice.toFixed(2)} €</b></div>
+          <div style="color:var(--text-2)">Nouveau prix : <b>${localPrice.toFixed(2)} €</b></div>
+          <div style="color:var(--text-3);margin-top:4px;font-size:11px">Une entrée sera ajoutée à l'historique des prix.</div>
+        </div>` : '';
+
+      const newFields = it._status==='new' ? `
+        <div>
+          <label style="font-size:11px;color:var(--text-3);display:block;margin-bottom:4px">Catégorie</label>
+          <input id="wiz_category" type="text" value="${escapeHtml(localCategory)}" style="${_is}" placeholder="ex: Spiritueux, Épicerie…">
+        </div>
+        <div>
+          <label style="font-size:11px;color:var(--text-3);display:block;margin-bottom:4px">Unité de stock</label>
+          <select id="wiz_unit" style="${_is}">
+            ${['pièce','bouteille','kg','g','l','cl','boîte','sachet','lot'].map(u=>`<option value="${u}" ${localUnit===u?'selected':''}>${u}</option>`).join('')}
+          </select>
+        </div>
+        <div>
+          <label style="font-size:11px;color:var(--text-3);display:block;margin-bottom:4px">Fournisseur</label>
+          <input id="wiz_supplier" type="text" value="${escapeHtml(localSupplier)}" style="${_is}" placeholder="ex: Metro, Auchan…">
+        </div>` : `
+        <div>
+          <label style="font-size:11px;color:var(--text-3);display:block;margin-bottom:4px">Fournisseur</label>
+          <input id="wiz_supplier" type="text" value="${escapeHtml(localSupplier)}" style="${_is}" placeholder="ex: Metro, Auchan…">
+        </div>`;
+
+      document.getElementById('modalTitle').textContent = `📦 Article ${progress}`;
+      document.getElementById('modalContent').innerHTML = `
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:6px">
+          ${statusBadge}
+          <div style="font-size:11px;color:var(--text-3)">${progress}</div>
+        </div>
+        <!-- Barre de progression -->
+        <div style="background:rgba(255,255,255,.07);border-radius:20px;height:4px;margin-bottom:16px;overflow:hidden">
+          <div style="background:var(--gold);height:100%;width:${((idx+1)/items.length*100).toFixed(0)}%;border-radius:20px;transition:width .3s"></div>
+        </div>
+        ${conflictBlock}
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <div>
+            <label style="font-size:11px;color:var(--text-3);display:block;margin-bottom:4px">Nom du produit</label>
+            <input id="wiz_name" type="text" value="${escapeHtml(localName)}" style="${_is}">
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            <div>
+              <label style="font-size:11px;color:var(--text-3);display:block;margin-bottom:4px">Quantité reçue</label>
+              <input id="wiz_qty" type="number" min="0" step="1" value="${localQty}" style="${_is}">
             </div>
-            ${it._status==='conflict'?`
-            <div style="font-size:11px;color:#e55;margin-top:6px;background:rgba(229,85,85,.08);padding:6px 8px;border-radius:6px">
-              ⚠️ Ancien prix : <b>${it._oldPrice.toFixed(2)} €</b> · Nouveau : <b>${it.price.toFixed(2)} €</b><br>
-              <span style="color:var(--text-3)">Une note sera ajoutée à l'ingrédient avec la date et le nouveau prix.</span>
-            </div>`:''}
-          </div>`;
-        }).join('')}
-      </div>
-      <div class="form-actions" style="margin-top:12px;flex-direction:column;gap:8px">
-        <button class="btn btn-primary btn-block" id="btnInvoiceImport">📥 Importer</button>
-        <button class="btn btn-ghost btn-block" id="btnInvoiceCancel">Annuler</button>
-      </div>`;
-    m.classList.add('show');
+            <div>
+              <label style="font-size:11px;color:var(--text-3);display:block;margin-bottom:4px">Prix unitaire (€)</label>
+              <input id="wiz_price" type="number" min="0" step="0.01" value="${localPrice.toFixed(2)}" style="${_is}">
+            </div>
+          </div>
+          ${newFields}
+        </div>
+        <div class="form-actions" style="margin-top:16px;gap:8px">
+          <button class="btn btn-ghost" id="btnWizSkip" style="flex:1">⏭ Passer</button>
+          <button class="btn btn-primary" id="btnWizValidate" style="flex:2">${isLast ? '✅ Valider & Terminer' : '✅ Valider →'}</button>
+        </div>`;
+      m.classList.add('show');
 
-    // Lire les champs modifiables en temps réel dans classified
-    document.getElementById('invoiceList').addEventListener('input', e=>{
-      const el = e.target; if(!el.dataset.field) return;
-      const idx = parseInt(el.dataset.idx);
-      if(el.dataset.field==='qty')      classified[idx].quantity = parseFloat(el.value)||0;
-      if(el.dataset.field==='price')    classified[idx].price    = parseFloat(el.value)||0;
-      if(el.dataset.field==='supplier') classified[idx]._supplier = el.value.trim();
-    });
+      function readFields(){
+        localName     = document.getElementById('wiz_name')?.value.trim() || localName;
+        localQty      = parseFloat(document.getElementById('wiz_qty')?.value)||0;
+        localPrice    = parseFloat(document.getElementById('wiz_price')?.value)||0;
+        localSupplier = document.getElementById('wiz_supplier')?.value.trim()||'';
+        if(it._status==='new'){
+          localUnit     = document.getElementById('wiz_unit')?.value || localUnit;
+          localCategory = document.getElementById('wiz_category')?.value.trim()||'';
+        }
+      }
 
-    document.getElementById('btnInvoiceCancel').addEventListener('click', closeModal);
-    document.getElementById('btnInvoiceImport').addEventListener('click', ()=>{
-      const checks = document.querySelectorAll('#invoiceList input[type=checkbox]:checked');
-      let added=0, updated=0, conflicts=0;
-      checks.forEach(cb=>{
-        const it = classified[parseInt(cb.dataset.idx)];
+      function applyItem(){
+        readFields();
         if(it._status === 'new'){
-          // Créer l'ingrédient complet
           state.ingredients.push({
-            id:uid(), name:it.name,
-            category:'', type:'bought',
-            unit:'pièce', bottleSize:1, bottlePrice:it.price,
-            stock:it.quantity, stockUnit:'pièce', minStock:0,
-            supplier: it._supplier||'',
-            priceHistory:[{date:today, price:it.price, qty:it.quantity}],
+            id:uid(), name:localName,
+            category:localCategory, type:'bought',
+            unit:localUnit, bottleSize:1, bottlePrice:localPrice,
+            stock:localQty, stockUnit:localUnit, minStock:0,
+            supplier:localSupplier,
+            priceHistory:[{date:today, price:localPrice, qty:localQty}],
             notes:'', recipe:[], steps:'',
             mainOutput:{name:'',qtyMin:null,qtyMax:null,unit:'cl'}, byproducts:[]
           });
-          added++;
+          stats.added++;
         } else if(it._status === 'conflict'){
           const ex = it._existing;
-          // Ajouter au stock
-          ex.stock = (ex.stock||0) + it.quantity;
-          // Historique des prix
+          ex.stock = (ex.stock||0) + localQty;
           if(!ex.priceHistory) ex.priceHistory = [];
-          ex.priceHistory.push({date:today, price:it.price, qty:it.quantity});
-          // Note lisible
-          const noteEntry = `[${today}] Nouveau prix : ${it.price.toFixed(2)} € (était ${it._oldPrice.toFixed(2)} €) · ${it.quantity} unité(s) reçue(s)`;
+          ex.priceHistory.push({date:today, price:localPrice, qty:localQty});
+          if(localSupplier) ex.supplier = localSupplier;
+          const noteEntry = `[${today}] Nouveau prix : ${localPrice.toFixed(2)} € (était ${it._oldPrice.toFixed(2)} €) · ${localQty} unité(s) reçue(s)`;
           ex.notes = ex.notes ? ex.notes + '\n' + noteEntry : noteEntry;
-          conflicts++;
+          stats.conflicts++;
         } else {
-          // Même prix → simple ajout stock
-          it._existing.stock = (it._existing.stock||0) + it.quantity;
-          updated++;
+          it._existing.stock = (it._existing.stock||0) + localQty;
+          if(localSupplier) it._existing.supplier = localSupplier;
+          stats.updated++;
         }
+      }
+
+      document.getElementById('btnWizSkip').addEventListener('click', ()=>{
+        showProductWizard(items, idx+1, stats);
       });
-      save(); renderIngredients(); closeModal();
-      const parts = [];
-      if(added)     parts.push(`${added} créé(s)`);
-      if(updated)   parts.push(`${updated} stock mis à jour`);
-      if(conflicts) parts.push(`${conflicts} ⚠️ conflit(s) prix noté(s)`);
-      toast('✅ ' + parts.join(' · '));
-    });
+      document.getElementById('btnWizValidate').addEventListener('click', ()=>{
+        applyItem();
+        showProductWizard(items, idx+1, stats);
+      });
+    }
+
+    showSelectionStep();
     return;
   }
 
@@ -1193,7 +1331,7 @@ function processScanResult(parsed){
   }
 
   // ── Note libre ──
-  toast('📝 Texte : '+text.slice(0,80));
+  if(parsed.text) toast('📝 Texte : '+parsed.text.slice(0,80));
 }
 
 
@@ -3315,7 +3453,12 @@ document.getElementById('btnCalc').addEventListener('click', ()=>openCalculator(
 /* Init */
 applyI18n();
 syncAllMissing();
-go('Home');
+// Restaurer l'écran depuis le hash URL (survie au F5)
+(function(){
+  const hash = location.hash.replace('#','');
+  const startScreen = SCREENS.includes(hash) ? hash : 'Home';
+  go(startScreen);
+})();
 window.addEventListener('load', initSupabase);
 
 /* SW */
