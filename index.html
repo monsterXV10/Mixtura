@@ -3096,6 +3096,14 @@ document.getElementById('btnLogin').addEventListener('click', async()=>{
       if(k.startsWith('sb-') || k.includes('supabase') || k.includes('auth-token')) localStorage.removeItem(k);
     });
     sbUser = null;
+    // Vider les données du compte du stockage local
+    state.ingredients = [];
+    state.cocktails = [];
+    save();
+    renderCocktails();
+    renderIngredients();
+    renderBatches();
+    renderSettings();
     updateAuthUI();
     toast('👋 Déconnecté');
   } else openLoginModal();
