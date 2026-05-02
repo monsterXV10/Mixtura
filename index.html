@@ -661,10 +661,12 @@ async function sbPull(){
 async function sbPush(){
   if(!sb||!sbUser) return;
   try{
-    await Promise.all([
+    const [delIng, delRec] = await Promise.all([
       sb.from('ingredients').delete().eq('user_id',sbUser.id),
       sb.from('recipes').delete().eq('user_id',sbUser.id)
     ]);
+    if(delIng.error) throw delIng.error;
+    if(delRec.error) throw delRec.error;
     const ir=state.ingredients.map(d=>({user_id:sbUser.id,data:d}));
     const rr=state.cocktails.map(d=>({user_id:sbUser.id,data:d}));
     const results = await Promise.all([
@@ -674,15 +676,17 @@ async function sbPush(){
     const err = results.find(r=>r?.error)?.error;
     if(err) throw err;
     const sub = document.getElementById('authSub');
-    if(sub) sub.textContent = '☁️ Sync · ' + new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+    const hm = new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+    if(sub) sub.textContent = '☁️ Sync · ' + hm;
+    toast('☁️ Sauvegardé · ' + hm, 1200);
   }catch(e){
     console.error('sbPush',e);
-    toast('❌ Sync cloud : ' + (e.message||JSON.stringify(e)));
+    toast('❌ Sync cloud : ' + (e.message||JSON.stringify(e)), 4000);
   }
 }
 function sbDebouncedPush(){
   clearTimeout(sbSyncTimer);
-  sbSyncTimer=setTimeout(sbPush, 1500);
+  sbSyncTimer=setTimeout(sbPush, 800);
 }
 function openLoginModal(mode='login'){
   const m=document.getElementById('modal');
