@@ -600,9 +600,13 @@ function initSupabase(){
     sb.auth.onAuthStateChange(async(event,session)=>{
       sbUser = session?.user||null;
       updateAuthUI();
-      // Nettoyer le hash #access_token de l'URL dès la connexion
-      if((event==='SIGNED_IN'||event==='INITIAL_SESSION') && window.location.hash.includes('access_token')){
-        history.replaceState(null,'',window.location.origin+window.location.pathname);
+      // Nettoyer les params OAuth (hash implicit flow ou ?code= PKCE) de l'URL
+      if(event==='SIGNED_IN'||event==='INITIAL_SESSION'){
+        const hasOAuth = window.location.hash.includes('access_token') || window.location.search.includes('code=');
+        if(hasOAuth){
+          history.replaceState(null,'',window.location.origin+window.location.pathname);
+          go('Home');
+        }
       }
       if(sbUser && (event==='SIGNED_IN'||event==='INITIAL_SESSION') && sbUser.id !== lastUserId){
         lastUserId = sbUser.id;
@@ -3454,9 +3458,11 @@ document.getElementById('btnCalc').addEventListener('click', ()=>openCalculator(
 applyI18n();
 syncAllMissing();
 // Restaurer l'écran depuis le hash URL (survie au F5)
+// Ne pas écraser le hash si Supabase OAuth a mis #access_token ou ?code= (callback)
 (function(){
-  const hash = location.hash.replace('#','');
-  const startScreen = SCREENS.includes(hash) ? hash : 'Home';
+  const raw = location.hash.slice(1);
+  if(raw.includes('access_token') || raw.includes('error_description') || location.search.includes('code=')) return;
+  const startScreen = SCREENS.includes(raw) ? raw : 'Home';
   go(startScreen);
 })();
 window.addEventListener('load', initSupabase);
