@@ -600,6 +600,8 @@ function initSupabase(){
     sb.auth.onAuthStateChange(async(event,session)=>{
       sbUser = session?.user||null;
       updateAuthUI();
+      // Mettre à jour immédiatement le catalogue (plan demo→free ou free→demo)
+      if(typeof renderCocktails==='function') renderCocktails();
       // Nettoyer les params OAuth (hash implicit flow ou ?code= PKCE) de l'URL
       if(event==='SIGNED_IN'||event==='INITIAL_SESSION'){
         const hasOAuth = window.location.hash.includes('access_token') || window.location.search.includes('code=');
