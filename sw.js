@@ -3,7 +3,7 @@
    Gestion du cache hors-ligne
 ═══════════════════════════════════════ */
 
-const CACHE_NAME = 'mixtura-v6.11';
+const CACHE_NAME = 'mixtura-v6.12';
 const ASSETS = [
   './manifest.json',
   './icons/icon.svg',

@@ -775,7 +775,7 @@ function openLoginModal(mode='login'){
   renderLoginForm(mode);
   m.classList.add('show');
 }
-const BUILD = '2026-05-05f';
+const BUILD = '2026-05-05g';
 document.getElementById('buildDate').textContent = 'build ' + BUILD;
 document.getElementById('homeBuild').textContent = BUILD;
 
@@ -932,6 +932,7 @@ function go(screen){
   if(screen==='Batch') renderBatches();
   if(screen==='Settings') renderSettings();
   applyI18n();
+  updateAuthUI();
   document.querySelector('.screen.active')?.scrollTo(0,0);
 }
 document.querySelectorAll('[data-go]').forEach(b=>{
