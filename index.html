@@ -3142,19 +3142,15 @@ document.getElementById('btnReset').addEventListener('click', async()=>{
 document.getElementById('btnClearCache').addEventListener('click', async()=>{
   toast('🔄 Vidage du cache…');
   try{
-    // Supprimer tous les caches SW
     const keys = await caches.keys();
     await Promise.all(keys.map(k=>caches.delete(k)));
-    // Désinscrire le service worker
     const regs = await navigator.serviceWorker.getRegistrations();
     await Promise.all(regs.map(r=>r.unregister()));
-    toast('✅ Cache vidé — rechargement…');
-    setTimeout(()=>location.reload(true), 800);
-  }catch(e){
-    // Fallback si pas de SW
-    toast('✅ Rechargement…');
-    setTimeout(()=>location.reload(true), 500);
-  }
+  }catch(e){}
+  // Cache-buster dans l'URL pour bypasser HTTP cache + SW résiduel
+  setTimeout(()=>{
+    location.replace(location.origin + location.pathname + '?v=' + Date.now());
+  }, 600);
 });
 document.getElementById('btnExportIng').addEventListener('click', ()=>download('mixtura-ingredients.json', state.ingredients));
 document.getElementById('btnExportAll').addEventListener('click', ()=>download('mixtura-all.json', state));
@@ -3482,11 +3478,18 @@ window.addEventListener('load', initSupabase);
 
 /* SW */
 if('serviceWorker' in navigator){
+  // Listener AVANT load — sinon le message SW_UPDATED peut arriver avant l'enregistrement
+  navigator.serviceWorker.addEventListener('message', e=>{
+    if(e.data?.type==='SW_UPDATED'){
+      // Navigation forcée avec cache-buster pour bypasser le cache HTTP + SW
+      const url = location.origin + location.pathname + '?v=' + Date.now() + (location.hash || '');
+      location.replace(url);
+    }
+  });
   window.addEventListener('load', ()=>{
-    navigator.serviceWorker.register('sw.js').catch(()=>{});
-    navigator.serviceWorker.addEventListener('message', e=>{
-      if(e.data?.type==='SW_UPDATED') location.reload();
-    });
+    navigator.serviceWorker.register('sw.js')
+      .then(reg=>{ reg.update(); }) // Vérifier MAJ à chaque chargement de page
+      .catch(()=>{});
   });
 }
 </script>
