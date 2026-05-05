@@ -768,7 +768,7 @@ function openLoginModal(mode='login'){
   renderLoginForm(mode);
   m.classList.add('show');
 }
-const BUILD = '2026-05-05d';
+const BUILD = '2026-05-05e';
 document.getElementById('buildDate').textContent = 'build ' + BUILD;
 document.getElementById('homeBuild').textContent = BUILD;
 
@@ -924,6 +924,7 @@ function go(screen){
   if(screen==='Ingredients') renderIngredients();
   if(screen==='Batch') renderBatches();
   if(screen==='Settings') renderSettings();
+  applyI18n();
   document.querySelector('.screen.active')?.scrollTo(0,0);
 }
 document.querySelectorAll('[data-go]').forEach(b=>{
