@@ -590,7 +590,7 @@ input,select,textarea{font:inherit;color:inherit;user-select:text;-webkit-user-s
 const LS_KEY = 'mixtura_v3';
 /* ── Supabase ── */
 const SUPABASE_URL  = 'https://yvwgrgwxnrspimsvjewn.supabase.co';
-const SUPABASE_KEY  = 'sb_publishable_Ea7j_qfa3V67wM7h01uOEg_gaFFdIKf';
+const SUPABASE_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl2d2dyZ3d4bnJzcGltc3ZqZXduIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYyNDIzNTIsImV4cCI6MjA5MTgxODM1Mn0.4eDhK55LwL-AC0uJ9BFaDiHaln7RlUe7Qj335pkWO3s';
 let sb = null, sbUser = null, sbSyncTimer = null, sbCatalog = [];
 function initSupabase(){
   if(typeof window.supabase==='undefined'||SUPABASE_KEY.startsWith('REMPLACE')) return;
@@ -765,7 +765,7 @@ function openLoginModal(mode='login'){
   renderLoginForm(mode);
   m.classList.add('show');
 }
-const BUILD = '2026-05-05';
+const BUILD = '2026-05-05b';
 document.getElementById('buildDate').textContent = 'build ' + BUILD;
 document.getElementById('homeBuild').textContent = BUILD;
 
