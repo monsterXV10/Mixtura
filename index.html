@@ -595,7 +595,9 @@ let sb = null, sbUser = null, sbSyncTimer = null, sbCatalog = [];
 function initSupabase(){
   if(typeof window.supabase==='undefined'||SUPABASE_KEY.startsWith('REMPLACE')) return;
   try{
-    sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+      auth: { flowType: 'implicit', detectSessionInUrl: true }
+    });
     let lastUserId = null;
     sb.auth.onAuthStateChange(async(event,session)=>{
       sbUser = session?.user||null;
@@ -603,6 +605,7 @@ function initSupabase(){
       // Nettoyer le hash #access_token de l'URL dès la connexion
       if((event==='SIGNED_IN'||event==='INITIAL_SESSION') && window.location.hash.includes('access_token')){
         history.replaceState(null,'',window.location.origin+window.location.pathname);
+        go('Home');
       }
       if(sbUser && (event==='SIGNED_IN'||event==='INITIAL_SESSION') && sbUser.id !== lastUserId){
         lastUserId = sbUser.id;
@@ -765,7 +768,7 @@ function openLoginModal(mode='login'){
   renderLoginForm(mode);
   m.classList.add('show');
 }
-const BUILD = '2026-05-05b';
+const BUILD = '2026-05-05c';
 document.getElementById('buildDate').textContent = 'build ' + BUILD;
 document.getElementById('homeBuild').textContent = BUILD;
 
@@ -3477,6 +3480,13 @@ syncAllMissing();
 // Restaurer l'écran depuis le hash URL (survie au F5)
 (function(){
   const hash = location.hash.replace('#','');
+  // Ne pas écraser le hash si c'est un callback OAuth (tokens implicit flow)
+  if(hash.startsWith('access_token') || hash.startsWith('error_description')){
+    currentScreen = 'Home';
+    SCREENS.forEach(s=>{ const el=document.getElementById('screen'+s); if(el) el.classList.toggle('active',s==='Home'); });
+    const back=document.getElementById('btnBack'); if(back) back.classList.remove('show');
+    return;
+  }
   const startScreen = SCREENS.includes(hash) ? hash : 'Home';
   go(startScreen);
 })();
