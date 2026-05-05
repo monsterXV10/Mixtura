@@ -158,6 +158,14 @@ input,select,textarea{font:inherit;color:inherit;user-select:text;-webkit-user-s
   border-top:1px solid rgba(200,169,110,.08)}
 .menu-group.open .menu-group-body{display:block}
 
+.livre-bar{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none;margin-bottom:12px}
+.livre-bar::-webkit-scrollbar{display:none}
+.livre-chip{padding:6px 14px;border-radius:999px;background:var(--navy-700);
+  border:1px solid rgba(200,169,110,.15);font-size:13px;color:var(--text-2);
+  white-space:nowrap;cursor:pointer;transition:all var(--tr);flex-shrink:0}
+.livre-chip.active{background:var(--gold-glow);border-color:var(--gold);color:var(--gold);font-weight:600}
+.livre-chip:hover{border-color:rgba(200,169,110,.3);color:var(--text-1)}
+
 .fab{position:fixed;bottom:20px;right:20px;width:56px;height:56px;
   border-radius:50%;background:var(--gold);color:var(--navy-900);
   display:flex;align-items:center;justify-content:center;
@@ -357,6 +365,7 @@ input,select,textarea{font:inherit;color:inherit;user-select:text;-webkit-user-s
 
   <!-- Cocktails -->
   <div class="screen" id="screenCocktails">
+    <div id="livrebar-wrap"></div>
     <div class="filters">
       <div class="search">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
@@ -770,7 +779,7 @@ const I18N = {
     'name':'Nom','category':'Catégorie','glass':'Verre','family':'Famille',
     'ingredient':'Ingrédient','ingredients.plural':'Ingrédients','quantity':'Quantité',
     'unit':'Unité','price':'Prix','format':'Format','stock':'Stock','steps':'Étapes','notes':'Notes',
-    'menu.name':'Carte / menu','alcohol':'Alcool principal',
+    'menu.name':'Livre','alcohol':'Alcool principal',
     'group':'Grouper','confirm.delete':'Confirmer la suppression ?',
     'empty.cocktails':'Aucun cocktail. Ajoute ton premier !',
     'empty.ingredients':'Aucun ingrédient. Ajoute ton premier !',
@@ -812,7 +821,7 @@ const I18N = {
     'name':'Name','category':'Category','glass':'Glass','family':'Family',
     'ingredient':'Ingredient','ingredients.plural':'Ingredients','quantity':'Quantity',
     'unit':'Unit','price':'Price','format':'Format','stock':'Stock','steps':'Steps','notes':'Notes',
-    'menu.name':'Menu / card','alcohol':'Main spirit',
+    'menu.name':'Book','alcohol':'Main spirit',
     'group':'Group','confirm.delete':'Confirm deletion?',
     'empty.cocktails':'No cocktails yet. Add your first!',
     'empty.ingredients':'No ingredients yet. Add your first!',
@@ -859,6 +868,7 @@ const DEFAULT_STATE = {
   cocktails: [],
   ingredients: [],
   batches: [],
+  books: [],
   settings: {firstName:'', lastName:'', email:'', phone:'', venue:'', address:'', city:'', country:'', aiKey:''},
   customUnits: []   // [{id, name, equivQty, equivUnit}]  — ex: 1 goutte = 0.05 ml
 };
@@ -891,7 +901,7 @@ function save(){
 const SCREENS = ['Home','Cocktails','Ingredients','Batch','Settings'];
 let currentScreen = 'Home';
 let selection = new Set();
-let filters = {cocktail:{glass:'all',family:'all',alcohol:'all',search:''},
+let filters = {cocktail:{glass:'all',family:'all',alcohol:'all',livre:'all',search:''},
                ingredient:{category:'all',type:'all',search:''}};
 
 function go(screen){
@@ -1775,6 +1785,10 @@ const CATALOG = [
    ingredients:[{name:'Angostura bitters',qty:4.5,unit:'cl'},{name:'Sirop d\'orgeat',qty:2.25,unit:'cl'},{name:'Rye whisky',qty:0.75,unit:'cl'},{name:'Jus de citron',qty:2.25,unit:'cl'}],
    steps:'Shaker avec glace. Double-strain. Rare — le bitter est l\'ingrédient principal.'},
 ];
+CATALOG.slice(0,6).forEach(c=>c.livre='Tuto');
+CATALOG.slice(6).forEach(c=>c.livre='IBA');
+const BUILTIN_BOOKS=[{id:'Tuto',name:'Tuto',icon:'📚'},{id:'IBA',name:'IBA',icon:'🏆'}];
+
 /* Ingrédients uniques extraits du catalogue (pour l'autocomplete) */
 const CATALOG_INGREDIENTS=(()=>{
   const seen=new Set(), list=[];
@@ -1815,49 +1829,107 @@ function renderChips(containerId, kind, key, opts){
     el.appendChild(b);
   });
 }
+function renderLivreBar(){
+  const wrap=document.getElementById('livrebar-wrap');
+  if(!wrap) return;
+  const plan=getPlan();
+  const cur=filters.cocktail.livre;
+  const chips=[{id:'all',label:'Tous'},{id:'Tuto',label:'📚 Tuto'}];
+  if(plan!=='demo') chips.push({id:'IBA',label:'🏆 IBA'});
+  state.books.forEach(b=>chips.push({id:b,label:b,custom:true}));
+  wrap.innerHTML=`<div class="livre-bar">${chips.map(ch=>`<button class="livre-chip${cur===ch.id?' active':''}" data-livre="${escapeHtml(ch.id)}"${ch.custom?' data-custom="1"':''}>${escapeHtml(ch.label)}</button>`).join('')}<button class="livre-chip" id="btnNewLivre">＋ Livre</button></div>`;
+  wrap.querySelectorAll('.livre-chip[data-livre]').forEach(btn=>{
+    btn.addEventListener('click',()=>{ filters.cocktail.livre=btn.dataset.livre; renderCocktails(); });
+    if(btn.dataset.custom){
+      let lp;
+      btn.addEventListener('touchstart',()=>{ lp=setTimeout(()=>openEditLivreMenu(btn.dataset.livre),500); },{passive:true});
+      btn.addEventListener('touchend',()=>clearTimeout(lp));
+      btn.addEventListener('touchmove',()=>clearTimeout(lp));
+      btn.addEventListener('contextmenu',e=>{ e.preventDefault(); openEditLivreMenu(btn.dataset.livre); });
+    }
+  });
+  document.getElementById('btnNewLivre')?.addEventListener('click',()=>{
+    const name=(prompt('Nom du nouveau livre :')||'').trim();
+    if(!name) return;
+    if(!state.books.includes(name)){state.books.push(name); save();}
+    filters.cocktail.livre=name; renderCocktails();
+  });
+}
+function openEditLivreMenu(bookName){
+  if(!confirm(`Supprimer le livre "${bookName}" ?\nLes cocktails de ce livre seront sans livre.`)) return;
+  state.books=state.books.filter(b=>b!==bookName);
+  state.cocktails.forEach(c=>{if(c.menu===bookName) c.menu='';});
+  if(filters.cocktail.livre===bookName) filters.cocktail.livre='all';
+  save(); renderCocktails();
+  toast(`Livre "${bookName}" supprimé`);
+}
+function buildBookOptions(current){
+  const opts=[
+    `<option value="">— Sans livre —</option>`,
+    `<option value="Tuto"${current==='Tuto'?' selected':''}>📚 Tuto</option>`,
+    `<option value="IBA"${current==='IBA'?' selected':''}>🏆 IBA</option>`
+  ];
+  const extra=[...state.books];
+  if(current&&current!=='Tuto'&&current!=='IBA'&&!extra.includes(current)) extra.push(current);
+  extra.forEach(b=>opts.push(`<option value="${escapeHtml(b)}"${current===b?' selected':''}>${escapeHtml(b)}</option>`));
+  opts.push(`<option value="__new__">＋ Créer un livre...</option>`);
+  return opts.join('');
+}
+function renderCatalogGroup(container, label, items, stateKey, demoHint){
+  const isOpen=state[stateKey]!==false;
+  const hd=document.createElement('div');
+  hd.className='section-title';
+  hd.style.cssText='cursor:pointer;display:flex;align-items:center;justify-content:space-between;user-select:none;-webkit-user-select:none';
+  const chevId='chev_'+stateKey;
+  const chevron=`<svg id="${chevId}" style="transition:.2s;transform:rotate(${isOpen?0:180}deg)" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="18 15 12 9 6 15"/></svg>`;
+  hd.innerHTML=`<span>${label}${demoHint?` <span style="color:var(--warn);font-size:10px">${demoHint}</span>`:''} <span style="color:var(--text-3);font-weight:400;font-size:12px">${items.length}</span></span>${chevron}`;
+  container.appendChild(hd);
+  const listEl=document.createElement('div'); listEl.className='list';
+  if(!isOpen) listEl.style.display='none';
+  items.forEach(c=>listEl.appendChild(renderCocktailItem(c,true)));
+  container.appendChild(listEl);
+  hd.addEventListener('click',()=>{
+    const open=listEl.style.display==='none';
+    listEl.style.display=open?'':'none';
+    document.getElementById(chevId).style.transform=`rotate(${open?0:180}deg)`;
+    state[stateKey]=open; save();
+  });
+}
 function renderCocktails(){
+  renderLivreBar();
   const plan = getPlan();
   const planCfg = PLANS[plan];
   const container = document.getElementById('cocktailList');
   container.innerHTML = '';
 
   const q = filters.cocktail.search.toLowerCase().trim();
+  const livreFilter = filters.cocktail.livre;
 
-  /* ── Section CATALOGUE ── */
-  const catalogVisible = plan==='demo' ? CATALOG.slice(0,6) : CATALOG;
-  const catalogFiltered = catalogVisible.filter(c=>{
+  function passesTypeFilters(c){
     if(filters.cocktail.glass!=='all' && c.glass!==filters.cocktail.glass) return false;
     if(filters.cocktail.family!=='all' && c.family!==filters.cocktail.family) return false;
     if(filters.cocktail.alcohol!=='all' && c.alcohol!==filters.cocktail.alcohol) return false;
     if(q && !c.name.toLowerCase().includes(q)) return false;
     return true;
-  });
-  if(catalogFiltered.length){
-    const catOpen = state.catalogOpen !== false; // replié/déplié, ouvert par défaut
-    const hCat = document.createElement('div');
-    hCat.className='section-title';
-    hCat.style.cssText='cursor:pointer;display:flex;align-items:center;justify-content:space-between;user-select:none;-webkit-user-select:none';
-    const chevron = `<svg id="catChevron" style="transition:.2s;transform:rotate(${catOpen?0:180}deg)" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="18 15 12 9 6 15"/></svg>`;
-    hCat.innerHTML = `<span>📖 Catalogue${plan==='demo'?` <span style="color:var(--warn);font-size:10px">· ${CATALOG.length-6} autres à la connexion</span>`:` <span style="color:var(--text-3);font-weight:400;font-size:12px">${catalogFiltered.length}</span>`}</span>${chevron}`;
-    container.appendChild(hCat);
-    const lCat = document.createElement('div'); lCat.className='list';
-    if(!catOpen) lCat.style.display='none';
-    catalogFiltered.forEach(c=>lCat.appendChild(renderCocktailItem(c,true)));
-    container.appendChild(lCat);
-    hCat.addEventListener('click',()=>{
-      const open = lCat.style.display==='none';
-      lCat.style.display = open ? '' : 'none';
-      hCat.querySelector('#catChevron').style.transform = `rotate(${open?0:180}deg)`;
-      state.catalogOpen = open; save();
-    });
+  }
+
+  /* ── Section CATALOGUE ── */
+  const catalogAll = plan==='demo' ? CATALOG.slice(0,6) : CATALOG;
+  const tutoList = catalogAll.filter(c=>c.livre==='Tuto' && passesTypeFilters(c));
+  const ibaList  = catalogAll.filter(c=>c.livre==='IBA'  && passesTypeFilters(c));
+
+  if((livreFilter==='all'||livreFilter==='Tuto') && tutoList.length>0){
+    const demoHint = plan==='demo' ? `· ${CATALOG.length-6} autres à la connexion` : null;
+    renderCatalogGroup(container,'📚 Tuto',tutoList,'tutoCatOpen',demoHint);
+  }
+  if((livreFilter==='all'||livreFilter==='IBA') && ibaList.length>0){
+    renderCatalogGroup(container,'🏆 IBA',ibaList,'ibaCatOpen',null);
   }
 
   /* ── Section MES COCKTAILS ── */
   let userList = state.cocktails.filter(c=>{
-    if(filters.cocktail.glass!=='all' && c.glass!==filters.cocktail.glass) return false;
-    if(filters.cocktail.family!=='all' && c.family!==filters.cocktail.family) return false;
-    if(filters.cocktail.alcohol!=='all' && c.alcohol!==filters.cocktail.alcohol) return false;
-    if(q && !c.name.toLowerCase().includes(q)) return false;
+    if(!passesTypeFilters(c)) return false;
+    if(livreFilter!=='all' && (c.menu||'').trim()!==livreFilter) return false;
     return true;
   });
 
@@ -1912,11 +1984,11 @@ function renderCocktails(){
     container.appendChild(limitBanner);
   }
 
-  if(userList.length===0 && !q){
+  if(userList.length===0 && !q && livreFilter==='all'){
     const empty = document.createElement('div'); empty.className='empty';
     empty.innerHTML=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M8 22h8M12 11v11m7-19-7 8-7-8Z"/></svg><p>${t('empty.cocktails')}</p>`;
     container.appendChild(empty);
-  } else {
+  } else if(userList.length>0) {
     const byMenu = {};
     userList.forEach(c=>{ const m=c.menu||'__none__'; (byMenu[m]=byMenu[m]||[]).push(c); });
     const menuNames = Object.keys(byMenu).filter(m=>m!=='__none__').sort();
@@ -2029,8 +2101,7 @@ function openCocktailForm(c){
         <datalist id="spiritList">${SPIRITS.map(g=>`<option value="${g}">`).join('')}</datalist>
       </div>
       <div class="field"><label>${t('menu.name')}</label>
-        <input id="fMenu" list="menuList" value="${escapeHtml(c.menu||'')}" placeholder="ex: Carte été">
-        <datalist id="menuList">${uniq(state.cocktails.map(x=>x.menu)).map(g=>`<option value="${escapeHtml(g)}">`).join('')}</datalist>
+        <select id="fMenu">${buildBookOptions(c.menu||'')}</select>
       </div>
     </div>
     <div class="field"><label>${t('ingredients.plural')}</label>
@@ -2044,6 +2115,26 @@ function openCocktailForm(c){
     <div class="form-actions">
       <button class="btn btn-primary btn-block" id="btnSaveC">${t('save')}</button>
     </div>`;
+
+  /* ── Livre selector ── */
+  {
+    const fMenuEl=document.getElementById('fMenu');
+    const origMenu=c.menu||'';
+    fMenuEl.addEventListener('change',function(){
+      if(this.value==='__new__'){
+        const name=(prompt('Nom du nouveau livre :')||'').trim();
+        if(name){
+          if(!state.books.includes(name)){state.books.push(name);save();}
+          const opt=document.createElement('option');
+          opt.value=name;opt.textContent=name;
+          this.insertBefore(opt,this.querySelector('option[value="__new__"]'));
+          this.value=name;
+        } else {
+          this.value=origMenu;
+        }
+      }
+    });
+  }
 
   /* ── Autocomplete ingrédients custom (datalist peu fiable sur mobile) ── */
   function makeIngAutocomplete(inp){
@@ -2131,7 +2222,8 @@ function openCocktailForm(c){
     c.glass = document.getElementById('fGlass').value.trim();
     c.family = document.getElementById('fFamily').value.trim();
     c.alcohol = document.getElementById('fAlcohol').value.trim();
-    c.menu = document.getElementById('fMenu').value.trim();
+    const _menuVal=document.getElementById('fMenu').value;
+    c.menu = _menuVal==='__new__' ? '' : _menuVal;
     c.steps = document.getElementById('fSteps').value;
     if(!c.name){ toast('Nom requis'); return; }
     if(isNew) state.cocktails.push(c);

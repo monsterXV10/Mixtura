@@ -3,7 +3,7 @@
    Gestion du cache hors-ligne
 ═══════════════════════════════════════ */
 
-const CACHE_NAME = 'mixtura-v6.6';
+const CACHE_NAME = 'mixtura-v6.7';
 const ASSETS = [
   './',
   './index.html',
