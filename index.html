@@ -591,7 +591,7 @@ const LS_KEY = 'mixtura_v3';
 /* ── Supabase ── */
 const SUPABASE_URL  = 'https://yvwgrgwxnrspimsvjewn.supabase.co';
 const SUPABASE_KEY  = 'sb_publishable_Ea7j_qfa3V67wM7h01uOEg_gaFFdIKf';
-let sb = null, sbUser = null, sbSyncTimer = null;
+let sb = null, sbUser = null, sbSyncTimer = null, sbCatalog = [];
 function initSupabase(){
   if(typeof window.supabase==='undefined'||SUPABASE_KEY.startsWith('REMPLACE')) return;
   try{
@@ -606,7 +606,7 @@ function initSupabase(){
       }
       if(sbUser && (event==='SIGNED_IN'||event==='INITIAL_SESSION') && sbUser.id !== lastUserId){
         lastUserId = sbUser.id;
-        await sbPull();
+        await Promise.all([sbPull(), sbLoadCatalog()]);
       }
       if(event==='SIGNED_OUT') lastUserId = null;
     });
@@ -635,6 +635,23 @@ function updateAuthUI(){
     if(topbarUser) topbarUser.style.display='none';
   }
   updatePlanUI();
+}
+async function sbLoadCatalog(){
+  if(!sb) return;
+  try{
+    const {data,error} = await sb.from('catalog').select('id,name,glass,family,alcohol,ingredients,steps').order('name');
+    if(error) throw error;
+    sbCatalog = (data||[]).map(c=>({
+      id: c.id,
+      name: c.name,
+      glass: c.glass||'',
+      family: c.family||'',
+      alcohol: c.alcohol||'',
+      ingredients: (c.ingredients||[]).map(i=>({name:i.name||'',qty:i.qty||0,unit:i.unit||'ml'})),
+      steps: c.steps||''
+    }));
+    if(currentScreen==='Cocktails') renderCocktails();
+  }catch(e){ console.warn('sbLoadCatalog',e); }
 }
 async function sbPull(){
   if(!sb||!sbUser) return;
@@ -1682,7 +1699,8 @@ function renderCocktails(){
   const q = filters.cocktail.search.toLowerCase().trim();
 
   /* ── Section CATALOGUE ── */
-  const catalogVisible = plan==='demo' ? CATALOG.slice(0,6) : CATALOG;
+  const fullCatalog = (plan !== 'demo' && sbCatalog.length > 0) ? sbCatalog : CATALOG;
+  const catalogVisible = plan==='demo' ? CATALOG.slice(0,6) : fullCatalog;
   const catalogFiltered = catalogVisible.filter(c=>{
     if(filters.cocktail.glass!=='all' && c.glass!==filters.cocktail.glass) return false;
     if(filters.cocktail.family!=='all' && c.family!==filters.cocktail.family) return false;
@@ -1696,7 +1714,8 @@ function renderCocktails(){
     hCat.className='section-title';
     hCat.style.cssText='cursor:pointer;display:flex;align-items:center;justify-content:space-between;user-select:none;-webkit-user-select:none';
     const chevron = `<svg id="catChevron" style="transition:.2s;transform:rotate(${catOpen?0:180}deg)" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="18 15 12 9 6 15"/></svg>`;
-    hCat.innerHTML = `<span>📖 Catalogue${plan==='demo'?` <span style="color:var(--warn);font-size:10px">· ${CATALOG.length-6} autres à la connexion</span>`:` <span style="color:var(--text-3);font-weight:400;font-size:12px">${catalogFiltered.length}</span>`}</span>${chevron}`;
+    const totalInCatalog = plan==='demo' ? '195+' : fullCatalog.length;
+    hCat.innerHTML = `<span>📖 Catalogue${plan==='demo'?` <span style="color:var(--warn);font-size:10px">· ${totalInCatalog} autres à la connexion</span>`:` <span style="color:var(--text-3);font-weight:400;font-size:12px">${catalogFiltered.length}</span>`}</span>${chevron}`;
     container.appendChild(hCat);
     const lCat = document.createElement('div'); lCat.className='list';
     if(!catOpen) lCat.style.display='none';
@@ -1795,7 +1814,7 @@ function renderCocktails(){
   }
 
   // Chips filtre depuis catalogue + user
-  const allC=[...CATALOG,...state.cocktails];
+  const allC=[...fullCatalog,...state.cocktails];
   renderChips('filterGlass','cocktail','glass',[{v:'all',l:t('all')}, ...uniq(allC.map(c=>c.glass)).map(v=>({v,l:v}))]);
   renderChips('filterFamily','cocktail','family',[{v:'all',l:t('all')}, ...uniq(allC.map(c=>c.family)).map(v=>({v,l:v}))]);
   renderChips('filterAlcohol','cocktail','alcohol',[{v:'all',l:t('all')}, ...uniq(allC.map(c=>c.alcohol)).map(v=>({v,l:v}))]);
