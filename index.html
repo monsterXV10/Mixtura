@@ -619,6 +619,13 @@ function initSupabase(){
         renderCocktails(); renderIngredients();
       }
     });
+    // Fallback : supabase-js ne détecte pas toujours le hash implicit flow — on le traite manuellement
+    const _h = window.location.hash.substring(1);
+    if(_h.includes('access_token=')){
+      const _p = new URLSearchParams(_h);
+      const _at = _p.get('access_token'), _rt = _p.get('refresh_token');
+      if(_at && _rt) sb.auth.setSession({access_token:_at, refresh_token:_rt}).catch(e=>console.warn('setSession:',e.message));
+    }
   }catch(e){
     console.error('Supabase init error:', e);
     sb = null;
@@ -768,7 +775,7 @@ function openLoginModal(mode='login'){
   renderLoginForm(mode);
   m.classList.add('show');
 }
-const BUILD = '2026-05-05e';
+const BUILD = '2026-05-05f';
 document.getElementById('buildDate').textContent = 'build ' + BUILD;
 document.getElementById('homeBuild').textContent = BUILD;
 
