@@ -4052,11 +4052,32 @@ function _saveLivreBookData(){
 }
 
 /* SW */
+function showUpdateBanner(){
+  if(document.getElementById('sw-update-banner')) return;
+  const d=document.createElement('div');
+  d.id='sw-update-banner';
+  d.style.cssText='position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#1e1a2e;border:1px solid var(--gold);color:var(--clr-text);padding:12px 18px;border-radius:12px;z-index:9999;display:flex;gap:12px;align-items:center;box-shadow:0 4px 24px rgba(0,0,0,.6);white-space:nowrap';
+  d.innerHTML='<span>🔄 Mise à jour disponible</span><button onclick="location.reload()" style="background:var(--gold);color:#000;border:none;padding:6px 16px;border-radius:8px;cursor:pointer;font-weight:700;font-size:13px">Actualiser</button><button onclick="this.parentNode.remove()" style="background:none;border:none;color:var(--clr-text-muted);cursor:pointer;font-size:18px;padding:0 4px">×</button>';
+  document.body.appendChild(d);
+}
+
 if('serviceWorker' in navigator){
-  window.addEventListener('load', ()=>{
-    navigator.serviceWorker.register('sw.js').catch(()=>{});
-    navigator.serviceWorker.addEventListener('message', e=>{
-      if(e.data?.type==='SW_UPDATED') location.reload();
+  window.addEventListener('load', async()=>{
+    try{
+      const reg=await navigator.serviceWorker.register('sw.js');
+      // Force-check for a new SW on every page load
+      reg.update();
+      // Detect new SW installing
+      reg.addEventListener('updatefound',()=>{
+        const sw=reg.installing;
+        sw.addEventListener('statechange',()=>{
+          if(sw.state==='activated') showUpdateBanner();
+        });
+      });
+    }catch(e){}
+    // Message sent by SW after clients.claim()
+    navigator.serviceWorker.addEventListener('message',e=>{
+      if(e.data?.type==='SW_UPDATED') showUpdateBanner();
     });
   });
 }
