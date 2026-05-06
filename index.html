@@ -166,6 +166,38 @@ input,select,textarea{font:inherit;color:inherit;user-select:text;-webkit-user-s
 .livre-chip.active{background:var(--gold-glow);border-color:var(--gold);color:var(--gold);font-weight:600}
 .livre-chip:hover{border-color:rgba(200,169,110,.3);color:var(--text-1)}
 
+/* ── Vue Livre ── */
+.livre-modal{position:fixed;inset:0;z-index:300;background:var(--navy-900);display:none;flex-direction:column}
+.livre-modal.show{display:flex}
+.livre-topbar{height:52px;flex-shrink:0;display:flex;align-items:center;padding:0 16px;gap:10px;background:var(--navy-800);border-bottom:1px solid rgba(200,169,110,.12)}
+.livre-pg-btns{display:flex;background:var(--navy-700);border-radius:var(--radius-sm);padding:3px;gap:2px}
+.livre-pg-btn{padding:5px 13px;border-radius:6px;font-size:12px;font-weight:600;color:var(--text-2);transition:all var(--tr)}
+.livre-pg-btn.active{background:var(--gold-glow);border:1px solid rgba(200,169,110,.3);color:var(--gold)}
+.livre-pages{flex:1;overflow:hidden;position:relative}
+.livre-pg{position:absolute;inset:0;overflow-y:auto;padding:20px 20px 80px;transition:transform .3s cubic-bezier(.4,0,.2,1)}
+.livre-recipe-name{font-size:22px;font-weight:800;letter-spacing:.04em;color:var(--gold);margin-bottom:4px}
+.livre-recipe-meta{font-size:11.5px;color:var(--text-3);letter-spacing:.1em;text-transform:uppercase;margin-bottom:16px}
+.livre-ing-row{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid rgba(200,169,110,.07);font-size:14px}
+.livre-ing-name{color:var(--text-1)}
+.livre-ing-qty{color:var(--gold);font-weight:700;font-variant-numeric:tabular-nums;font-size:13px}
+.livre-steps{background:var(--navy-700);border-radius:var(--radius);padding:14px;font-size:13.5px;line-height:1.7;white-space:pre-wrap;color:var(--text-2)}
+.livre-cases-toggle{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid rgba(200,169,110,.08)}
+.livre-case-toggle-btn{padding:5px 13px;border-radius:999px;background:var(--navy-700);border:1px solid rgba(200,169,110,.12);font-size:12px;color:var(--text-2);transition:all var(--tr)}
+.livre-case-toggle-btn.on{background:var(--gold-glow);border-color:var(--gold);color:var(--gold);font-weight:600}
+.livre-case{background:var(--navy-800);border:1px solid rgba(200,169,110,.1);border-radius:var(--radius);padding:14px;margin-bottom:12px}
+.livre-case-title{font-size:10.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--text-3);margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.livre-scale-row{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.livre-scale-lbl{font-size:12px;color:var(--text-2);width:68px;flex-shrink:0}
+.livre-scale-track{flex:1;height:8px;background:var(--navy-600);border-radius:4px;cursor:pointer;position:relative;border-radius:4px}
+.livre-scale-fill{height:100%;border-radius:4px;background:linear-gradient(90deg,var(--gold-dim),var(--gold));transition:width .1s}
+.livre-scale-val{font-size:13px;color:var(--gold);font-weight:700;width:22px;text-align:right;flex-shrink:0}
+.livre-photo-area{border:2px dashed rgba(200,169,110,.25);border-radius:var(--radius);min-height:140px;display:flex;align-items:center;justify-content:center;cursor:pointer;overflow:hidden}
+.livre-photo-area:has(img){border-style:solid;border-color:rgba(200,169,110,.2)}
+.livre-canvas{width:100%;touch-action:none;cursor:crosshair;border-radius:var(--radius-sm);display:block}
+.livre-notes-ta{width:100%;min-height:90px;background:transparent;border:none;outline:none;font:inherit;font-size:14px;color:var(--text-1);line-height:1.7;resize:none}
+.livre-save-fab{position:fixed;bottom:20px;right:20px;width:52px;height:52px;border-radius:50%;background:var(--gold);color:var(--navy-900);display:flex;align-items:center;justify-content:center;z-index:320;box-shadow:0 4px 20px rgba(200,169,110,.5);transition:all var(--tr);font-size:20px}
+.livre-save-fab:hover{transform:scale(1.08)}
+
 .fab{position:fixed;bottom:20px;right:20px;width:56px;height:56px;
   border-radius:50%;background:var(--gold);color:var(--navy-900);
   display:flex;align-items:center;justify-content:center;
@@ -591,6 +623,25 @@ input,select,textarea{font:inherit;color:inherit;user-select:text;-webkit-user-s
   </div>
 </div>
 
+<!-- Vue Livre — plein écran -->
+<div id="livreModal" class="livre-modal">
+  <div class="livre-topbar">
+    <button id="btnLivreClose" style="width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;color:var(--text-2)">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M15 18l-6-6 6-6"/></svg>
+    </button>
+    <div id="livreTitre" style="flex:1;font-size:14px;font-weight:700;color:var(--gold);letter-spacing:.05em;text-transform:uppercase;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></div>
+    <div class="livre-pg-btns">
+      <button class="livre-pg-btn active" id="btnLivrePg0">Recette</button>
+      <button class="livre-pg-btn" id="btnLivrePg1">✨ Notes</button>
+    </div>
+  </div>
+  <div class="livre-pages" id="livrePages">
+    <div class="livre-pg" id="livrePg0"></div>
+    <div class="livre-pg" id="livrePg1" style="transform:translateX(100%)"></div>
+  </div>
+  <button id="btnLivreSave" class="livre-save-fab" style="display:none" title="Sauvegarder les notes">💾</button>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
@@ -601,6 +652,7 @@ const LS_KEY = 'mixtura_v3';
 const SUPABASE_URL  = 'https://yvwgrgwxnrspimsvjewn.supabase.co';
 const SUPABASE_KEY  = 'sb_publishable_Ea7j_qfa3V67wM7h01uOEg_gaFFdIKf';
 let sb = null, sbUser = null, sbSyncTimer = null;
+let remoteCatalog = null;
 function initSupabase(){
   if(typeof window.supabase==='undefined'||SUPABASE_KEY.startsWith('REMPLACE')) return;
   try{
@@ -621,9 +673,13 @@ function initSupabase(){
       }
       if(sbUser && (event==='SIGNED_IN'||event==='INITIAL_SESSION') && sbUser.id !== lastUserId){
         lastUserId = sbUser.id;
-        await sbPull();
+        await Promise.all([sbPull(), fetchRemoteCatalog()]);
       }
-      if(event==='SIGNED_OUT') lastUserId = null;
+      if(event==='SIGNED_OUT'){
+        lastUserId = null;
+        remoteCatalog = null;
+        if(typeof renderCocktails==='function') renderCocktails();
+      }
     });
   }catch(e){
     console.error('Supabase init error:', e);
@@ -654,15 +710,18 @@ function updateAuthUI(){
 async function sbPull(){
   if(!sb||!sbUser) return;
   try{
-    const [ir,rr]=await Promise.all([
+    const [ir,rr,cnr]=await Promise.all([
       sb.from('ingredients').select('data').eq('user_id',sbUser.id),
-      sb.from('recipes').select('data').eq('user_id',sbUser.id)
+      sb.from('recipes').select('data').eq('user_id',sbUser.id),
+      sb.from('catalog_notes').select('catalog_id,data').eq('user_id',sbUser.id)
     ]);
     const cloudIngs = ir.data?.map(r=>r.data)||[];
     const cloudCocktails = rr.data?.map(r=>r.data)||[];
-    // Remplacer le local par les données du compte — pas de fusion avec des données d'un autre compte
+    const cloudNotes = {};
+    (cnr.data||[]).forEach(r=>{ cloudNotes[r.catalog_id]=r.data; });
     state.ingredients = cloudIngs;
     state.cocktails   = cloudCocktails;
+    state.catalogNotes = cloudNotes;
     localStorage.setItem(LS_KEY, JSON.stringify(state));
     toast(cloudIngs.length||cloudCocktails.length ? '☁️ Données synchronisées' : '☁️ Compte vide — prêt !');
     if(currentScreen==='Ingredients') renderIngredients();
@@ -680,9 +739,12 @@ async function sbPush(){
     if(delRec.error) throw delRec.error;
     const ir=state.ingredients.map(d=>({user_id:sbUser.id,data:d}));
     const rr=state.cocktails.map(d=>({user_id:sbUser.id,data:d}));
+    const cnData=Object.entries(state.catalogNotes||{})
+      .map(([catalog_id,data])=>({user_id:sbUser.id,catalog_id,data,updated_at:new Date().toISOString()}));
     const results = await Promise.all([
       ir.length?sb.from('ingredients').insert(ir):Promise.resolve(null),
-      rr.length?sb.from('recipes').insert(rr):Promise.resolve(null)
+      rr.length?sb.from('recipes').insert(rr):Promise.resolve(null),
+      cnData.length?sb.from('catalog_notes').upsert(cnData,{onConflict:'user_id,catalog_id'}):Promise.resolve(null)
     ]);
     const err = results.find(r=>r?.error)?.error;
     if(err) throw err;
@@ -698,6 +760,33 @@ async function sbPush(){
 function sbDebouncedPush(){
   clearTimeout(sbSyncTimer);
   sbSyncTimer=setTimeout(sbPush, 800);
+}
+async function fetchRemoteCatalog(){
+  if(!sb||!sbUser) return;
+  try{
+    const {data,error}=await sb.from('catalog').select('*').order('name');
+    if(error||!data?.length) return;
+    remoteCatalog=data.map(c=>({
+      id:'rc_'+c.id,
+      _sbCatalogId:c.id,
+      name:toTitleCase(c.name),
+      glass:GLASS_MAP[c.glass]||c.glass?.toLowerCase()||'',
+      family:c.family||'',
+      alcohol:c.alcohol||'',
+      method:c.method||'',
+      garnish:c.garnish||'',
+      livre:c.source||'IBA',
+      ingredients:(c.ingredients||[]).map(i=>({
+        name:i.name,
+        qty:typeof i.qty==='number'?+(i.qty/10).toFixed(2):parseFloat(i.qty)||0,
+        unit:'cl'
+      })),
+      steps:c.steps||'',
+    }));
+    if(currentScreen==='Cocktails') renderCocktails();
+  }catch(e){
+    console.error('fetchRemoteCatalog',e);
+  }
 }
 function openLoginModal(mode='login'){
   const m=document.getElementById('modal');
@@ -869,6 +958,7 @@ const DEFAULT_STATE = {
   ingredients: [],
   batches: [],
   books: [],
+  catalogNotes: {},
   settings: {firstName:'', lastName:'', email:'', phone:'', venue:'', address:'', city:'', country:'', aiKey:''},
   customUnits: []   // [{id, name, equivQty, equivUnit}]  — ex: 1 goutte = 0.05 ml
 };
@@ -1788,16 +1878,25 @@ const CATALOG = [
 CATALOG.slice(0,6).forEach(c=>c.livre='Tuto');
 CATALOG.slice(6).forEach(c=>c.livre='IBA');
 const BUILTIN_BOOKS=[{id:'Tuto',name:'Tuto',icon:'📚'},{id:'IBA',name:'IBA',icon:'🏆'}];
+const GLASS_MAP={
+  'Cocktail Glass':'coupe','Lowball':'old-fashioned','Highball':'highball',
+  'Martini Glass':'martini','Martini glass':'martini','Martin Glass':'martini',
+  'Flute':'flûte','Hurricane':'hurricane','Wine Glass':'copa','Coppa Grande':'copa',
+  'Tikki Glass':'hurricane','Julep Cup':'highball','Shot glass':'shot',
+  'Mule Cupe':'highball','Tumbler Glass':'tumbler',
+};
+const toTitleCase=s=>(s||'').replace(/\w\S*/g,t=>t.charAt(0).toUpperCase()+t.slice(1).toLowerCase());
+function getCatalog(){ return remoteCatalog||CATALOG; }
 
 /* Ingrédients uniques extraits du catalogue (pour l'autocomplete) */
-const CATALOG_INGREDIENTS=(()=>{
+function getCatalogIngredients(){
   const seen=new Set(), list=[];
-  CATALOG.forEach(c=>(c.ingredients||[]).forEach(i=>{
+  getCatalog().forEach(c=>(c.ingredients||[]).forEach(i=>{
     const key=(i.name||'').toLowerCase().trim();
     if(key&&key.length>1&&!seen.has(key)){seen.add(key);list.push({name:i.name,unit:i.unit||'cl'});}
   }));
   return list.sort((a,b)=>a.name.localeCompare(b.name));
-})();
+}
 
 function updatePlanUI(){
   const plan = getPlan();
@@ -1834,8 +1933,10 @@ function renderLivreBar(){
   if(!wrap) return;
   const plan=getPlan();
   const cur=filters.cocktail.livre;
-  const chips=[{id:'all',label:'Tous'},{id:'Tuto',label:'📚 Tuto'}];
-  if(plan!=='demo') chips.push({id:'IBA',label:'🏆 IBA'});
+  const catalogForBar=plan==='demo'?getCatalog().slice(0,6):getCatalog();
+  const catLivres=[...new Set(catalogForBar.map(c=>c.livre||'IBA'))];
+  const chips=[{id:'all',label:'Tous'}];
+  catLivres.forEach(l=>{const bk=BUILTIN_BOOKS.find(b=>b.id===l);chips.push({id:l,label:bk?bk.icon+' '+bk.name:l});});
   state.books.forEach(b=>chips.push({id:b,label:b,custom:true}));
   wrap.innerHTML=`<div class="livre-bar">${chips.map(ch=>`<button class="livre-chip${cur===ch.id?' active':''}" data-livre="${escapeHtml(ch.id)}"${ch.custom?' data-custom="1"':''}>${escapeHtml(ch.label)}</button>`).join('')}<button class="livre-chip" id="btnNewLivre">＋ Livre</button></div>`;
   wrap.querySelectorAll('.livre-chip[data-livre]').forEach(btn=>{
@@ -1914,17 +2015,19 @@ function renderCocktails(){
   }
 
   /* ── Section CATALOGUE ── */
-  const catalogAll = plan==='demo' ? CATALOG.slice(0,6) : CATALOG;
-  const tutoList = catalogAll.filter(c=>c.livre==='Tuto' && passesTypeFilters(c));
-  const ibaList  = catalogAll.filter(c=>c.livre==='IBA'  && passesTypeFilters(c));
-
-  if((livreFilter==='all'||livreFilter==='Tuto') && tutoList.length>0){
-    const demoHint = plan==='demo' ? `· ${CATALOG.length-6} autres à la connexion` : null;
-    renderCatalogGroup(container,'📚 Tuto',tutoList,'tutoCatOpen',demoHint);
-  }
-  if((livreFilter==='all'||livreFilter==='IBA') && ibaList.length>0){
-    renderCatalogGroup(container,'🏆 IBA',ibaList,'ibaCatOpen',null);
-  }
+  const catalogAll = plan==='demo' ? getCatalog().slice(0,6) : getCatalog();
+  const catalogByLivre = {};
+  catalogAll.filter(passesTypeFilters).forEach(c=>{
+    const l=c.livre||'IBA';
+    if(livreFilter==='all'||livreFilter===l)(catalogByLivre[l]=catalogByLivre[l]||[]).push(c);
+  });
+  Object.entries(catalogByLivre).forEach(([livreId,items])=>{
+    const bk=BUILTIN_BOOKS.find(b=>b.id===livreId);
+    const label=bk?bk.icon+' '+bk.name:livreId;
+    const stateKey='cat_'+livreId+'_open';
+    const demoHint=livreId==='Tuto'&&plan==='demo'?`· ${getCatalog().length-6} autres à la connexion`:null;
+    renderCatalogGroup(container,label,items,stateKey,demoHint);
+  });
 
   /* ── Section MES COCKTAILS ── */
   let userList = state.cocktails.filter(c=>{
@@ -2009,7 +2112,7 @@ function renderCocktails(){
   }
 
   // Chips filtre depuis catalogue + user
-  const allC=[...CATALOG,...state.cocktails];
+  const allC=[...getCatalog(),...state.cocktails];
   renderChips('filterGlass','cocktail','glass',[{v:'all',l:t('all')}, ...uniq(allC.map(c=>c.glass)).map(v=>({v,l:v}))]);
   renderChips('filterFamily','cocktail','family',[{v:'all',l:t('all')}, ...uniq(allC.map(c=>c.family)).map(v=>({v,l:v}))]);
   renderChips('filterAlcohol','cocktail','alcohol',[{v:'all',l:t('all')}, ...uniq(allC.map(c=>c.alcohol)).map(v=>({v,l:v}))]);
@@ -2026,6 +2129,7 @@ function renderCocktailItem(c, isCatalog=false){
       <div class="item-meta">${[c.glass,c.family,c.alcohol].filter(Boolean).join(' · ')}</div>
     </div>
     <div class="item-actions">
+      <button class="item-act" data-act="livre" title="Vue livre" style="font-size:15px">📖</button>
       ${isCatalog
         ? `<button class="item-act" data-act="add" title="Ajouter à mes cocktails" style="color:var(--gold)">＋</button>`
         : `<button class="item-act" data-act="edit" aria-label="${t('edit')}">${ICON.edit}</button>
@@ -2034,6 +2138,7 @@ function renderCocktailItem(c, isCatalog=false){
     </div>`;
   el.addEventListener('click', e=>{
     const act = e.target.closest('[data-act]')?.dataset.act;
+    if(act==='livre'){ openLivreView(c, isCatalog); return; }
     if(act==='edit'){ openCocktailForm(c); return; }
     if(act==='del'){ if(confirm(t('confirm.delete'))){ state.cocktails=state.cocktails.filter(x=>x.id!==c.id); save(); renderCocktails(); toast(t('deleted')); } return; }
     if(act==='add'){ addCatalogCocktail(c); return; }
@@ -2145,7 +2250,7 @@ function openCocktailForm(c){
       if(!q) return;
       const personal = state.ingredients.filter(i=>(i.name||'').toLowerCase().includes(q)).slice(0,6);
       const personalNames = new Set(personal.map(i=>(i.name||'').toLowerCase()));
-      const fromCatalog = CATALOG_INGREDIENTS
+      const fromCatalog = getCatalogIngredients()
         .filter(i=>i.name.toLowerCase().includes(q)&&!personalNames.has(i.name.toLowerCase()))
         .slice(0, 6-personal.length);
       if(!personal.length&&!fromCatalog.length) return;
@@ -2246,14 +2351,15 @@ function openCocktailDetail(c, isCatalog=false){
       ${(c.ingredients||[]).map(i=>`<div class="item"><div class="item-body"><div class="item-name">${escapeHtml(i.name)}</div></div><div style="color:var(--gold);font-weight:600">${i.qty||''} ${escapeHtml(i.unit||'')}</div></div>`).join('')}
     </div>
     ${c.steps?`<div class="section-title">${t('steps')}</div><div style="background:var(--navy-700);padding:14px;border-radius:var(--radius);white-space:pre-wrap;font-size:13.5px;line-height:1.6">${escapeHtml(c.steps)}</div>`:''}
-    <div class="form-actions" style="${isCatalog?'display:grid;grid-template-columns:1fr 1fr;gap:8px':''}">
+    <div class="form-actions" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+      <button class="btn btn-ghost" id="btnDClose">Fermer</button>
+      <button class="btn" id="btnDLivre" style="background:var(--gold-glow);color:var(--gold);border:1px solid rgba(200,169,110,.35)">📖 Livre</button>
       ${isCatalog
-        ? `<button class="btn btn-ghost" id="btnDClose">Fermer</button>
-           <button class="btn btn-primary" id="btnDAdd">+ Mes cocktails</button>`
-        : `<button class="btn btn-ghost" id="btnDEdit">${t('edit')}</button>
-           <button class="btn btn-primary btn-block" id="btnDClose">OK</button>`
+        ? `<button class="btn btn-primary" id="btnDAdd">＋ Copier</button>`
+        : `<button class="btn btn-primary" id="btnDEdit">${t('edit')}</button>`
       }
     </div>`;
+  document.getElementById('btnDLivre').addEventListener('click',()=>{closeModal();openLivreView(c,isCatalog);});
   if(isCatalog){
     document.getElementById('btnDAdd').addEventListener('click', ()=>{ closeModal(); addCatalogCocktail(c); });
   } else {
@@ -3704,6 +3810,246 @@ syncAllMissing();
   go(startScreen);
 })();
 window.addEventListener('load', initSupabase);
+
+/* ═══════════════════════════════════════
+   VUE LIVRE — double page par cocktail
+═══════════════════════════════════════ */
+let _livreC=null, _livreIsCat=false, _livreBD=null, _livreModified=false, _livrePg=0;
+
+function openLivreView(c, isCatalog=false){
+  _livreC=c; _livreIsCat=isCatalog; _livreModified=false;
+  if(isCatalog){
+    _livreBD=structuredClone((state.catalogNotes||{})[c._sbCatalogId]||{});
+  } else {
+    _livreBD=structuredClone(c.bookData||{});
+  }
+  if(!_livreBD.activeCases) _livreBD.activeCases=[];
+  if(_livreBD.intensity===undefined) _livreBD.intensity=null;
+  if(_livreBD.bitterness===undefined) _livreBD.bitterness=null;
+  if(_livreBD.sour===undefined) _livreBD.sour=null;
+  document.getElementById('livreTitre').textContent=c.name;
+  _renderLivreRecipe();
+  _renderLivreNotes();
+  _setLivrePg(0);
+  document.getElementById('livreModal').classList.add('show');
+  document.body.style.overflow='hidden';
+
+  document.getElementById('btnLivreClose').onclick=()=>{
+    if(_livreModified) _saveLivreBookData();
+    document.getElementById('livreModal').classList.remove('show');
+    document.body.style.overflow='';
+  };
+  document.getElementById('btnLivrePg0').onclick=()=>_setLivrePg(0);
+  document.getElementById('btnLivrePg1').onclick=()=>_setLivrePg(1);
+  document.getElementById('btnLivreSave').onclick=()=>{ _saveLivreBookData(); };
+
+  // Swipe support
+  const pages=document.getElementById('livrePages');
+  let _tx=0;
+  pages.addEventListener('touchstart',e=>{ _tx=e.touches[0].clientX; },{passive:true,once:false});
+  pages.addEventListener('touchend',e=>{
+    const dx=e.changedTouches[0].clientX-_tx;
+    if(Math.abs(dx)>50) _setLivrePg(dx<0?1:0);
+  },{passive:true,once:false});
+}
+
+function _setLivrePg(n){
+  _livrePg=n;
+  document.getElementById('livrePg0').style.transform=`translateX(${-n*100}%)`;
+  document.getElementById('livrePg1').style.transform=`translateX(${(1-n)*100}%)`;
+  document.getElementById('btnLivrePg0').classList.toggle('active',n===0);
+  document.getElementById('btnLivrePg1').classList.toggle('active',n===1);
+  document.getElementById('btnLivreSave').style.display=n===1?'flex':'none';
+}
+
+function _renderLivreRecipe(){
+  const c=_livreC;
+  const meta=[c.glass,c.family||c.livre,c.alcohol,c.method].filter(Boolean).join(' · ');
+  document.getElementById('livrePg0').innerHTML=`
+    <div class="livre-recipe-name">${escapeHtml(c.name)}</div>
+    <div class="livre-recipe-meta">${escapeHtml(meta)}</div>
+    ${c.garnish?`<div style="font-size:12px;color:var(--gold);margin-bottom:14px">🌿 ${escapeHtml(c.garnish)}</div>`:''}
+    <div style="border-top:1px solid rgba(200,169,110,.1);margin-bottom:16px"></div>
+    <div class="section-title" style="margin-top:0">${t('ingredients.plural')}</div>
+    <div style="margin-bottom:20px">
+      ${(c.ingredients||[]).map(i=>`
+        <div class="livre-ing-row">
+          <span class="livre-ing-name">${escapeHtml(i.name)}</span>
+          <span class="livre-ing-qty">${i.qty||''} ${escapeHtml(i.unit||'')}</span>
+        </div>`).join('')}
+    </div>
+    ${c.steps?`<div class="section-title">${t('steps')}</div><div class="livre-steps">${escapeHtml(c.steps)}</div>`:''}
+  `;
+}
+
+function _renderLivreNotes(){
+  const pg=document.getElementById('livrePg1');
+  const bd=_livreBD;
+  const CASES=[
+    {id:'scales',icon:'📊',label:'Profil'},
+    {id:'aromas',icon:'🌿',label:'Notes'},
+    {id:'photo', icon:'📷',label:'Photo'},
+    {id:'sketch',icon:'✏️',label:'Croquis'},
+  ];
+  pg.innerHTML=`
+    <div class="livre-cases-toggle">
+      ${CASES.map(cs=>`<button class="livre-case-toggle-btn${(bd.activeCases||[]).includes(cs.id)?' on':''}" data-case="${cs.id}">${cs.icon} ${cs.label}</button>`).join('')}
+    </div>
+    <div id="livreCasesBody"></div>
+  `;
+  pg.querySelectorAll('.livre-case-toggle-btn').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const id=btn.dataset.case;
+      const idx=bd.activeCases.indexOf(id);
+      if(idx>=0) bd.activeCases.splice(idx,1); else bd.activeCases.push(id);
+      _livreModified=true;
+      _renderLivreNotes();
+      _setLivrePg(1);
+    });
+  });
+  _renderLivreCases();
+}
+
+function _renderLivreCases(){
+  const container=document.getElementById('livreCasesBody');
+  if(!container) return;
+  const bd=_livreBD;
+  container.innerHTML='';
+  (bd.activeCases||[]).forEach(caseId=>{
+    const el=document.createElement('div');
+    el.className='livre-case';
+    switch(caseId){
+      case 'scales':
+        el.innerHTML=`
+          <div class="livre-case-title">📊 Profil sensoriel</div>
+          ${_scaleHTML('intensity','Puissance',bd.intensity)}
+          ${_scaleHTML('bitterness','Amertume',bd.bitterness)}
+          ${_scaleHTML('sour','Sauer',bd.sour)}
+        `;
+        container.appendChild(el);
+        ['intensity','bitterness','sour'].forEach(k=>{
+          _attachScale(el.querySelector(`[data-scale="${k}"]`),k);
+        });
+        break;
+      case 'aromas':
+        el.innerHTML=`
+          <div class="livre-case-title">🌿 Notes aromatiques & dégustation</div>
+          <textarea class="livre-notes-ta" placeholder="Arômes, bouche, finale, accord mets...">${escapeHtml(bd.aromas||'')}</textarea>
+        `;
+        container.appendChild(el);
+        el.querySelector('textarea').addEventListener('input',e=>{bd.aromas=e.target.value;_livreModified=true;});
+        break;
+      case 'photo':
+        el.innerHTML=`
+          <div class="livre-case-title">📷 Photo
+            ${bd.photo?`<button id="btnRmPhoto" style="margin-left:auto;font-size:10px;color:var(--text-3)">🗑️ Retirer</button>`:''}
+          </div>
+          <label class="livre-photo-area" id="livrePhotoArea">
+            ${bd.photo
+              ?`<img src="${bd.photo}" style="width:100%;max-height:220px;object-fit:cover;border-radius:var(--radius-sm)">`
+              :`<div style="text-align:center;color:var(--text-3);padding:20px"><div style="font-size:36px">📷</div><div style="font-size:12px;margin-top:6px">Appuyer pour ajouter</div></div>`
+            }
+            <input type="file" accept="image/*" capture="environment" id="livrePhotoInput" style="display:none">
+          </label>
+        `;
+        container.appendChild(el);
+        el.querySelector('#livrePhotoArea').addEventListener('click',()=>el.querySelector('#livrePhotoInput').click());
+        el.querySelector('#livrePhotoInput').addEventListener('change',e=>{
+          const f=e.target.files?.[0]; if(!f) return;
+          const r=new FileReader(); r.onload=ev=>{bd.photo=ev.target.result;_livreModified=true;_renderLivreCases();}; r.readAsDataURL(f);
+        });
+        el.querySelector('#btnRmPhoto')?.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();bd.photo=null;_livreModified=true;_renderLivreCases();});
+        break;
+      case 'sketch':
+        el.innerHTML=`
+          <div class="livre-case-title">✏️ Croquis
+            <button id="btnClearSketch" style="margin-left:auto;font-size:10px;color:var(--text-3)">🗑️ Effacer</button>
+          </div>
+          <canvas id="livreCanvas" class="livre-canvas" height="200"></canvas>
+        `;
+        container.appendChild(el);
+        _initCanvas(bd);
+        break;
+    }
+  });
+}
+
+function _scaleHTML(key,label,val){
+  const pct=val!==null&&val!==undefined?val*10:0;
+  const display=val!==null&&val!==undefined?val:'–';
+  return `<div class="livre-scale-row">
+    <div class="livre-scale-lbl">${label}</div>
+    <div class="livre-scale-track" data-scale="${key}">
+      <div class="livre-scale-fill" style="width:${pct}%"></div>
+    </div>
+    <div class="livre-scale-val">${display}</div>
+  </div>`;
+}
+
+function _attachScale(track,key){
+  if(!track) return;
+  const update=x=>{
+    const r=track.getBoundingClientRect();
+    const v=Math.round(Math.max(0,Math.min(1,(x-r.left)/r.width))*10);
+    _livreBD[key]=v; _livreModified=true;
+    track.querySelector('.livre-scale-fill').style.width=(v*10)+'%';
+    track.closest('.livre-scale-row').querySelector('.livre-scale-val').textContent=v;
+  };
+  track.addEventListener('mousedown',e=>{
+    update(e.clientX);
+    const mv=ev=>update(ev.clientX);
+    document.addEventListener('mousemove',mv);
+    document.addEventListener('mouseup',()=>document.removeEventListener('mousemove',mv),{once:true});
+  });
+  track.addEventListener('touchstart',e=>{
+    e.preventDefault(); update(e.touches[0].clientX);
+    const mv=ev=>{ev.preventDefault();update(ev.touches[0].clientX);};
+    document.addEventListener('touchmove',mv,{passive:false});
+    document.addEventListener('touchend',()=>document.removeEventListener('touchmove',mv),{once:true});
+  },{passive:false});
+}
+
+function _initCanvas(bd){
+  const canvas=document.getElementById('livreCanvas');
+  if(!canvas) return;
+  canvas.width=canvas.offsetWidth||320;
+  const ctx=canvas.getContext('2d');
+  ctx.fillStyle='#1A2340';
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+  if(bd.sketch){
+    const img=new Image(); img.onload=()=>ctx.drawImage(img,0,0,canvas.width,canvas.height); img.src=bd.sketch;
+  }
+  ctx.strokeStyle='#C8A96E'; ctx.lineWidth=2; ctx.lineCap='round'; ctx.lineJoin='round';
+  let drawing=false, lx=0, ly=0;
+  const pos=(e,touch)=>{
+    const r=canvas.getBoundingClientRect(),s=touch?e.touches[0]:e;
+    return [(s.clientX-r.left)*(canvas.width/r.width),(s.clientY-r.top)*(canvas.height/r.height)];
+  };
+  canvas.addEventListener('mousedown',e=>{drawing=true;[lx,ly]=pos(e,false);ctx.beginPath();});
+  canvas.addEventListener('mousemove',e=>{if(!drawing)return;const[x,y]=pos(e,false);ctx.moveTo(lx,ly);ctx.lineTo(x,y);ctx.stroke();[lx,ly]=[x,y];});
+  canvas.addEventListener('mouseup',()=>{drawing=false;bd.sketch=canvas.toDataURL();_livreModified=true;});
+  canvas.addEventListener('touchstart',e=>{e.preventDefault();drawing=true;[lx,ly]=pos(e,true);ctx.beginPath();},{passive:false});
+  canvas.addEventListener('touchmove',e=>{e.preventDefault();if(!drawing)return;const[x,y]=pos(e,true);ctx.moveTo(lx,ly);ctx.lineTo(x,y);ctx.stroke();[lx,ly]=[x,y];},{passive:false});
+  canvas.addEventListener('touchend',()=>{drawing=false;bd.sketch=canvas.toDataURL();_livreModified=true;});
+  document.getElementById('btnClearSketch')?.addEventListener('click',()=>{
+    ctx.fillStyle='#1A2340';ctx.fillRect(0,0,canvas.width,canvas.height);
+    bd.sketch=null;_livreModified=true;
+  });
+}
+
+function _saveLivreBookData(){
+  const c=_livreC, bd=_livreBD;
+  if(_livreIsCat&&c._sbCatalogId){
+    if(!state.catalogNotes) state.catalogNotes={};
+    state.catalogNotes[c._sbCatalogId]=bd;
+  } else {
+    const idx=state.cocktails.findIndex(x=>x.id===c.id);
+    if(idx>=0) state.cocktails[idx].bookData=bd;
+  }
+  save();
+  _livreModified=false;
+  toast('📖 Notes sauvegardées');
+}
 
 /* SW */
 if('serviceWorker' in navigator){
