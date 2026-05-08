@@ -4065,28 +4065,36 @@ function _renderLivreCases(){
           <div class="livre-case-title">📷 Photo
             ${bd.photo?`<button id="btnRmPhoto" style="margin-left:auto;font-size:10px;color:var(--text-3)">🗑️ Retirer</button>`:''}
           </div>
-          <label class="livre-photo-area" id="livrePhotoArea">
-            ${bd.photo
-              ?`<img src="${bd.photo}" style="width:100%;max-height:220px;object-fit:cover;border-radius:var(--radius-sm)">`
-              :`<div style="text-align:center;color:var(--text-3);padding:20px"><div style="font-size:36px">📷</div><div style="font-size:12px;margin-top:6px">Appuyer pour ajouter</div></div>`
-            }
-            <input type="file" accept="image/*" id="livrePhotoInput" style="display:none">
-          </label>
+          ${bd.photo
+            ?`<img src="${bd.photo}" style="width:100%;max-height:320px;object-fit:contain;border-radius:var(--radius-sm);background:var(--navy-900);display:block">`
+            :`<div style="text-align:center;color:var(--text-3);padding:20px"><div style="font-size:36px">📷</div><div style="font-size:12px;margin-top:6px">Choisir source</div></div>`
+          }
+          <div style="display:flex;gap:8px;margin-top:10px">
+            <button id="btnPhotoCamera" class="btn btn-ghost btn-sm" style="flex:1">📷 Caméra</button>
+            <button id="btnPhotoFile" class="btn btn-ghost btn-sm" style="flex:1">🖼️ Galerie / Fichier</button>
+          </div>
+          <input type="file" accept="image/*" capture="environment" id="livrePhotoCamera" style="display:none">
+          <input type="file" accept="image/*" id="livrePhotoFile" style="display:none">
         `;
         container.appendChild(el);
-        el.querySelector('#livrePhotoArea').addEventListener('click',()=>el.querySelector('#livrePhotoInput').click());
-        el.querySelector('#livrePhotoInput').addEventListener('change',e=>{
-          const f=e.target.files?.[0]; if(!f) return;
-          const r=new FileReader();
-          r.onload=async ev=>{
-            bd.photo=await _compressPhoto(ev.target.result);
-            _livreModified=true;
-            _saveLivreBookData();
-            _renderLivreCases();
+        {
+          const handleFile = f => {
+            if(!f) return;
+            const r=new FileReader();
+            r.onload=async ev=>{
+              bd.photo=await _compressPhoto(ev.target.result,1600,0.82);
+              _livreModified=true;
+              _saveLivreBookData();
+              _renderLivreCases();
+            };
+            r.readAsDataURL(f);
           };
-          r.readAsDataURL(f);
-        });
-        el.querySelector('#btnRmPhoto')?.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();bd.photo=null;_livreModified=true;_renderLivreCases();});
+          el.querySelector('#btnPhotoCamera').addEventListener('click',()=>el.querySelector('#livrePhotoCamera').click());
+          el.querySelector('#btnPhotoFile').addEventListener('click',()=>el.querySelector('#livrePhotoFile').click());
+          el.querySelector('#livrePhotoCamera').addEventListener('change',e=>handleFile(e.target.files?.[0]));
+          el.querySelector('#livrePhotoFile').addEventListener('change',e=>handleFile(e.target.files?.[0]));
+          el.querySelector('#btnRmPhoto')?.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();bd.photo=null;_livreModified=true;_saveLivreBookData();_renderLivreCases();});
+        }
         break;
       case 'sketch':
         el.innerHTML=`
