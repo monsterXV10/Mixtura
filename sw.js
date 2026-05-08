@@ -3,8 +3,10 @@
    Gestion du cache hors-ligne
 ═══════════════════════════════════════ */
 
-const CACHE_NAME = 'mixtura-v6.12';
+const CACHE_NAME = 'mixtura-v7.0';
 const ASSETS = [
+  './',
+  './index.html',
   './manifest.json',
   './icons/icon.svg',
   './icons/icon-192.png',
@@ -12,7 +14,7 @@ const ASSETS = [
   './icons/favicon-32.png',
 ];
 
-/* ── Installation : mise en cache des assets statiques (pas index.html) ── */
+/* ── Installation : mise en cache des assets ── */
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME).then(cache => cache.addAll(ASSETS))
@@ -20,61 +22,55 @@ self.addEventListener('install', event => {
   self.skipWaiting();
 });
 
-/* ── Activation : suppression des anciens caches + notif clients ── */
+/* ── Activation : suppression des anciens caches ── */
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
-    ).then(() => self.clients.claim())
-     .then(() => self.clients.matchAll({type:'window'}))
-     .then(clients => clients.forEach(c => c.postMessage({type:'SW_UPDATED'})))
+      Promise.all(
+        keys
+          .filter(key => key !== CACHE_NAME)
+          .map(key => caches.delete(key))
+      )
+    )
   );
+  self.clients.claim().then(()=>{
+    self.clients.matchAll({type:'window'}).then(clients=>{
+      clients.forEach(c=>c.postMessage({type:'SW_UPDATED'}));
+    });
+  });
 });
 
-/* ── Fetch ── */
+/* ── Fetch : cache-first pour les assets, network-first pour Firebase ── */
 self.addEventListener('fetch', event => {
-  const req = event.request;
-
-  // Laisser passer : non-GET, Supabase, CDN externes
-  if (req.method !== 'GET') return;
+  // Laisser passer les requêtes Firebase / API (réseau uniquement)
   if (
-    req.url.includes('supabase.co') ||
-    req.url.includes('jsdelivr.net') ||
-    req.url.includes('googleapis.com') ||
-    req.url.includes('tesseract') ||
-    req.url.includes('pdfjs-dist')
-  ) return;
-
-  // Network-first pour les navigations HTML (index.html)
-  // → toujours la version fraîche quand on est en ligne
-  if (req.mode === 'navigate') {
-    event.respondWith(
-      fetch(req)
-        .then(response => {
-          if (response.ok) {
-            const clone = response.clone();
-            caches.open(CACHE_NAME).then(cache => cache.put(req, clone));
-          }
-          return response;
-        })
-        .catch(() => caches.match('./index.html'))
-    );
-    return;
+    event.request.url.includes('firebaseapp.com') ||
+    event.request.url.includes('googleapis.com') ||
+    event.request.url.includes('firestore.googleapis.com')
+  ) {
+    return; // pas d'interception
   }
 
-  // Cache-first pour les assets statiques (icons, manifest, xlsx…)
   event.respondWith(
-    caches.match(req).then(cached => {
+    caches.match(event.request).then(cached => {
       if (cached) return cached;
-      return fetch(req).then(response => {
-        if (response && response.status === 200 && response.type === 'basic') {
+      return fetch(event.request).then(response => {
+        // Mettre en cache les nouvelles ressources statiques
+        if (
+          response &&
+          response.status === 200 &&
+          response.type === 'basic'
+        ) {
           const clone = response.clone();
-          caches.open(CACHE_NAME).then(cache => cache.put(req, clone));
+          caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
         }
         return response;
       });
     }).catch(() => {
-      if (req.mode === 'navigate') return caches.match('./index.html');
+      // Hors-ligne : retourner index.html pour les navigations
+      if (event.request.mode === 'navigate') {
+        return caches.match('./index.html');
+      }
     })
   );
 });
