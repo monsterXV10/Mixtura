@@ -329,6 +329,40 @@ input,select,textarea{font:inherit;color:inherit;user-select:text;-webkit-user-s
 @media(max-width:480px){
   .field-row,.field-row-3{grid-template-columns:1fr}
 }
+
+/* ── Navigation persistante ── */
+.topbar-nav{display:none;gap:2px;margin:0 8px}
+.tnav-btn{padding:6px 14px;border-radius:var(--radius-sm);font-size:13px;font-weight:600;color:var(--text-2);letter-spacing:.03em;transition:all var(--tr)}
+.tnav-btn.active{background:var(--gold-glow);color:var(--gold)}
+.tnav-btn:hover:not(.active){background:rgba(200,169,110,.08);color:var(--text-1)}
+
+.bottom-nav{display:none;height:62px;flex-shrink:0;background:var(--navy-800);border-top:1px solid rgba(200,169,110,.12);z-index:20}
+.bnav-btn{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:var(--text-3);font-size:9.5px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;padding:6px 0;transition:color var(--tr)}
+.bnav-btn svg{width:22px;height:22px;stroke:currentColor;transition:stroke var(--tr)}
+.bnav-btn.active{color:var(--gold)}
+.bnav-btn:hover{color:var(--text-1)}
+
+/* ── Cartes "récents" ── */
+.recent-scroll{display:flex;gap:10px;overflow-x:auto;padding-bottom:6px;margin-bottom:14px;scrollbar-width:none}
+.recent-scroll::-webkit-scrollbar{display:none}
+.recent-card{flex-shrink:0;width:110px;background:var(--navy-700);border:1px solid rgba(200,169,110,.1);border-radius:var(--radius);padding:12px 10px;cursor:pointer;transition:all var(--tr)}
+.recent-card:hover{border-color:rgba(200,169,110,.35);background:var(--navy-600)}
+.recent-card-icon{font-size:20px;margin-bottom:6px}
+.recent-card-name{font-size:12px;font-weight:700;color:var(--text-1);overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;line-height:1.35}
+.recent-card-sub{font-size:10px;color:var(--text-3);margin-top:3px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+
+@media(min-width:769px){
+  .topbar-nav{display:flex}
+  .topbar-back{display:none !important}
+}
+@media(max-width:768px){
+  .bottom-nav{display:flex}
+  .screen{padding-bottom:82px}
+  .fab{bottom:78px}
+  .fab-menu{bottom:166px}
+  .toast{bottom:154px}
+  .selection-bar{bottom:62px}
+}
 </style>
 </head>
 <body>
@@ -338,6 +372,24 @@ input,select,textarea{font:inherit;color:inherit;user-select:text;-webkit-user-s
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
     </button>
     <div class="topbar-title" id="screenTitle">MIXTURA</div>
+    <nav class="topbar-nav" id="topbarNav">
+      <button class="tnav-btn" data-go="cocktails">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 22h8"/><path d="M12 11v11"/><path d="m19 3-7 8-7-8Z"/></svg>
+        Cocktails
+      </button>
+      <button class="tnav-btn" data-go="ingredients">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2v7.31"/><path d="M14 9.3V1.99"/><path d="M8.5 2h7"/><path d="M14 9.3a6.5 6.5 0 1 1-4 0"/></svg>
+        Ingrédients
+      </button>
+      <button class="tnav-btn" data-go="batch">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M8 2v4"/><path d="M16 2v4"/><path d="M3 10h18"/></svg>
+        Batch
+      </button>
+      <button class="tnav-btn" data-go="settings">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+        Paramètres
+      </button>
+    </nav>
     <div class="topbar-actions" id="topbarActions">
       <div id="topbarUser" style="display:none;align-items:center;gap:8px;cursor:pointer" onclick="go('Settings')" title="Paramètres du compte">
         <div style="width:30px;height:30px;border-radius:50%;background:rgba(200,169,110,.15);border:1.5px solid rgba(200,169,110,.3);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:var(--gold)" id="topbarAvatar">?</div>
@@ -397,6 +449,7 @@ input,select,textarea{font:inherit;color:inherit;user-select:text;-webkit-user-s
 
   <!-- Cocktails -->
   <div class="screen" id="screenCocktails">
+    <div id="recentSection"></div>
     <div id="livrebar-wrap"></div>
     <div class="filters">
       <div class="search">
@@ -404,9 +457,6 @@ input,select,textarea{font:inherit;color:inherit;user-select:text;-webkit-user-s
         <input id="cocktailSearch" type="search" placeholder="Rechercher...">
       </div>
     </div>
-    <div class="filters"><div class="filter-group" id="filterGlass"></div></div>
-    <div class="filters"><div class="filter-group" id="filterFamily"></div></div>
-    <div class="filters"><div class="filter-group" id="filterAlcohol"></div></div>
     <div id="cocktailList"></div>
   </div>
 
@@ -586,6 +636,26 @@ input,select,textarea{font:inherit;color:inherit;user-select:text;-webkit-user-s
       MIXTURA · <span id="buildDate"></span>
     </div>
   </div>
+
+  <!-- Nav persistante bas d'écran (mobile) -->
+  <nav class="bottom-nav" id="bottomNav">
+    <button class="bnav-btn" data-go="cocktails">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 22h8"/><path d="M12 11v11"/><path d="m19 3-7 8-7-8Z"/></svg>
+      Cocktails
+    </button>
+    <button class="bnav-btn" data-go="ingredients">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2v7.31"/><path d="M14 9.3V1.99"/><path d="M8.5 2h7"/><path d="M14 9.3a6.5 6.5 0 1 1-4 0"/><path d="M5.52 16h12.96"/></svg>
+      Ingrédients
+    </button>
+    <button class="bnav-btn" data-go="batch">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M8 2v4"/><path d="M16 2v4"/><path d="M3 10h18"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/></svg>
+      Batch
+    </button>
+    <button class="bnav-btn" data-go="settings">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+      Paramètres
+    </button>
+  </nav>
 
   <div class="fab-menu" id="fabMenu">
     <button data-fab-action="ingredient">
@@ -996,7 +1066,6 @@ let filters = {cocktail:{glass:'all',family:'all',alcohol:'all',livre:'all',sear
 
 function go(screen){
   currentScreen = screen;
-  // Persister l'écran dans le hash pour survivre au F5
   history.replaceState(null, '', '#' + screen);
   selection.clear(); updateSelectionBar();
   SCREENS.forEach(s=>document.getElementById('screen'+s).classList.toggle('active', s===screen));
@@ -1004,6 +1073,12 @@ function go(screen){
   const key = screen==='Home'?'Home':screen.toLowerCase();
   document.getElementById('screenTitle').textContent = screen==='Home' ? 'MIXTURA' : t(key);
   document.getElementById('fab').style.display = ['Cocktails','Ingredients','Batch'].includes(screen) ? 'flex':'none';
+  // Sync active state on all nav buttons
+  const goKey = {Cocktails:'cocktails',Ingredients:'ingredients',Batch:'batch',Settings:'settings'}[screen]||'';
+  document.querySelectorAll('[data-go]').forEach(b=>{
+    const isNav = b.closest('#topbarNav,#bottomNav');
+    if(isNav) b.classList.toggle('active', b.dataset.go===goKey);
+  });
   if(screen==='Cocktails') renderCocktails();
   if(screen==='Ingredients') renderIngredients();
   if(screen==='Batch') renderBatches();
@@ -1996,7 +2071,28 @@ function renderCatalogGroup(container, label, items, stateKey, demoHint){
     state[stateKey]=open; save();
   });
 }
+function renderRecent(){
+  const el = document.getElementById('recentSection');
+  if(!el) return;
+  const recent = [...state.cocktails].reverse().slice(0,6);
+  if(!recent.length){ el.innerHTML=''; return; }
+  el.innerHTML = `<div class="section-title" style="margin-bottom:8px">⏱ Ajoutés récemment</div><div class="recent-scroll">${
+    recent.map(c=>`<div class="recent-card" data-rid="${c.id}">
+      <div class="recent-card-icon">🍸</div>
+      <div class="recent-card-name">${escapeHtml(c.name)}</div>
+      ${c.glass?`<div class="recent-card-sub">${escapeHtml(c.glass)}</div>`:''}
+    </div>`).join('')
+  }</div>`;
+  el.querySelectorAll('[data-rid]').forEach(card=>{
+    card.addEventListener('click',()=>{
+      const c=state.cocktails.find(x=>x.id===card.dataset.rid);
+      if(c) openCocktailDetail(c,false);
+    });
+  });
+}
+
 function renderCocktails(){
+  renderRecent();
   renderLivreBar();
   const plan = getPlan();
   const planCfg = PLANS[plan];
@@ -2111,11 +2207,6 @@ function renderCocktails(){
     }
   }
 
-  // Chips filtre depuis catalogue + user
-  const allC=[...getCatalog(),...state.cocktails];
-  renderChips('filterGlass','cocktail','glass',[{v:'all',l:t('all')}, ...uniq(allC.map(c=>c.glass)).map(v=>({v,l:v}))]);
-  renderChips('filterFamily','cocktail','family',[{v:'all',l:t('all')}, ...uniq(allC.map(c=>c.family)).map(v=>({v,l:v}))]);
-  renderChips('filterAlcohol','cocktail','alcohol',[{v:'all',l:t('all')}, ...uniq(allC.map(c=>c.alcohol)).map(v=>({v,l:v}))]);
 }
 function renderCocktailItem(c, isCatalog=false){
   const el = document.createElement('div');
