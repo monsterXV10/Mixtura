@@ -4085,24 +4085,24 @@ function _renderLivreCases(){
             const r=new FileReader();
             r.onload=async ev=>{
               const compressed=await _compressPhoto(ev.target.result,1600,0.82);
-              toast('📤 Envoi de la photo…');
-              try{
-                const res=await fetch('/api/upload-photo',{
-                  method:'POST',
-                  headers:{'Content-Type':'application/json'},
-                  body:JSON.stringify({
-                    name:`cocktail-${Date.now()}.jpg`,
-                    type:'image/jpeg',
-                    data:compressed,
-                  }),
-                });
-                if(res.ok){
-                  const {url}=await res.json();
-                  bd.photo=url;
-                } else {
+              if(sb && sbUser){
+                try{
+                  toast('📤 Envoi de la photo…');
+                  const blob=await (await fetch(compressed)).blob();
+                  const path=`${sbUser.id}/${Date.now()}.jpg`;
+                  const {error}=await sb.storage.from('cocktail-photos').upload(path,blob,{contentType:'image/jpeg',upsert:false});
+                  if(!error){
+                    const {data:{publicUrl}}=sb.storage.from('cocktail-photos').getPublicUrl(path);
+                    bd.photo=publicUrl;
+                  } else {
+                    console.error('Storage upload:',error);
+                    bd.photo=compressed;
+                  }
+                } catch(e) {
+                  console.error('Photo upload:',e);
                   bd.photo=compressed;
                 }
-              } catch {
+              } else {
                 bd.photo=compressed;
               }
               _livreModified=true;
