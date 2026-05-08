@@ -12,6 +12,8 @@
 <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
 <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
+<script defer src="/_vercel/insights/script.js"></script>
+<script defer src="/_vercel/speed-insights/script.js"></script>
 <style>
 /* ═══════════════════════════════════════
    MIXTURA — v3 (reset)
@@ -4082,7 +4084,27 @@ function _renderLivreCases(){
             if(!f) return;
             const r=new FileReader();
             r.onload=async ev=>{
-              bd.photo=await _compressPhoto(ev.target.result,1600,0.82);
+              const compressed=await _compressPhoto(ev.target.result,1600,0.82);
+              toast('📤 Envoi de la photo…');
+              try{
+                const res=await fetch('/api/upload-photo',{
+                  method:'POST',
+                  headers:{'Content-Type':'application/json'},
+                  body:JSON.stringify({
+                    name:`cocktail-${Date.now()}.jpg`,
+                    type:'image/jpeg',
+                    data:compressed,
+                  }),
+                });
+                if(res.ok){
+                  const {url}=await res.json();
+                  bd.photo=url;
+                } else {
+                  bd.photo=compressed;
+                }
+              } catch {
+                bd.photo=compressed;
+              }
               _livreModified=true;
               _saveLivreBookData();
               _renderLivreCases();
