@@ -1988,7 +1988,8 @@ function updatePlanUI(){
 /* Cocktails */
 const GLASSES = ['highball','old-fashioned','coupe','flûte','martini','tumbler','hurricane','shot','copa'];
 const FAMILIES = ['long-drink','short-drink','shot','signature','mocktail','sour','tiki','spritz'];
-const SPIRITS = ['rhum','gin','vodka','whisky','tequila','cognac','mezcal','sans-alcool','champagne','vin'];
+const SPIRITS = ['rhum','gin','vodka','whisky','tequila','cognac','mezcal','sans-alcool','champagne','vin','bitter','porto','sake','armagnac','calvados','absinthe'];
+const METHODS = ['Shake','Stir','Build','Blend','Throw','Swizzle','Roll'];
 
 function renderChips(containerId, kind, key, opts){
   const el = document.getElementById(containerId); el.innerHTML='';
@@ -2273,9 +2274,20 @@ function updateSelectionBar(){
   document.getElementById('selectionCount').textContent = selection.size;
 }
 
+function guessMainAlcohol(ingredients){
+  if(!Array.isArray(ingredients)||!ingredients.length) return '';
+  const sorted=[...ingredients].filter(i=>i.name&&(i.qty||0)>0).sort((a,b)=>(b.qty||0)-(a.qty||0));
+  for(const ing of sorted){
+    const n=(ing.name||'').toLowerCase();
+    const match=SPIRITS.find(s=>n.includes(s)||s.includes(n.split(' ')[0]));
+    if(match) return match;
+  }
+  return sorted[0]?.name?.split(' ')[0]||'';
+}
+
 function openCocktailForm(c){
   const isNew = !c;
-  if(isNew) c = {id:uid(), name:'', glass:'', family:'', alcohol:'', menu:'', ingredients:[{name:'',qty:0,unit:'cl'}], steps:''};
+  if(isNew) c = {id:uid(), name:'', glass:'', family:'', alcohol:'', method:'', menu:'', ingredients:[{name:'',qty:0,unit:'cl'}], steps:''};
   else c = structuredClone(c);
   const m = document.getElementById('modal');
   document.getElementById('modalTitle').textContent = (isNew?t('add'):t('edit'))+' · Cocktail';
@@ -2292,9 +2304,11 @@ function openCocktailForm(c){
       </div>
     </div>
     <div class="field-row">
-      <div class="field"><label>${t('alcohol')}</label>
-        <input id="fAlcohol" list="spiritList" value="${escapeHtml(c.alcohol||'')}" placeholder="ex: rhum">
-        <datalist id="spiritList">${SPIRITS.map(g=>`<option value="${g}">`).join('')}</datalist>
+      <div class="field"><label>Méthode</label>
+        <select id="fMethod">
+          <option value="">— Choisir —</option>
+          ${METHODS.map(m=>`<option value="${m}"${c.method===m?' selected':''}>${m}</option>`).join('')}
+        </select>
       </div>
       <div class="field"><label>${t('menu.name')}</label>
         <select id="fMenu">${buildBookOptions(c.menu||'')}</select>
@@ -2417,7 +2431,8 @@ function openCocktailForm(c){
     c.name = document.getElementById('fName').value.trim();
     c.glass = document.getElementById('fGlass').value.trim();
     c.family = document.getElementById('fFamily').value.trim();
-    c.alcohol = document.getElementById('fAlcohol').value.trim();
+    c.method = document.getElementById('fMethod').value;
+    c.alcohol = guessMainAlcohol(c.ingredients);
     const _menuVal=document.getElementById('fMenu').value;
     c.menu = _menuVal==='__new__' ? '' : _menuVal;
     c.steps = document.getElementById('fSteps').value;
