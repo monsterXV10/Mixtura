@@ -77,6 +77,157 @@ create trigger on_auth_user_created
   for each row execute function public.handle_new_user();
 
 -- ============================================================
+-- ÉQUIPE — tables de gestion collaborative
+-- ============================================================
+
+-- 4. TEAMS
+create table if not exists public.teams (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  code text unique not null,
+  owner_id uuid references auth.users on delete cascade not null,
+  created_at timestamptz default now()
+);
+create index if not exists idx_teams_owner on public.teams(owner_id);
+
+-- 5. TEAM_MEMBERS
+create table if not exists public.team_members (
+  id uuid primary key default gen_random_uuid(),
+  team_id uuid references public.teams on delete cascade not null,
+  user_id uuid references auth.users on delete cascade not null,
+  email text,
+  display_name text,
+  role text check (role in ('admin','manager','user')) default 'user',
+  joined_at timestamptz default now(),
+  unique(team_id, user_id)
+);
+create index if not exists idx_team_members_team on public.team_members(team_id);
+create index if not exists idx_team_members_user on public.team_members(user_id);
+
+-- 6. TEAM_INVITATIONS
+create table if not exists public.team_invitations (
+  id uuid primary key default gen_random_uuid(),
+  team_id uuid references public.teams on delete cascade not null,
+  email text not null,
+  role text check (role in ('admin','manager','user')) default 'user',
+  token text unique not null,
+  invited_by uuid references auth.users,
+  created_at timestamptz default now(),
+  expires_at timestamptz default (now() + interval '7 days'),
+  accepted boolean default false
+);
+
+-- 7. TEAM_SHARED_ITEMS
+create table if not exists public.team_shared_items (
+  id uuid primary key default gen_random_uuid(),
+  team_id uuid references public.teams on delete cascade not null,
+  shared_by uuid references auth.users on delete cascade not null,
+  sharer_name text,
+  item_type text check (item_type in ('recipe','ingredient','batch')) not null,
+  item_id text,
+  share_mode text check (share_mode in ('copy','linked')) default 'copy',
+  data jsonb not null,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+create index if not exists idx_shared_items_team on public.team_shared_items(team_id);
+create index if not exists idx_shared_items_user on public.team_shared_items(shared_by);
+
+-- 8. TEAM_NOTES
+create table if not exists public.team_notes (
+  id uuid primary key default gen_random_uuid(),
+  team_id uuid references public.teams on delete cascade not null,
+  user_id uuid references auth.users on delete cascade not null,
+  author_name text,
+  item_id uuid references public.team_shared_items on delete cascade not null,
+  content text not null,
+  created_at timestamptz default now()
+);
+create index if not exists idx_team_notes_item on public.team_notes(item_id);
+
+-- ── RLS équipe ──
+alter table public.teams              enable row level security;
+alter table public.team_members       enable row level security;
+alter table public.team_invitations   enable row level security;
+alter table public.team_shared_items  enable row level security;
+alter table public.team_notes         enable row level security;
+
+-- teams : owner peut tout, membres peuvent lire
+drop policy if exists "team owner all"    on public.teams;
+drop policy if exists "team member read"  on public.teams;
+create policy "team owner all"   on public.teams for all using (auth.uid() = owner_id) with check (auth.uid() = owner_id);
+create policy "team member read" on public.teams for select using (
+  exists(select 1 from public.team_members m where m.team_id = id and m.user_id = auth.uid())
+);
+
+-- team_members : membres voient leur équipe, admin/owner gèrent
+drop policy if exists "member select" on public.team_members;
+drop policy if exists "member insert" on public.team_members;
+drop policy if exists "member update" on public.team_members;
+drop policy if exists "member delete" on public.team_members;
+create policy "member select" on public.team_members for select using (
+  user_id = auth.uid() or
+  exists(select 1 from public.team_members m2 where m2.team_id = team_id and m2.user_id = auth.uid())
+);
+create policy "member insert" on public.team_members for insert with check (
+  exists(select 1 from public.teams t where t.id = team_id and t.owner_id = auth.uid()) or
+  exists(select 1 from public.team_members m where m.team_id = team_id and m.user_id = auth.uid() and m.role in ('admin','manager'))
+);
+create policy "member update" on public.team_members for update using (
+  exists(select 1 from public.teams t where t.id = team_id and t.owner_id = auth.uid()) or
+  exists(select 1 from public.team_members m where m.team_id = team_id and m.user_id = auth.uid() and m.role in ('admin','manager'))
+);
+create policy "member delete" on public.team_members for delete using (
+  user_id = auth.uid() or
+  exists(select 1 from public.teams t where t.id = team_id and t.owner_id = auth.uid()) or
+  exists(select 1 from public.team_members m where m.team_id = team_id and m.user_id = auth.uid() and m.role in ('admin','manager'))
+);
+
+-- team_invitations : membres peuvent voir, admin/manager peuvent créer
+drop policy if exists "invite select" on public.team_invitations;
+drop policy if exists "invite insert" on public.team_invitations;
+drop policy if exists "invite delete" on public.team_invitations;
+create policy "invite select" on public.team_invitations for select using (
+  exists(select 1 from public.team_members m where m.team_id = team_id and m.user_id = auth.uid())
+);
+create policy "invite insert" on public.team_invitations for insert with check (
+  exists(select 1 from public.team_members m where m.team_id = team_id and m.user_id = auth.uid() and m.role in ('admin','manager'))
+);
+create policy "invite delete" on public.team_invitations for delete using (
+  exists(select 1 from public.team_members m where m.team_id = team_id and m.user_id = auth.uid() and m.role in ('admin','manager'))
+);
+
+-- team_shared_items : membres voient, auteur peut modifier/supprimer
+drop policy if exists "shared select" on public.team_shared_items;
+drop policy if exists "shared insert" on public.team_shared_items;
+drop policy if exists "shared update" on public.team_shared_items;
+drop policy if exists "shared delete" on public.team_shared_items;
+create policy "shared select" on public.team_shared_items for select using (
+  exists(select 1 from public.team_members m where m.team_id = team_id and m.user_id = auth.uid())
+);
+create policy "shared insert" on public.team_shared_items for insert with check (
+  exists(select 1 from public.team_members m where m.team_id = team_id and m.user_id = auth.uid())
+);
+create policy "shared update" on public.team_shared_items for update using (shared_by = auth.uid());
+create policy "shared delete" on public.team_shared_items for delete using (
+  shared_by = auth.uid() or
+  exists(select 1 from public.teams t where t.id = team_id and t.owner_id = auth.uid()) or
+  exists(select 1 from public.team_members m where m.team_id = team_id and m.user_id = auth.uid() and m.role = 'admin')
+);
+
+-- team_notes : membres voient/ajoutent, auteur supprime
+drop policy if exists "notes select" on public.team_notes;
+drop policy if exists "notes insert" on public.team_notes;
+drop policy if exists "notes delete" on public.team_notes;
+create policy "notes select" on public.team_notes for select using (
+  exists(select 1 from public.team_members m where m.team_id = team_id and m.user_id = auth.uid())
+);
+create policy "notes insert" on public.team_notes for insert with check (
+  exists(select 1 from public.team_members m where m.team_id = team_id and m.user_id = auth.uid())
+);
+create policy "notes delete" on public.team_notes for delete using (user_id = auth.uid());
+
+-- ============================================================
 -- PROVIDERS À ACTIVER côté dashboard Supabase :
 --   Auth → Providers → Email (Magic Link) : ON
 --   Auth → Providers → Google : ON + credentials Google OAuth

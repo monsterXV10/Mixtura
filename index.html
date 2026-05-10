@@ -365,6 +365,58 @@ input,select,textarea{font:inherit;color:inherit;user-select:text;-webkit-user-s
   .toast{bottom:154px}
   .selection-bar{bottom:62px}
 }
+
+/* ══════════════════════════════════════
+   ÉQUIPE — styles
+══════════════════════════════════════ */
+/* Context toggle Perso / Équipe */
+#ctxToggle{display:none;align-items:center;gap:2px;background:rgba(200,169,110,.08);border:1px solid rgba(200,169,110,.18);border-radius:20px;padding:3px}
+.ctx-btn{padding:4px 12px;border-radius:16px;font-size:12px;font-weight:600;color:var(--text-2);transition:all var(--tr);line-height:1.4}
+.ctx-btn.active{background:var(--gold);color:#0A0E1A}
+.ctx-btn:hover:not(.active){color:var(--text-1)}
+
+/* Badges de rôle */
+.team-role-badge{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;letter-spacing:.04em;vertical-align:middle}
+.badge-admin{background:rgba(200,169,110,.18);color:var(--gold);border:1px solid rgba(200,169,110,.35)}
+.badge-manager{background:rgba(232,184,75,.12);color:var(--warn);border:1px solid rgba(232,184,75,.3)}
+.badge-user{background:rgba(255,255,255,.06);color:var(--text-2);border:1px solid rgba(255,255,255,.12)}
+
+/* Mode partage badge */
+.share-mode-badge{display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:600;padding:2px 6px;border-radius:10px;margin-left:6px}
+.share-mode-copy{background:rgba(46,204,154,.1);color:#2ECC9A;border:1px solid rgba(46,204,154,.25)}
+.share-mode-linked{background:rgba(100,149,237,.12);color:#6495ED;border:1px solid rgba(100,149,237,.3)}
+
+/* Section équipe dans les listes */
+.team-section-head{display:flex;align-items:center;justify-content:space-between;padding:10px 0 6px;border-bottom:1px solid rgba(200,169,110,.12);margin-bottom:8px}
+.team-section-head span{font-size:13px;font-weight:700;color:var(--gold);letter-spacing:.05em;text-transform:uppercase}
+.team-item{position:relative}
+.team-item-meta{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text-3);margin-top:2px;flex-wrap:wrap}
+.team-item-sharer{color:var(--text-2)}
+
+/* Notes équipe */
+.team-notes-list{display:flex;flex-direction:column;gap:8px;margin:10px 0}
+.team-note{background:var(--navy-700);border-left:2px solid var(--gold);border-radius:0 var(--radius-sm) var(--radius-sm) 0;padding:8px 12px}
+.team-note-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px}
+.team-note-author{font-size:11px;font-weight:700;color:var(--gold)}
+.team-note-date{font-size:10px;color:var(--text-3)}
+.team-note-content{font-size:13px;color:var(--text-1);line-height:1.45;user-select:text;-webkit-user-select:text}
+.team-note-add{display:flex;gap:8px;margin-top:10px}
+.team-note-add textarea{flex:1;min-height:52px;resize:vertical;background:var(--navy-700);border:1px solid rgba(200,169,110,.18);border-radius:var(--radius-sm);padding:8px 10px;font-size:13px;color:var(--text-1)}
+.team-note-add textarea:focus{outline:none;border-color:var(--gold)}
+
+/* Membre row dans settings */
+.team-member-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.05)}
+.team-member-row:last-child{border-bottom:none}
+.team-member-avatar{width:32px;height:32px;border-radius:50%;background:rgba(200,169,110,.12);border:1.5px solid rgba(200,169,110,.25);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:var(--gold);flex-shrink:0}
+.team-member-info{flex:1;min-width:0}
+.team-member-name{font-size:13px;font-weight:600;color:var(--text-1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.team-member-email{font-size:11px;color:var(--text-3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.team-code-box{background:var(--navy-700);border:1px dashed rgba(200,169,110,.35);border-radius:var(--radius-sm);padding:10px 14px;display:flex;align-items:center;justify-content:space-between;margin:8px 0;cursor:pointer;transition:all var(--tr)}
+.team-code-box:hover{border-color:var(--gold)}
+.team-code-val{font-size:20px;font-weight:800;letter-spacing:.25em;color:var(--gold)}
+.team-code-hint{font-size:10px;color:var(--text-3);text-transform:uppercase;letter-spacing:.1em}
+body.theme-light .team-note{background:var(--navy-700)}
+body.theme-light .team-code-box{background:var(--navy-700)}
 </style>
 </head>
 <body>
@@ -393,6 +445,10 @@ input,select,textarea{font:inherit;color:inherit;user-select:text;-webkit-user-s
       </button>
     </nav>
     <div class="topbar-actions" id="topbarActions">
+      <div id="ctxToggle">
+        <button class="ctx-btn active" data-ctx="personal" title="Mes données">👤</button>
+        <button class="ctx-btn" data-ctx="team" title="Équipe">👥</button>
+      </div>
       <div id="topbarUser" style="display:none;align-items:center;gap:8px;cursor:pointer" onclick="go('Settings')" title="Paramètres du compte">
         <div style="width:30px;height:30px;border-radius:50%;background:rgba(200,169,110,.15);border:1.5px solid rgba(200,169,110,.3);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:var(--gold)" id="topbarAvatar">?</div>
         <span id="topbarName" style="font-size:12px;color:var(--text-2);max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
@@ -620,6 +676,11 @@ input,select,textarea{font:inherit;color:inherit;user-select:text;-webkit-user-s
       <button class="btn btn-ghost btn-sm" id="btnAddCustomUnit">+ Ajouter une unité</button>
     </div>
 
+    <div class="setting-section" id="settingTeamSection">
+      <h3>👥 Équipe</h3>
+      <div id="teamSectionContent"><!-- rendu par renderTeamSettings() --></div>
+    </div>
+
     <div class="setting-section">
       <h3 data-i18n="settings.language">Langue</h3>
       <div class="setting-row">
@@ -750,6 +811,9 @@ function initSupabase(){
       if(event==='SIGNED_OUT'){
         lastUserId = null;
         remoteCatalog = null;
+        teamData = null; teamSharedItems = [];
+        if(teamContext==='team'){ teamContext='personal'; localStorage.setItem('mixtura_teamCtx','personal'); }
+        updateCtxToggle();
         if(typeof renderCocktails==='function') renderCocktails();
       }
     });
@@ -798,6 +862,10 @@ async function sbPull(){
     toast(cloudIngs.length||cloudCocktails.length ? '☁️ Données synchronisées' : '☁️ Compte vide — prêt !');
     if(currentScreen==='Ingredients') renderIngredients();
     if(currentScreen==='Cocktails') renderCocktails();
+    // Charger les données équipe en parallèle
+    await teamFetch();
+    await teamFetchItems();
+    updateCtxToggle();
   }catch(e){console.error('sbPull',e); toast('❌ Erreur de synchronisation');}
 }
 async function sbPush(){
@@ -824,6 +892,18 @@ async function sbPush(){
     const hm = new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
     if(sub) sub.textContent = '☁️ Sync · ' + hm;
     toast('☁️ Sauvegardé · ' + hm, 1200);
+    // Synchroniser les items équipe liés (mode 'linked')
+    if(teamData&&teamSharedItems.length){
+      const linkedShares=teamSharedItems.filter(x=>x.share_mode==='linked'&&x.shared_by===sbUser.id);
+      if(linkedShares.length){
+        // Regrouper par item_id et synchroniser chaque item original
+        const ids=new Set(linkedShares.map(x=>x.item_id).filter(Boolean));
+        ids.forEach(origId=>{
+          const orig=state.cocktails.find(x=>x.id===origId)||state.ingredients.find(x=>x.id===origId)||state.batches.find(x=>x.id===origId);
+          if(orig) teamSyncLinked(orig, 'auto').catch(()=>{});
+        });
+      }
+    }
   }catch(e){
     console.error('sbPush',e);
     toast('❌ Sync cloud : ' + (e.message||JSON.stringify(e)), 4000);
@@ -833,6 +913,247 @@ function sbDebouncedPush(){
   clearTimeout(sbSyncTimer);
   sbSyncTimer=setTimeout(sbPush, 800);
 }
+
+/* ══════════════════════════════════════
+   ÉQUIPE — fonctions Supabase
+══════════════════════════════════════ */
+
+function teamRoleBadge(role){
+  const key='team.role.'+(role||'user');
+  const cls={'admin':'badge-admin','manager':'badge-manager','user':'badge-user'}[role||'user']||'badge-user';
+  return `<span class="team-role-badge ${cls}">${t(key)}</span>`;
+}
+function teamShareModeBadge(mode){
+  const cls=mode==='linked'?'share-mode-linked':'share-mode-copy';
+  return `<span class="share-mode-badge ${cls}">${t('team.shareMode.'+(mode||'copy'))}</span>`;
+}
+function teamGenCode(){
+  return Math.random().toString(36).slice(2,8).toUpperCase();
+}
+
+async function teamFetch(){
+  if(!sb||!sbUser){ teamData=null; updateCtxToggle(); return; }
+  try{
+    // Chercher la membership de l'utilisateur
+    const {data:mems,error:me}=await sb.from('team_members').select('team_id,role,display_name').eq('user_id',sbUser.id);
+    if(me||!mems?.length){ teamData=null; updateCtxToggle(); return; }
+    const {team_id,role}=mems[0];
+    // Charger l'équipe + tous les membres
+    const [{data:team,error:te},{data:members,error:me2}]=await Promise.all([
+      sb.from('teams').select('*').eq('id',team_id).single(),
+      sb.from('team_members').select('*').eq('team_id',team_id)
+    ]);
+    if(te||!team){ teamData=null; updateCtxToggle(); return; }
+    teamData={...team, role, members:members||[]};
+    updateCtxToggle();
+    if(typeof renderTeamSettings==='function' && currentScreen==='Settings') renderTeamSettings();
+  }catch(e){ console.error('teamFetch',e); teamData=null; updateCtxToggle(); }
+}
+
+async function teamFetchItems(){
+  if(!sb||!sbUser||!teamData){ teamSharedItems=[]; return; }
+  try{
+    const {data,error}=await sb.from('team_shared_items').select('*').eq('team_id',teamData.id).order('updated_at',{ascending:false});
+    if(error) throw error;
+    teamSharedItems=data||[];
+  }catch(e){ console.error('teamFetchItems',e); teamSharedItems=[]; }
+}
+
+async function teamCreate(name){
+  if(!sb||!sbUser) return false;
+  try{
+    const code=teamGenCode();
+    const dn=sbUser.user_metadata?.full_name||sbUser.user_metadata?.name||sbUser.email?.split('@')[0]||'';
+    const {data:team,error:te}=await sb.from('teams').insert({name,code,owner_id:sbUser.id}).select().single();
+    if(te) throw te;
+    const {error:me}=await sb.from('team_members').insert({team_id:team.id,user_id:sbUser.id,email:sbUser.email,display_name:dn,role:'admin'});
+    if(me) throw me;
+    await teamFetch();
+    toast('✅ Équipe "'+name+'" créée ! Code : '+code);
+    return true;
+  }catch(e){ console.error('teamCreate',e); toast('❌ '+(e.message||'Erreur création équipe'),3000); return false; }
+}
+
+async function teamJoin(code){
+  if(!sb||!sbUser) return false;
+  try{
+    const {data:team,error:te}=await sb.from('teams').select('*').eq('code',code.toUpperCase().trim()).single();
+    if(te||!team){ toast('❌ Code invalide ou équipe introuvable'); return false; }
+    // Vérifier si déjà membre
+    const {data:existing}=await sb.from('team_members').select('id').eq('team_id',team.id).eq('user_id',sbUser.id);
+    if(existing?.length){ toast('⚠️ Tu fais déjà partie de cette équipe'); return false; }
+    // Vérifier si déjà dans une autre équipe
+    if(teamData){ toast('⚠️ Quitte ton équipe actuelle avant d\'en rejoindre une autre'); return false; }
+    const dn=sbUser.user_metadata?.full_name||sbUser.user_metadata?.name||sbUser.email?.split('@')[0]||'';
+    const {error:ie}=await sb.from('team_members').insert({team_id:team.id,user_id:sbUser.id,email:sbUser.email,display_name:dn,role:'user'});
+    if(ie) throw ie;
+    await teamFetch(); await teamFetchItems();
+    toast('✅ Bienvenue dans l\'équipe "'+team.name+'" !');
+    return true;
+  }catch(e){ console.error('teamJoin',e); toast('❌ '+(e.message||'Erreur'), 3000); return false; }
+}
+
+async function teamLeave(){
+  if(!sb||!sbUser||!teamData) return;
+  if(!confirm(t('team.confirmLeave'))) return;
+  try{
+    const isOwner=teamData.owner_id===sbUser.id;
+    if(isOwner && teamData.members.length>1){ toast('⚠️ Transfère l\'administration avant de partir'); return; }
+    if(isOwner){
+      // Supprimer toute l'équipe
+      await sb.from('teams').delete().eq('id',teamData.id);
+    } else {
+      await sb.from('team_members').delete().eq('team_id',teamData.id).eq('user_id',sbUser.id);
+    }
+    teamData=null; teamSharedItems=[];
+    if(teamContext==='team'){ teamContext='personal'; localStorage.setItem('mixtura_teamCtx','personal'); }
+    updateCtxToggle();
+    toast('👋 Tu as quitté l\'équipe');
+    if(currentScreen==='Settings') renderSettings();
+  }catch(e){ console.error('teamLeave',e); toast('❌ '+(e.message||'Erreur')); }
+}
+
+async function teamUpdateRole(memberId, newRole){
+  if(!sb||!sbUser||!teamData) return;
+  if(!['admin','manager','user'].includes(newRole)) return;
+  try{
+    const {error}=await sb.from('team_members').update({role:newRole}).eq('id',memberId).eq('team_id',teamData.id);
+    if(error) throw error;
+    const m=teamData.members.find(x=>x.id===memberId);
+    if(m) m.role=newRole;
+    toast('✅ Rôle mis à jour');
+    if(currentScreen==='Settings') renderTeamSettings();
+  }catch(e){ console.error('teamUpdateRole',e); toast('❌ '+(e.message||'Erreur')); }
+}
+
+async function teamRemoveMember(memberId){
+  if(!sb||!sbUser||!teamData) return;
+  if(!confirm(t('confirm.delete'))) return;
+  try{
+    const {error}=await sb.from('team_members').delete().eq('id',memberId).eq('team_id',teamData.id);
+    if(error) throw error;
+    teamData.members=teamData.members.filter(x=>x.id!==memberId);
+    toast(t('deleted'));
+    if(currentScreen==='Settings') renderTeamSettings();
+  }catch(e){ console.error('teamRemoveMember',e); toast('❌ '+(e.message||'Erreur')); }
+}
+
+async function teamInviteByEmail(email, role){
+  if(!sb||!sbUser||!teamData) return;
+  try{
+    const token=Math.random().toString(36).slice(2)+Date.now().toString(36);
+    const {error}=await sb.from('team_invitations').insert({team_id:teamData.id,email,role,token,invited_by:sbUser.id});
+    if(error) throw error;
+    const link=window.location.origin+window.location.pathname+'#team-invite='+token;
+    // Copier le lien dans le presse-papier
+    try{ await navigator.clipboard.writeText(link); toast('📋 Lien d\'invitation copié ! Partage-le avec '+email,3000); }
+    catch{ toast('🔗 Lien : '+link,6000); }
+  }catch(e){ console.error('teamInviteByEmail',e); toast('❌ '+(e.message||'Erreur')); }
+}
+
+async function teamAcceptInvite(token){
+  if(!sb||!sbUser) return false;
+  try{
+    const {data:inv,error:ie}=await sb.from('team_invitations').select('*').eq('token',token).eq('accepted',false).single();
+    if(ie||!inv){ toast('❌ Invitation invalide ou expirée',3000); return false; }
+    if(new Date(inv.expires_at)<new Date()){ toast('❌ Invitation expirée'); return false; }
+    const dn=sbUser.user_metadata?.full_name||sbUser.user_metadata?.name||sbUser.email?.split('@')[0]||'';
+    const {error:me}=await sb.from('team_members').insert({team_id:inv.team_id,user_id:sbUser.id,email:sbUser.email,display_name:dn,role:inv.role});
+    if(me && me.code!=='23505') throw me; // 23505 = déjà membre
+    await sb.from('team_invitations').update({accepted:true}).eq('id',inv.id);
+    await teamFetch(); await teamFetchItems();
+    toast('✅ Invitation acceptée !');
+    history.replaceState(null,'',window.location.pathname);
+    return true;
+  }catch(e){ console.error('teamAcceptInvite',e); toast('❌ '+(e.message||'Erreur')); return false; }
+}
+
+async function teamShareItem(itemType, item, mode){
+  if(!sb||!sbUser||!teamData) return;
+  try{
+    const dn=sbUser.user_metadata?.full_name||sbUser.user_metadata?.name||sbUser.email?.split('@')[0]||'';
+    const payload={team_id:teamData.id,shared_by:sbUser.id,sharer_name:dn,item_type:itemType,
+      item_id:mode==='linked'?item.id:null,share_mode:mode,data:structuredClone(item)};
+    const {error}=await sb.from('team_shared_items').insert(payload);
+    if(error) throw error;
+    await teamFetchItems();
+    toast('✅ '+t('team.share')+' ('+t('team.shareMode.'+mode)+')');
+    const screen=itemType==='recipe'?'Cocktails':itemType==='ingredient'?'Ingredients':'Batch';
+    if(currentScreen===screen) renderCurrentScreen();
+  }catch(e){ console.error('teamShareItem',e); toast('❌ '+(e.message||'Erreur')); }
+}
+
+async function teamUnshareItem(sharedItemId){
+  if(!sb||!sbUser||!teamData) return;
+  if(!confirm(t('team.confirmUnshare'))) return;
+  try{
+    const {error}=await sb.from('team_shared_items').delete().eq('id',sharedItemId);
+    if(error) throw error;
+    teamSharedItems=teamSharedItems.filter(x=>x.id!==sharedItemId);
+    toast(t('deleted'));
+    renderCurrentScreen();
+  }catch(e){ console.error('teamUnshareItem',e); toast('❌ '+(e.message||'Erreur')); }
+}
+
+async function teamSyncLinked(originalItem, itemType){
+  if(!sb||!sbUser||!teamData) return;
+  const linked=teamSharedItems.filter(x=>x.share_mode==='linked'&&x.item_id===originalItem.id&&x.shared_by===sbUser.id);
+  if(!linked.length) return;
+  try{
+    await Promise.all(linked.map(sh=>
+      sb.from('team_shared_items').update({data:structuredClone(originalItem),updated_at:new Date().toISOString()}).eq('id',sh.id)
+    ));
+    linked.forEach(sh=>{ const x=teamSharedItems.find(s=>s.id===sh.id); if(x){x.data=structuredClone(originalItem);x.updated_at=new Date().toISOString();} });
+  }catch(e){ console.error('teamSyncLinked',e); }
+}
+
+async function teamFetchNotes(sharedItemId){
+  if(!sb||!sbUser||!teamData) return [];
+  try{
+    const {data,error}=await sb.from('team_notes').select('*').eq('item_id',sharedItemId).order('created_at',{ascending:true});
+    if(error) throw error;
+    return data||[];
+  }catch(e){ console.error('teamFetchNotes',e); return []; }
+}
+
+async function teamAddNote(sharedItemId, content){
+  if(!sb||!sbUser||!teamData||!content.trim()) return false;
+  try{
+    const dn=sbUser.user_metadata?.full_name||sbUser.user_metadata?.name||sbUser.email?.split('@')[0]||'';
+    const {error}=await sb.from('team_notes').insert({team_id:teamData.id,user_id:sbUser.id,author_name:dn,item_id:sharedItemId,content:content.trim()});
+    if(error) throw error;
+    return true;
+  }catch(e){ console.error('teamAddNote',e); return false; }
+}
+
+function renderCurrentScreen(){
+  if(currentScreen==='Cocktails') renderCocktails();
+  else if(currentScreen==='Ingredients') renderIngredients();
+  else if(currentScreen==='Batch') renderBatches();
+}
+
+function updateCtxToggle(){
+  const el=document.getElementById('ctxToggle');
+  if(!el) return;
+  const show=!!(sbUser&&teamData);
+  el.style.display=show?'flex':'none';
+  if(!show && teamContext==='team'){
+    teamContext='personal';
+    localStorage.setItem('mixtura_teamCtx','personal');
+  }
+  el.querySelectorAll('.ctx-btn').forEach(b=>b.classList.toggle('active',b.dataset.ctx===teamContext));
+}
+
+// Event handler pour le toggle contexte
+document.getElementById('ctxToggle').addEventListener('click',e=>{
+  const btn=e.target.closest('.ctx-btn');
+  if(!btn) return;
+  teamContext=btn.dataset.ctx;
+  localStorage.setItem('mixtura_teamCtx',teamContext);
+  updateCtxToggle();
+  renderCurrentScreen();
+});
+
 async function fetchRemoteCatalog(){
   if(!sb||!sbUser) return;
   try{
@@ -968,7 +1289,23 @@ const I18N = {
     'saved':'Enregistré','imported':'Importé','exported':'Exporté','deleted':'Supprimé',
     'reset.confirm':'Effacer toutes les données ?','Home':'Accueil',
     'fab.newIng':'Nouvel ingrédient','fab.scan':'Scanner facture',
-    'incomplete':'À compléter','incomplete.tooltip':'Cet ingrédient est utilisé dans une recette mais pas encore renseigné'
+    'incomplete':'À compléter','incomplete.tooltip':'Cet ingrédient est utilisé dans une recette mais pas encore renseigné',
+    'team':'Équipe','team.create':"Créer une équipe",'team.join':"Rejoindre une équipe",
+    'team.joinCode':"Rejoindre avec un code",'team.name':"Nom de l'équipe",'team.code':"Code d'invitation",
+    'team.codeCopy':"Copier le code",'team.invite':"Inviter",'team.inviteEmail':"Inviter par email",
+    'team.leave':"Quitter l'équipe",'team.share':"Partager avec l'équipe",'team.unshare':"Retirer du partage",
+    'team.notes':"Notes équipe",'team.addNote':"Ajouter une note...",'team.submitNote':"Ajouter",
+    'team.role.admin':'👑 Admin','team.role.manager':'⭐ Manager','team.role.user':'🍹 Barman',
+    'team.context.personal':'Perso','team.context.team':'Équipe',
+    'team.shareMode.copy':'📷 Copie','team.shareMode.linked':'🔗 Lié',
+    'team.empty':'Aucun contenu partagé dans l\'équipe','team.myShares':'Mes partages',
+    'team.allShares':'Partagés par l\'équipe','team.sharedBy':'par','team.updatedLinked':'Mettre à jour',
+    'team.noTeam':"Pas encore dans une équipe",'team.noTeamSub':"Crée ou rejoins une équipe pour collaborer",
+    'team.notLogged':"Connectez-vous pour utiliser les fonctionnalités équipe",
+    'team.shareChoose':"Comment partager ?",
+    'team.shareModeCopyDesc':"Copie indépendante — les modifs futures ne seront pas répercutées",
+    'team.shareModeLinkedDesc':"Lien vivant — tu peux synchroniser ta version à tout moment",
+    'team.confirmUnshare':"Retirer ce partage ?",'team.confirmLeave':"Quitter l'équipe ?"
   },
   en:{
     'tagline':'Cocktail Manager',
@@ -1010,7 +1347,23 @@ const I18N = {
     'saved':'Saved','imported':'Imported','exported':'Exported','deleted':'Deleted',
     'reset.confirm':'Erase all data?','Home':'Home',
     'fab.newIng':'New ingredient','fab.scan':'Scan invoice',
-    'incomplete':'To complete','incomplete.tooltip':'This ingredient is used in a recipe but not yet filled in'
+    'incomplete':'To complete','incomplete.tooltip':'This ingredient is used in a recipe but not yet filled in',
+    'team':'Team','team.create':"Create a team",'team.join':"Join a team",
+    'team.joinCode':"Join with a code",'team.name':"Team name",'team.code':"Invite code",
+    'team.codeCopy':"Copy code",'team.invite':"Invite",'team.inviteEmail':"Invite by email",
+    'team.leave':"Leave team",'team.share':"Share with team",'team.unshare':"Remove share",
+    'team.notes':"Team notes",'team.addNote':"Add a note...",'team.submitNote':"Add",
+    'team.role.admin':'👑 Admin','team.role.manager':'⭐ Manager','team.role.user':'🍹 Bartender',
+    'team.context.personal':'Personal','team.context.team':'Team',
+    'team.shareMode.copy':'📷 Copy','team.shareMode.linked':'🔗 Linked',
+    'team.empty':'No shared content in this team','team.myShares':'My shares',
+    'team.allShares':'Shared by team','team.sharedBy':'by','team.updatedLinked':'Sync update',
+    'team.noTeam':"Not in a team yet",'team.noTeamSub':"Create or join a team to collaborate",
+    'team.notLogged':"Sign in to use team features",
+    'team.shareChoose':"How to share?",
+    'team.shareModeCopyDesc':"Independent copy — future edits won't be reflected",
+    'team.shareModeLinkedDesc':"Live link — you can push updates to the team at any time",
+    'team.confirmUnshare':"Remove this share?",'team.confirmLeave':"Leave the team?"
   }
 };
 function t(k){return (I18N[state.lang]||I18N.fr)[k]||k}
@@ -1036,6 +1389,11 @@ const DEFAULT_STATE = {
 };
 
 let state = load();
+
+/* ── Variables globales équipe ── */
+let teamData = null;        // {id, name, code, role, members:[...]} ou null
+let teamSharedItems = [];   // [{id, team_id, shared_by, sharer_name, item_type, item_id, share_mode, data, created_at, updated_at}]
+let teamContext = localStorage.getItem('mixtura_teamCtx') || 'personal'; // 'personal'|'team'
 
 function load(){
   try {
@@ -2102,9 +2460,16 @@ function renderRecent(){
 function renderCocktails(){
   renderRecent();
   renderLivreBar();
+  const container = document.getElementById('cocktailList');
+
+  // Contexte équipe
+  if(teamContext==='team'){
+    renderTeamContent('recipe', container);
+    return;
+  }
+
   const plan = getPlan();
   const planCfg = PLANS[plan];
-  const container = document.getElementById('cocktailList');
   container.innerHTML = '';
 
   const q = filters.cocktail.search.toLowerCase().trim();
@@ -2231,13 +2596,15 @@ function renderCocktailItem(c, isCatalog=false){
       <button class="item-act" data-act="livre" title="Vue livre" style="font-size:15px">📖</button>
       ${isCatalog
         ? `<button class="item-act" data-act="add" title="Ajouter à mes cocktails" style="color:var(--gold)">＋</button>`
-        : `<button class="item-act" data-act="edit" aria-label="${t('edit')}">${ICON.edit}</button>
+        : `${sbUser&&teamData?`<button class="item-act" data-act="share" title="${t('team.share')}" style="font-size:14px">📤</button>`:''}
+           <button class="item-act" data-act="edit" aria-label="${t('edit')}">${ICON.edit}</button>
            <button class="item-act del" data-act="del" aria-label="${t('delete')}">${ICON.del}</button>`
       }
     </div>`;
   el.addEventListener('click', e=>{
     const act = e.target.closest('[data-act]')?.dataset.act;
     if(act==='livre'){ openLivreView(c, isCatalog); return; }
+    if(act==='share'){ openShareModal('recipe', c); return; }
     if(act==='edit'){ openCocktailForm(c); return; }
     if(act==='del'){ if(confirm(t('confirm.delete'))){ state.cocktails=state.cocktails.filter(x=>x.id!==c.id); save(); renderCocktails(); toast(t('deleted')); } return; }
     if(act==='add'){ addCatalogCocktail(c); return; }
@@ -2507,6 +2874,12 @@ function renderIngredients(){
   renderChips('filterIngCategory','ingredient','category',[{v:'all',l:t('all')+' · '+t('category')}, ...cats.map(v=>({v,l:v}))]);
   renderChips('filterIngType','ingredient','type',[{v:'all',l:t('all')},{v:'bought',l:t('bought')},{v:'homemade',l:t('homemade')}]);
 
+  // Contexte équipe
+  if(teamContext==='team'){
+    renderTeamContent('ingredient', document.getElementById('ingredientList'));
+    return;
+  }
+
   const q = filters.ingredient.search.toLowerCase().trim();
   let list = state.ingredients.filter(i=>{
     if(filters.ingredient.category!=='all' && i.category!==filters.ingredient.category) return false;
@@ -2543,11 +2916,13 @@ function renderIngredientItem(i){
       <div class="item-meta">${escapeHtml(i.category||'')} · ${stockTxt}</div>
     </div>
     <div class="item-actions">
+      ${sbUser&&teamData?`<button class="item-act" data-act="share" title="${t('team.share')}" style="font-size:14px">📤</button>`:''}
       <button class="item-act" data-act="edit">${ICON.edit}</button>
       <button class="item-act del" data-act="del">${ICON.del}</button>
     </div>`;
   el.addEventListener('click', e=>{
     const act = e.target.closest('[data-act]')?.dataset.act;
+    if(act==='share'){ openShareModal('ingredient', i); return; }
     if(act==='edit'){ openIngredientForm(i); return; }
     if(act==='del'){ if(confirm(t('confirm.delete'))){ state.ingredients=state.ingredients.filter(x=>x.id!==i.id); save(); renderIngredients(); toast(t('deleted')); } return; }
     if(selection.size>0){ toggleSel(i.id); } else { openIngredientDetail(i); }
@@ -3150,9 +3525,15 @@ function openCalculator(){
 }
 
 function renderBatches(){
+  const c = document.getElementById('batchList');
+  // Contexte équipe
+  if(teamContext==='team'){
+    renderTeamContent('batch', c);
+    return;
+  }
   const q = (document.getElementById('batchSearch').value||'').toLowerCase();
   const list = state.batches.filter(b=>!q || b.name.toLowerCase().includes(q));
-  const c = document.getElementById('batchList'); c.innerHTML='';
+  c.innerHTML='';
   if(list.length===0){
     c.innerHTML = `<div class="empty">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M8 2v4M16 2v4M3 10h18"/></svg>
@@ -3169,11 +3550,13 @@ function renderBatches(){
         <div class="item-meta">${(b.items||[]).length} items · ${b.date||''}</div>
       </div>
       <div class="item-actions">
+        ${sbUser&&teamData?`<button class="item-act" data-act="share" title="${t('team.share')}" style="font-size:14px">📤</button>`:''}
         <button class="item-act" data-act="edit">${ICON.edit}</button>
         <button class="item-act del" data-act="del">${ICON.del}</button>
       </div>`;
     el.addEventListener('click', e=>{
       const act = e.target.closest('[data-act]')?.dataset.act;
+      if(act==='share'){ openShareModal('batch', b); return; }
       if(act==='edit'){ openBatchForm(b); return; }
       if(act==='del'){ state.batches=state.batches.filter(x=>x.id!==b.id); save(); renderBatches(); toast(t('deleted')); return; }
       openBatchDetail(b);
@@ -3181,6 +3564,173 @@ function renderBatches(){
     listEl.appendChild(el);
   });
   c.appendChild(listEl);
+}
+
+/* ══════════════════════════════════════
+   ÉQUIPE — rendu du contenu partagé
+══════════════════════════════════════ */
+function renderTeamContent(itemType, container){
+  container.innerHTML='';
+
+  if(!sbUser){
+    container.innerHTML=`<div class="empty"><p>${t('team.notLogged')}</p></div>`;
+    return;
+  }
+  if(!teamData){
+    container.innerHTML=`<div class="empty"><p>${t('team.noTeam')}<br><small style="color:var(--text-3)">${t('team.noTeamSub')}</small></p><button class="btn btn-ghost btn-sm" style="margin-top:12px" onclick="go('Settings')">${t('team.create')} / ${t('team.join')}</button></div>`;
+    return;
+  }
+
+  const items=teamSharedItems.filter(x=>x.item_type===itemType);
+  const myItems=items.filter(x=>x.shared_by===sbUser.id);
+  const othersItems=items.filter(x=>x.shared_by!==sbUser.id);
+
+  const typeEmoji={recipe:'🍸',ingredient:'🧪',batch:'📋'};
+  const emoji=typeEmoji[itemType]||'📄';
+
+  function makeTeamItemCard(si){
+    const el=document.createElement('div');
+    el.className='item team-item';
+    const itemName=si.data?.name||'?';
+    const isLinked=si.share_mode==='linked';
+    const isOwner=si.shared_by===sbUser.id;
+    const canRemove=isOwner||teamData.role==='admin'||teamData.role==='manager';
+    const notesCount=(si._notesCount||0);
+    const updatedAt=si.updated_at?new Date(si.updated_at).toLocaleDateString('fr-FR'):'';
+    el.innerHTML=`
+      <div class="item-thumb" style="font-size:20px">${emoji}</div>
+      <div class="item-body">
+        <div class="item-name">${escapeHtml(itemName)}${teamShareModeBadge(si.share_mode)}</div>
+        <div class="team-item-meta">
+          <span class="team-item-sharer">${t('team.sharedBy')} ${escapeHtml(si.sharer_name||'?')}</span>
+          ${teamRoleBadge(teamData.members.find(m=>m.user_id===si.shared_by)?.role||'user')}
+          <span>${updatedAt}</span>
+        </div>
+      </div>
+      <div class="item-actions" style="gap:4px">
+        <button class="item-act" data-act="notes" title="${t('team.notes')}" style="font-size:13px;position:relative">📝${notesCount?`<span style="position:absolute;top:0;right:0;font-size:9px;background:var(--gold);color:#000;border-radius:50%;width:14px;height:14px;display:flex;align-items:center;justify-content:center;font-weight:700">${notesCount}</span>`:''}
+        </button>
+        <button class="item-act" data-act="view" title="Voir">📖</button>
+        ${isOwner&&isLinked?`<button class="item-act" data-act="sync" title="${t('team.updatedLinked')}" style="font-size:13px">🔄</button>`:''}
+        ${canRemove?`<button class="item-act del" data-act="unshare" title="${t('team.unshare')}">${ICON.del}</button>`:''}
+      </div>`;
+    el.addEventListener('click', async e=>{
+      const act=e.target.closest('[data-act]')?.dataset.act;
+      if(act==='notes'){ openTeamNotes(si); return; }
+      if(act==='view'){
+        if(itemType==='recipe') openCocktailDetail(si.data, false, true);
+        else if(itemType==='ingredient') openIngredientDetail(si.data, true);
+        else openBatchDetail(si.data, true);
+        return;
+      }
+      if(act==='sync'){
+        // Trouver l'item original dans les données perso
+        const orig=itemType==='recipe'
+          ? state.cocktails.find(x=>x.id===si.item_id)
+          : itemType==='ingredient'
+          ? state.ingredients.find(x=>x.id===si.item_id)
+          : state.batches.find(x=>x.id===si.item_id);
+        if(!orig){toast('⚠️ Recette originale introuvable (supprimée ?)');return;}
+        await teamSyncLinked(orig, itemType);
+        toast('🔄 Version mise à jour pour l\'équipe');
+        return;
+      }
+      if(act==='unshare'){ await teamUnshareItem(si.id); return; }
+    });
+    return el;
+  }
+
+  // Section "Partagés par l'équipe"
+  const headOthers=document.createElement('div');
+  headOthers.className='team-section-head';
+  headOthers.innerHTML=`<span>📚 ${t('team.allShares')}</span><span style="font-size:12px;color:var(--text-3)">${othersItems.length}</span>`;
+  container.appendChild(headOthers);
+
+  if(!othersItems.length){
+    const empty=document.createElement('div');
+    empty.style.cssText='font-size:12px;color:var(--text-3);padding:12px 0 16px;text-align:center';
+    empty.textContent=t('team.empty');
+    container.appendChild(empty);
+  } else {
+    const listOthers=document.createElement('div'); listOthers.className='list';
+    othersItems.forEach(si=>listOthers.appendChild(makeTeamItemCard(si)));
+    container.appendChild(listOthers);
+  }
+
+  // Section "Mes partages"
+  const headMine=document.createElement('div');
+  headMine.className='team-section-head';
+  headMine.style.marginTop='16px';
+  headMine.innerHTML=`<span>📤 ${t('team.myShares')}</span><span style="font-size:12px;color:var(--text-3)">${myItems.length}</span>`;
+  container.appendChild(headMine);
+
+  if(!myItems.length){
+    const empty=document.createElement('div');
+    empty.style.cssText='font-size:12px;color:var(--text-3);padding:12px 0 8px;text-align:center';
+    empty.textContent=t('team.empty');
+    container.appendChild(empty);
+  } else {
+    const listMine=document.createElement('div'); listMine.className='list';
+    myItems.forEach(si=>listMine.appendChild(makeTeamItemCard(si)));
+    container.appendChild(listMine);
+  }
+}
+
+/* ── Modale de choix du mode de partage ── */
+function openShareModal(itemType, item){
+  if(!sbUser||!teamData){ toast('⚠️ Connecte-toi et rejoins une équipe d\'abord'); return; }
+  const already=teamSharedItems.filter(x=>x.item_type===itemType&&x.item_id===item.id&&x.shared_by===sbUser.id);
+  const m=document.getElementById('modal');
+  document.getElementById('modalTitle').textContent=t('team.share')+' · '+escapeHtml(item.name);
+  document.getElementById('modalContent').innerHTML=`
+    <div style="padding:4px 0 12px;color:var(--text-2);font-size:13px">${t('team.shareChoose')}</div>
+    ${already.length?`<div style="background:rgba(200,169,110,.08);border:1px solid rgba(200,169,110,.2);border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:14px;font-size:12px;color:var(--text-2)">
+      ℹ️ Déjà partagé (${already.map(x=>t('team.shareMode.'+x.share_mode)).join(', ')})
+    </div>`:''}
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <button class="btn btn-ghost" id="btnShareCopy" style="text-align:left;padding:12px 14px">
+        <div style="font-weight:700;margin-bottom:3px">${t('team.shareMode.copy')}</div>
+        <div style="font-size:12px;color:var(--text-3)">${t('team.shareModeCopyDesc')}</div>
+      </button>
+      <button class="btn btn-ghost" id="btnShareLinked" style="text-align:left;padding:12px 14px">
+        <div style="font-weight:700;margin-bottom:3px">${t('team.shareMode.linked')}</div>
+        <div style="font-size:12px;color:var(--text-3)">${t('team.shareModeLinkedDesc')}</div>
+      </button>
+    </div>`;
+  document.getElementById('btnShareCopy').onclick=()=>{ teamShareItem(itemType,item,'copy'); m.classList.remove('show'); };
+  document.getElementById('btnShareLinked').onclick=()=>{ teamShareItem(itemType,item,'linked'); m.classList.remove('show'); };
+  m.classList.add('show');
+}
+
+/* ── Notes équipe sur un item partagé ── */
+async function openTeamNotes(sharedItem){
+  const m=document.getElementById('modal');
+  document.getElementById('modalTitle').textContent=t('team.notes')+' · '+escapeHtml(sharedItem.data?.name||'');
+  document.getElementById('modalContent').innerHTML=`<div style="text-align:center;padding:16px;color:var(--text-3)">Chargement…</div>`;
+  m.classList.add('show');
+  const notes=await teamFetchNotes(sharedItem.id);
+  const notesHtml=notes.length
+    ? notes.map(n=>`
+        <div class="team-note">
+          <div class="team-note-header">
+            <span class="team-note-author">${escapeHtml(n.author_name||'?')}</span>
+            <span class="team-note-date">${new Date(n.created_at).toLocaleDateString('fr-FR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}</span>
+          </div>
+          <div class="team-note-content">${escapeHtml(n.content)}</div>
+        </div>`).join('')
+    : `<div style="text-align:center;color:var(--text-3);font-size:13px;padding:16px 0">Aucune note pour l'instant</div>`;
+  document.getElementById('modalContent').innerHTML=`
+    <div class="team-notes-list">${notesHtml}</div>
+    <div class="team-note-add">
+      <textarea id="noteInput" placeholder="${t('team.addNote')}"></textarea>
+      <button class="btn btn-primary btn-sm" id="btnAddNote" style="align-self:flex-end;white-space:nowrap">${t('team.submitNote')}</button>
+    </div>`;
+  document.getElementById('btnAddNote').onclick=async()=>{
+    const content=document.getElementById('noteInput').value;
+    const ok=await teamAddNote(sharedItem.id, content);
+    if(ok){ document.getElementById('noteInput').value=''; openTeamNotes(sharedItem); }
+    else toast('❌ Erreur lors de l\'ajout');
+  };
 }
 
 function openBatchForm(b){
@@ -3518,6 +4068,136 @@ function renderSettings(){
   document.querySelectorAll('.lang-toggle button[data-lang]').forEach(b=>b.classList.toggle('active', b.dataset.lang===state.lang));
   document.querySelectorAll('#themeToggle button').forEach(b=>b.classList.toggle('active', b.dataset.theme===(state.theme||'dark')));
   renderCustomUnits();
+  renderTeamSettings();
+}
+
+function renderTeamSettings(){
+  const el=document.getElementById('teamSectionContent');
+  if(!el) return;
+
+  if(!sbUser){
+    el.innerHTML=`<div style="color:var(--text-3);font-size:13px;padding:6px 0">${t('team.notLogged')}</div>`;
+    return;
+  }
+
+  if(!teamData){
+    // Pas dans une équipe
+    el.innerHTML=`
+      <div style="color:var(--text-3);font-size:12px;margin-bottom:12px">${t('team.noTeamSub')}</div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div>
+          <div class="setting-label">${t('team.create')}</div>
+          <div style="display:flex;gap:8px;margin-top:6px">
+            <input id="teamCreateName" type="text" placeholder="${t('team.name')}" style="flex:1">
+            <button class="btn btn-primary btn-sm" id="btnTeamCreate">${t('team.create')}</button>
+          </div>
+        </div>
+        <div style="border-top:1px solid rgba(200,169,110,.1);padding-top:10px">
+          <div class="setting-label">${t('team.join')}</div>
+          <div style="display:flex;gap:8px;margin-top:6px">
+            <input id="teamJoinCode" type="text" placeholder="XXXXXX" maxlength="6" style="flex:1;text-transform:uppercase;letter-spacing:.15em;font-weight:700">
+            <button class="btn btn-ghost btn-sm" id="btnTeamJoin">${t('team.joinCode')}</button>
+          </div>
+        </div>
+      </div>`;
+    document.getElementById('btnTeamCreate').onclick=async()=>{
+      const name=(document.getElementById('teamCreateName').value||'').trim();
+      if(!name){toast('⚠️ Entre un nom');return;}
+      const ok=await teamCreate(name);
+      if(ok) renderTeamSettings();
+    };
+    document.getElementById('btnTeamJoin').onclick=async()=>{
+      const code=(document.getElementById('teamJoinCode').value||'').trim();
+      if(!code){toast('⚠️ Entre le code');return;}
+      const ok=await teamJoin(code);
+      if(ok) renderTeamSettings();
+    };
+    return;
+  }
+
+  // Dans une équipe
+  const myRole=teamData.role;
+  const canManage=myRole==='admin'||myRole==='manager';
+  const isAdmin=myRole==='admin';
+
+  const membersHtml=teamData.members.map(m=>{
+    const initials=(m.display_name||m.email||'?').charAt(0).toUpperCase();
+    const roleOptions=isAdmin
+      ? `<select class="team-role-sel" data-mid="${m.id}" style="font-size:11px;padding:2px 4px;background:var(--navy-700);border:1px solid rgba(200,169,110,.2);border-radius:4px;color:var(--text-1)">
+           <option value="admin" ${m.role==='admin'?'selected':''}>👑 Admin</option>
+           <option value="manager" ${m.role==='manager'?'selected':''}>⭐ Manager</option>
+           <option value="user" ${m.role==='user'?'selected':''}>🍹 Barman</option>
+         </select>`
+      : (canManage && m.role==='user'
+          ? `<select class="team-role-sel" data-mid="${m.id}" style="font-size:11px;padding:2px 4px;background:var(--navy-700);border:1px solid rgba(200,169,110,.2);border-radius:4px;color:var(--text-1)">
+               <option value="manager" ${m.role==='manager'?'selected':''}>⭐ Manager</option>
+               <option value="user" ${m.role==='user'?'selected':''}>🍹 Barman</option>
+             </select>`
+          : teamRoleBadge(m.role));
+    const isMe=m.user_id===sbUser.id;
+    const canRemove=(isAdmin||canManage)&&!isMe&&(isAdmin||(m.role==='user'));
+    return `<div class="team-member-row" data-mid="${m.id}">
+      <div class="team-member-avatar">${escapeHtml(initials)}</div>
+      <div class="team-member-info">
+        <div class="team-member-name">${escapeHtml(m.display_name||m.email||'?')}${isMe?' <span style="font-size:10px;color:var(--text-3)">(moi)</span>':''}</div>
+        <div class="team-member-email">${escapeHtml(m.email||'')}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px">${roleOptions}${canRemove?`<button class="btn btn-danger btn-sm team-remove-btn" data-mid="${m.id}" style="padding:2px 8px;font-size:11px">✕</button>`:''}</div>
+    </div>`;
+  }).join('');
+
+  const inviteHtml=canManage?`
+    <div style="border-top:1px solid rgba(200,169,110,.1);margin-top:10px;padding-top:10px">
+      <div class="setting-label">${t('team.inviteEmail')}</div>
+      <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">
+        <input id="inviteEmail" type="email" placeholder="email@bar.com" style="flex:1;min-width:140px">
+        <select id="inviteRole" style="font-size:12px;background:var(--navy-700);border:1px solid rgba(200,169,110,.2);border-radius:var(--radius-sm);padding:6px 8px;color:var(--text-1)">
+          ${isAdmin?'<option value="admin">👑 Admin</option>':''}
+          <option value="manager">⭐ Manager</option>
+          <option value="user" selected>🍹 Barman</option>
+        </select>
+        <button class="btn btn-ghost btn-sm" id="btnInvite">${t('team.invite')}</button>
+      </div>
+    </div>`:'';
+
+  el.innerHTML=`
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+      <div>
+        <div style="font-size:15px;font-weight:700;color:var(--text-1)">${escapeHtml(teamData.name)}</div>
+        <div style="font-size:11px;color:var(--text-3);margin-top:2px">${teamData.members.length} membre${teamData.members.length>1?'s':''} · ${teamRoleBadge(myRole)}</div>
+      </div>
+      <button class="btn btn-danger btn-sm" id="btnTeamLeave" style="font-size:11px">${t('team.leave')}</button>
+    </div>
+    <div class="setting-label" style="margin:12px 0 6px">${t('team.code')}</div>
+    <div class="team-code-box" id="teamCodeBox" title="Cliquer pour copier">
+      <div><div class="team-code-val">${escapeHtml(teamData.code)}</div><div class="team-code-hint">${t('team.codeCopy')}</div></div>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+    </div>
+    <div class="setting-label" style="margin:12px 0 6px">Membres</div>
+    <div id="teamMembersList">${membersHtml}</div>
+    ${inviteHtml}`;
+
+  document.getElementById('teamCodeBox').onclick=()=>{
+    navigator.clipboard?.writeText(teamData.code).then(()=>toast('📋 Code copié !')).catch(()=>toast('Code : '+teamData.code,3000));
+  };
+  document.getElementById('btnTeamLeave').onclick=()=>teamLeave().then(()=>renderSettings());
+
+  el.querySelectorAll('.team-role-sel').forEach(sel=>{
+    sel.onchange=()=>teamUpdateRole(sel.dataset.mid, sel.value);
+  });
+  el.querySelectorAll('.team-remove-btn').forEach(btn=>{
+    btn.onclick=()=>teamRemoveMember(btn.dataset.mid);
+  });
+
+  if(canManage){
+    document.getElementById('btnInvite').onclick=async()=>{
+      const email=(document.getElementById('inviteEmail').value||'').trim();
+      const role=document.getElementById('inviteRole').value;
+      if(!email){toast('⚠️ Entre un email');return;}
+      await teamInviteByEmail(email,role);
+      document.getElementById('inviteEmail').value='';
+    };
+  }
 }
 ['settFirst','settLast','settEmail','settPhone','settVenue','settAddress','settCity','settCountry'].forEach(id=>{
   document.getElementById(id).addEventListener('input', e=>{
@@ -3557,7 +4237,10 @@ document.getElementById('btnLogin').addEventListener('click', async()=>{
     // Vider les données du compte du stockage local
     state.ingredients = [];
     state.cocktails = [];
+    teamData = null; teamSharedItems = [];
+    if(teamContext==='team'){ teamContext='personal'; localStorage.setItem('mixtura_teamCtx','personal'); }
     save();
+    updateCtxToggle();
     renderCocktails();
     renderIngredients();
     renderBatches();
@@ -3928,6 +4611,19 @@ syncAllMissing();
 (function(){
   const raw = location.hash.slice(1);
   if(raw.includes('access_token') || raw.includes('error_description') || location.search.includes('code=')) return;
+  // Détection invitation équipe #team-invite=TOKEN
+  if(raw.startsWith('team-invite=')){
+    const token=raw.slice('team-invite='.length);
+    if(token){
+      // Attendre que Supabase soit prêt (auth state)
+      const checkAndAccept=()=>{
+        if(sbUser){ teamAcceptInvite(token).then(()=>go('Settings')); }
+        else{ go('Home'); toast('🔗 Connecte-toi pour accepter l\'invitation',4000); }
+      };
+      setTimeout(checkAndAccept, 1200);
+      return;
+    }
+  }
   const startScreen = SCREENS.includes(raw) ? raw : 'Home';
   go(startScreen);
 })();
