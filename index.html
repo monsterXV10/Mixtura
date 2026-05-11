@@ -969,7 +969,9 @@ async function teamCreate(name){
     const {error:me}=await sb.from('team_members').insert({team_id:team.id,user_id:sbUser.id,email:sbUser.email,display_name:dn,role:'admin'});
     if(me) throw me;
     await teamFetch();
-    toast('✅ Équipe "'+name+'" créée ! Code : '+code);
+    // Utiliser le code retourné par le serveur (via teamData) pour être sûr
+    const finalCode=(teamData?.code)||code;
+    toast('✅ Équipe "'+name+'" créée ! Code : '+finalCode, 5000);
     return true;
   }catch(e){ console.error('teamCreate',e); toast('❌ '+(e.message||'Erreur création équipe'),3000); return false; }
 }
@@ -1142,6 +1144,11 @@ function updateCtxToggle(){
     localStorage.setItem('mixtura_teamCtx','personal');
   }
   el.querySelectorAll('.ctx-btn').forEach(b=>b.classList.toggle('active',b.dataset.ctx===teamContext));
+  // Mettre à jour la visibilité du FAB selon le contexte
+  const fab=document.getElementById('fab');
+  if(fab && ['Cocktails','Ingredients','Batch'].includes(currentScreen)){
+    fab.style.display=teamContext==='personal'?'flex':'none';
+  }
 }
 
 // Event handler pour le toggle contexte
@@ -1437,7 +1444,7 @@ function go(screen){
   document.getElementById('btnBack').classList.toggle('show', screen!=='Home');
   const key = screen==='Home'?'Home':screen.toLowerCase();
   document.getElementById('screenTitle').textContent = screen==='Home' ? 'MIXTURA' : t(key);
-  document.getElementById('fab').style.display = ['Cocktails','Ingredients','Batch'].includes(screen) ? 'flex':'none';
+  document.getElementById('fab').style.display = (['Cocktails','Ingredients','Batch'].includes(screen) && teamContext==='personal') ? 'flex':'none';
   // Sync active state on all nav buttons
   const goKey = {Cocktails:'cocktails',Ingredients:'ingredients',Batch:'batch',Settings:'settings'}[screen]||'';
   document.querySelectorAll('[data-go]').forEach(b=>{
@@ -2458,15 +2465,20 @@ function renderRecent(){
 }
 
 function renderCocktails(){
-  renderRecent();
-  renderLivreBar();
   const container = document.getElementById('cocktailList');
 
-  // Contexte équipe
+  // Contexte équipe : masquer recent + livrebar, afficher contenu équipe
   if(teamContext==='team'){
+    const recentEl=document.getElementById('recentSection');
+    const livreEl=document.getElementById('livrebar-wrap');
+    if(recentEl) recentEl.innerHTML='';
+    if(livreEl) livreEl.innerHTML='';
     renderTeamContent('recipe', container);
     return;
   }
+
+  renderRecent();
+  renderLivreBar();
 
   const plan = getPlan();
   const planCfg = PLANS[plan];
@@ -2870,15 +2882,17 @@ const UNITS = [
 ];
 
 function renderIngredients(){
-  const cats = uniq(state.ingredients.map(i=>i.category));
-  renderChips('filterIngCategory','ingredient','category',[{v:'all',l:t('all')+' · '+t('category')}, ...cats.map(v=>({v,l:v}))]);
-  renderChips('filterIngType','ingredient','type',[{v:'all',l:t('all')},{v:'bought',l:t('bought')},{v:'homemade',l:t('homemade')}]);
-
-  // Contexte équipe
+  // Contexte équipe : masquer les filtres perso
   if(teamContext==='team'){
+    document.getElementById('filterIngCategory').innerHTML='';
+    document.getElementById('filterIngType').innerHTML='';
     renderTeamContent('ingredient', document.getElementById('ingredientList'));
     return;
   }
+
+  const cats = uniq(state.ingredients.map(i=>i.category));
+  renderChips('filterIngCategory','ingredient','category',[{v:'all',l:t('all')+' · '+t('category')}, ...cats.map(v=>({v,l:v}))]);
+  renderChips('filterIngType','ingredient','type',[{v:'all',l:t('all')},{v:'bought',l:t('bought')},{v:'homemade',l:t('homemade')}]);
 
   const q = filters.ingredient.search.toLowerCase().trim();
   let list = state.ingredients.filter(i=>{

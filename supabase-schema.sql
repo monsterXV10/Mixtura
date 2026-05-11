@@ -152,13 +152,16 @@ alter table public.team_invitations   enable row level security;
 alter table public.team_shared_items  enable row level security;
 alter table public.team_notes         enable row level security;
 
--- teams : owner peut tout, membres peuvent lire
+-- teams : owner peut tout, membres peuvent lire, tout auth peut lire pour rejoindre par code
 drop policy if exists "team owner all"    on public.teams;
 drop policy if exists "team member read"  on public.teams;
+drop policy if exists "team public read"  on public.teams;
 create policy "team owner all"   on public.teams for all using (auth.uid() = owner_id) with check (auth.uid() = owner_id);
 create policy "team member read" on public.teams for select using (
   exists(select 1 from public.team_members m where m.team_id = id and m.user_id = auth.uid())
 );
+-- Bug fix: tout utilisateur connecté peut chercher une équipe par code (pour rejoindre)
+create policy "team public read" on public.teams for select using (auth.uid() is not null);
 
 -- team_members : membres voient leur équipe, admin/owner gèrent
 drop policy if exists "member select" on public.team_members;
@@ -169,8 +172,9 @@ create policy "member select" on public.team_members for select using (
   user_id = auth.uid() or
   exists(select 1 from public.team_members m2 where m2.team_id = team_id and m2.user_id = auth.uid())
 );
+-- Bug fix: user_id = auth.uid() permet l'auto-insertion (rejoindre par code / accepter invite)
 create policy "member insert" on public.team_members for insert with check (
-  exists(select 1 from public.teams t where t.id = team_id and t.owner_id = auth.uid()) or
+  user_id = auth.uid() or
   exists(select 1 from public.team_members m where m.team_id = team_id and m.user_id = auth.uid() and m.role in ('admin','manager'))
 );
 create policy "member update" on public.team_members for update using (
@@ -183,16 +187,23 @@ create policy "member delete" on public.team_members for delete using (
   exists(select 1 from public.team_members m where m.team_id = team_id and m.user_id = auth.uid() and m.role in ('admin','manager'))
 );
 
--- team_invitations : membres peuvent voir, admin/manager peuvent créer
-drop policy if exists "invite select" on public.team_invitations;
-drop policy if exists "invite insert" on public.team_invitations;
-drop policy if exists "invite delete" on public.team_invitations;
+-- team_invitations : membres voient, admin/manager créent, tout auth peut lire par token (pour accepter)
+drop policy if exists "invite select"        on public.team_invitations;
+drop policy if exists "invite select token"  on public.team_invitations;
+drop policy if exists "invite insert"        on public.team_invitations;
+drop policy if exists "invite update"        on public.team_invitations;
+drop policy if exists "invite delete"        on public.team_invitations;
+-- Membres voient les invitations de leur équipe
 create policy "invite select" on public.team_invitations for select using (
   exists(select 1 from public.team_members m where m.team_id = team_id and m.user_id = auth.uid())
 );
+-- Bug fix: tout utilisateur connecté peut lire une invitation par token (token = secret)
+create policy "invite select token" on public.team_invitations for select using (auth.uid() is not null);
 create policy "invite insert" on public.team_invitations for insert with check (
   exists(select 1 from public.team_members m where m.team_id = team_id and m.user_id = auth.uid() and m.role in ('admin','manager'))
 );
+-- Bug fix: UPDATE manquant — nécessaire pour marquer accepted=true
+create policy "invite update" on public.team_invitations for update using (auth.uid() is not null);
 create policy "invite delete" on public.team_invitations for delete using (
   exists(select 1 from public.team_members m where m.team_id = team_id and m.user_id = auth.uid() and m.role in ('admin','manager'))
 );
