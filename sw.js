@@ -3,7 +3,7 @@
    Gestion du cache hors-ligne
 ═══════════════════════════════════════ */
 
-const CACHE_NAME = 'mixtura-v7.1';
+const CACHE_NAME = 'mixtura-v7.2';
 const ASSETS = [
   './',
   './index.html',
@@ -40,15 +40,19 @@ self.addEventListener('activate', event => {
   });
 });
 
-/* ── Fetch : cache-first pour les assets, network-first pour Firebase ── */
+/* ── Fetch : cache-first pour les assets, réseau direct pour les APIs ── */
 self.addEventListener('fetch', event => {
-  // Laisser passer les requêtes Firebase / API (réseau uniquement)
+  // Ne jamais intercepter les requêtes vers des APIs externes
+  const url = event.request.url;
   if (
-    event.request.url.includes('firebaseapp.com') ||
-    event.request.url.includes('googleapis.com') ||
-    event.request.url.includes('firestore.googleapis.com')
+    url.includes('supabase.co') ||
+    url.includes('firebaseapp.com') ||
+    url.includes('googleapis.com') ||
+    url.includes('firestore.googleapis.com') ||
+    url.includes('vercel-insights') ||
+    url.includes('/_vercel/')
   ) {
-    return; // pas d'interception
+    return; // réseau direct, pas de cache
   }
 
   event.respondWith(
