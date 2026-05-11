@@ -4242,27 +4242,20 @@ document.getElementById('btnLogin').addEventListener('click', async()=>{
   if(!sb){toast('⚠️ Remplace SUPABASE_KEY dans le code pour activer la synchro');return;}
   const btn = document.getElementById('btnLogin');
   if(btn.dataset.action==='logout' || sbUser){
-    // Tenter la déconnexion côté serveur (best-effort)
-    try{ await sb.auth.signOut(); }catch(e){ console.warn('signOut:', e.message); }
-    // Forcer la suppression des tokens Supabase dans le localStorage
+    // Nettoyer le client immédiatement sans attendre la réponse réseau
     Object.keys(localStorage).forEach(k=>{
       if(k.startsWith('sb-') || k.includes('supabase') || k.includes('auth-token')) localStorage.removeItem(k);
     });
     sbUser = null;
-    // Vider les données du compte du stockage local
     state.ingredients = [];
     state.cocktails = [];
     teamData = null; teamSharedItems = [];
     if(teamContext==='team'){ teamContext='personal'; localStorage.setItem('mixtura_teamCtx','personal'); }
     save();
-    updateCtxToggle();
-    renderCocktails();
-    renderIngredients();
-    renderBatches();
-    renderSettings();
-    updateAuthUI();
+    // Signaler la déco au serveur en arrière-plan (fire-and-forget)
+    if(sb) sb.auth.signOut().catch(()=>{});
     toast('👋 Déconnecté');
-    setTimeout(()=>location.reload(), 1200);
+    setTimeout(()=>location.reload(), 800);
   } else openLoginModal();
 });
 document.getElementById('btnPromo').addEventListener('click', ()=>{
