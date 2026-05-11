@@ -900,7 +900,8 @@ async function sbPush(){
         const ids=new Set(linkedShares.map(x=>x.item_id).filter(Boolean));
         ids.forEach(origId=>{
           const orig=state.cocktails.find(x=>x.id===origId)||state.ingredients.find(x=>x.id===origId)||state.batches.find(x=>x.id===origId);
-          if(orig) teamSyncLinked(orig, 'auto').catch(()=>{});
+          const otype=state.cocktails.find(x=>x.id===origId)?'recipe':state.ingredients.find(x=>x.id===origId)?'ingredient':'batch';
+          if(orig) teamSyncLinked(orig, otype).catch(e=>console.warn('teamSyncLinked auto',e));
         });
       }
     }
@@ -1099,7 +1100,7 @@ async function teamUnshareItem(sharedItemId){
 
 async function teamSyncLinked(originalItem, itemType){
   if(!sb||!sbUser||!teamData) return;
-  const linked=teamSharedItems.filter(x=>x.share_mode==='linked'&&x.item_id===originalItem.id&&x.shared_by===sbUser.id);
+  const linked=teamSharedItems.filter(x=>x.share_mode==='linked'&&x.item_id===originalItem.id&&x.shared_by===sbUser.id&&x.item_type===itemType);
   if(!linked.length) return;
   try{
     await Promise.all(linked.map(sh=>

@@ -116,6 +116,7 @@ create table if not exists public.team_invitations (
   expires_at timestamptz default (now() + interval '7 days'),
   accepted boolean default false
 );
+create index if not exists idx_team_invitations_team on public.team_invitations(team_id);
 
 -- 7. TEAM_SHARED_ITEMS
 create table if not exists public.team_shared_items (
@@ -197,13 +198,18 @@ drop policy if exists "invite delete"        on public.team_invitations;
 create policy "invite select" on public.team_invitations for select using (
   exists(select 1 from public.team_members m where m.team_id = team_id and m.user_id = auth.uid())
 );
--- Bug fix: tout utilisateur connecté peut lire une invitation par token (token = secret)
-create policy "invite select token" on public.team_invitations for select using (auth.uid() is not null);
+-- L'invité peut voir son invitation (email = son email auth) pour l'accepter via token
+create policy "invite select token" on public.team_invitations for select using (
+  (auth.jwt()->>'email') = email
+);
 create policy "invite insert" on public.team_invitations for insert with check (
   exists(select 1 from public.team_members m where m.team_id = team_id and m.user_id = auth.uid() and m.role in ('admin','manager'))
 );
--- Bug fix: UPDATE manquant — nécessaire pour marquer accepted=true
-create policy "invite update" on public.team_invitations for update using (auth.uid() is not null);
+-- L'invité (par email) accepte son invitation, ou admin/manager la gère
+create policy "invite update" on public.team_invitations for update using (
+  (auth.jwt()->>'email') = email
+  or exists(select 1 from public.team_members m where m.team_id = team_id and m.user_id = auth.uid() and m.role in ('admin','manager'))
+);
 create policy "invite delete" on public.team_invitations for delete using (
   exists(select 1 from public.team_members m where m.team_id = team_id and m.user_id = auth.uid() and m.role in ('admin','manager'))
 );
