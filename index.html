@@ -870,6 +870,12 @@ async function sbPull(){
 }
 async function sbPush(){
   if(!sb||!sbUser) return;
+  // Garde de sécurité : ne jamais écraser Supabase avec un état vide
+  // si l'utilisateur avait des données (évite d'effacer la DB par accident)
+  if(!state.cocktails.length && !state.ingredients.length){
+    const {data:existing}=await sb.from('recipes').select('id').eq('user_id',sbUser.id).limit(1);
+    if(existing?.length) return; // données en base → on ne push pas un état vide
+  }
   try{
     const [delIng, delRec] = await Promise.all([
       sb.from('ingredients').delete().eq('user_id',sbUser.id),
@@ -4242,18 +4248,18 @@ document.getElementById('btnLogin').addEventListener('click', async()=>{
   if(!sb){toast('⚠️ Remplace SUPABASE_KEY dans le code pour activer la synchro');return;}
   const btn = document.getElementById('btnLogin');
   if(btn.dataset.action==='logout' || sbUser){
-    // Nettoyer le client immédiatement sans attendre la réponse réseau
+    // Signaler la déco au serveur en arrière-plan (fire-and-forget)
+    if(sb) sb.auth.signOut().catch(()=>{});
+    // Supprimer uniquement les tokens d'auth — NE PAS toucher les données locales
+    // (elles restent dans localStorage pour quand l'utilisateur se reconnecte)
     Object.keys(localStorage).forEach(k=>{
       if(k.startsWith('sb-') || k.includes('supabase') || k.includes('auth-token')) localStorage.removeItem(k);
     });
     sbUser = null;
-    state.ingredients = [];
-    state.cocktails = [];
     teamData = null; teamSharedItems = [];
     if(teamContext==='team'){ teamContext='personal'; localStorage.setItem('mixtura_teamCtx','personal'); }
-    save();
-    // Signaler la déco au serveur en arrière-plan (fire-and-forget)
-    if(sb) sb.auth.signOut().catch(()=>{});
+    // Ne PAS vider state.cocktails / state.ingredients ni appeler save()
+    // => les données locales sont préservées pour la prochaine session
     toast('👋 Déconnecté');
     setTimeout(()=>location.reload(), 800);
   } else openLoginModal();
