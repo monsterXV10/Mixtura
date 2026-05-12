@@ -777,7 +777,7 @@ body.theme-light .team-code-box{background:var(--navy-700)}
 
 <div class="toast" id="toast"></div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="supabase.min.js"></script>
 <script src="xlsx.mini.min.js"></script>
 <script>
 const LS_KEY = 'mixtura_v3';
@@ -794,8 +794,6 @@ function initSupabase(){
     sb.auth.onAuthStateChange(async(event,session)=>{
       sbUser = session?.user||null;
       updateAuthUI();
-      // Mettre à jour immédiatement le catalogue (plan demo→free ou free→demo)
-      if(typeof renderCocktails==='function') renderCocktails();
       // Nettoyer les params OAuth (hash implicit flow ou ?code= PKCE) de l'URL
       if(event==='SIGNED_IN'||event==='INITIAL_SESSION'){
         const hasOAuth = window.location.hash.includes('access_token') || window.location.search.includes('code=');
@@ -806,7 +804,12 @@ function initSupabase(){
       }
       if(sbUser && (event==='SIGNED_IN'||event==='INITIAL_SESSION') && sbUser.id !== lastUserId){
         lastUserId = sbUser.id;
-        await Promise.all([sbPull(), fetchRemoteCatalog(), teamFetch()]);
+        // sbPull inclut renderCurrentScreen() — teamFetch séparé ensuite
+        await sbPull();
+        await Promise.all([fetchRemoteCatalog(), teamFetch()]);
+        await teamFetchItems();
+        updateCtxToggle();
+        renderCurrentScreen(); // re-render final avec équipe chargée
       }
       if(event==='SIGNED_OUT'){
         lastUserId = null;
@@ -814,7 +817,7 @@ function initSupabase(){
         teamData = null; teamSharedItems = [];
         if(teamContext==='team'){ teamContext='personal'; localStorage.setItem('mixtura_teamCtx','personal'); }
         updateCtxToggle();
-        if(typeof renderCocktails==='function') renderCocktails();
+        renderCurrentScreen();
       }
     });
   }catch(e){
@@ -864,12 +867,8 @@ async function sbPull(){
     state.catalogNotes = cloudNotes;
     localStorage.setItem(LS_KEY, JSON.stringify(state));
     toast(cloudIngs.length||cloudCocktails.length ? '☁️ Données synchronisées' : '☁️ Compte vide — prêt !');
-    if(currentScreen==='Ingredients') renderIngredients();
-    if(currentScreen==='Cocktails') renderCocktails();
-    // Charger les données équipe en parallèle
-    await teamFetch();
-    await teamFetchItems();
-    updateCtxToggle();
+    // Re-render quel que soit l'écran actif pour que les données soient visibles
+    renderCurrentScreen();
   }catch(e){console.error('sbPull',e); toast('❌ Erreur de synchronisation');}
 }
 async function sbPush(){
@@ -4327,25 +4326,30 @@ document.getElementById('themeToggle').addEventListener('click', e=>{
 // Appliquer le thème au chargement
 applyTheme(state.theme||'dark');
 document.getElementById('btnLogin').addEventListener('click', async()=>{
-  if(!sb){toast('⚠️ Remplace SUPABASE_KEY dans le code pour activer la synchro');return;}
+  if(!sb){ toast('⚠️ Chargement Supabase en cours, réessaie dans un instant'); return; }
   const btn = document.getElementById('btnLogin');
   if(btn.dataset.action==='logout' || sbUser){
-    // 1. Stopper le timer de sync EN PREMIER — empêche sbPush de tourner pendant le nettoyage
+    // 1. Stopper le timer de sync EN PREMIER
     clearTimeout(sbSyncTimer); sbSyncTimer = null;
     sbUser = null; // sbPush vérifie sbUser → plus aucun push possible maintenant
-    // 2. Signaler la déco au serveur en arrière-plan (fire-and-forget)
-    if(sb) sb.auth.signOut().catch(()=>{});
-    // 3. Vider les tokens d'auth Supabase du localStorage
-    Object.keys(localStorage).forEach(k=>{
-      if(k.startsWith('sb-') || k.includes('supabase') || k.includes('auth-token')) localStorage.removeItem(k);
-    });
-    // 4. Vider les données locales (confidentialité : un autre compte ne doit pas y accéder)
+    // 2. Déco locale immédiate (scope:'local' = pas de réseau, ne bloque jamais)
+    try{ await sb.auth.signOut({scope:'local'}); }catch(_){}
+    // 3. Nettoyage exhaustif de tous les tokens auth Supabase
+    const storageKeysToDelete = Object.keys(localStorage).filter(k=>
+      k.startsWith('sb-') || k.startsWith('supabase') || k.includes('auth-token') || k.includes('supabase.auth')
+    );
+    storageKeysToDelete.forEach(k=>localStorage.removeItem(k));
+    // Même chose en sessionStorage si utilisé
+    try{ Object.keys(sessionStorage).filter(k=>
+      k.startsWith('sb-')||k.includes('supabase')||k.includes('auth-token')
+    ).forEach(k=>sessionStorage.removeItem(k)); }catch(_){}
+    // 4. Vider les données locales
     state.cocktails = []; state.ingredients = []; state.catalogNotes = {};
     teamData = null; teamSharedItems = [];
     if(teamContext==='team'){ teamContext='personal'; localStorage.setItem('mixtura_teamCtx','personal'); }
-    save(); // sauvegarde état vide — sbUser est null donc sbPush ne peut pas tourner
+    save();
     toast('👋 Déconnecté');
-    setTimeout(()=>location.reload(), 800);
+    setTimeout(()=>location.reload(), 600);
   } else openLoginModal();
 });
 document.getElementById('btnPromo').addEventListener('click', ()=>{
