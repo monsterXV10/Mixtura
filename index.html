@@ -4248,18 +4248,20 @@ document.getElementById('btnLogin').addEventListener('click', async()=>{
   if(!sb){toast('⚠️ Remplace SUPABASE_KEY dans le code pour activer la synchro');return;}
   const btn = document.getElementById('btnLogin');
   if(btn.dataset.action==='logout' || sbUser){
-    // Signaler la déco au serveur en arrière-plan (fire-and-forget)
+    // 1. Stopper le timer de sync EN PREMIER — empêche sbPush de tourner pendant le nettoyage
+    clearTimeout(sbSyncTimer); sbSyncTimer = null;
+    sbUser = null; // sbPush vérifie sbUser → plus aucun push possible maintenant
+    // 2. Signaler la déco au serveur en arrière-plan (fire-and-forget)
     if(sb) sb.auth.signOut().catch(()=>{});
-    // Supprimer uniquement les tokens d'auth — NE PAS toucher les données locales
-    // (elles restent dans localStorage pour quand l'utilisateur se reconnecte)
+    // 3. Vider les tokens d'auth Supabase du localStorage
     Object.keys(localStorage).forEach(k=>{
       if(k.startsWith('sb-') || k.includes('supabase') || k.includes('auth-token')) localStorage.removeItem(k);
     });
-    sbUser = null;
+    // 4. Vider les données locales (confidentialité : un autre compte ne doit pas y accéder)
+    state.cocktails = []; state.ingredients = []; state.catalogNotes = {};
     teamData = null; teamSharedItems = [];
     if(teamContext==='team'){ teamContext='personal'; localStorage.setItem('mixtura_teamCtx','personal'); }
-    // Ne PAS vider state.cocktails / state.ingredients ni appeler save()
-    // => les données locales sont préservées pour la prochaine session
+    save(); // sauvegarde état vide — sbUser est null donc sbPush ne peut pas tourner
     toast('👋 Déconnecté');
     setTimeout(()=>location.reload(), 800);
   } else openLoginModal();
