@@ -871,25 +871,47 @@ function initSupabase(){
   try{
     sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
     let lastUserId = null;
+    // BroadcastChannel : reçoit le token OAuth depuis l'onglet callback
+    const _authBC = (() => {
+      try {
+        const bc = new BroadcastChannel('mixtura_auth');
+        bc.onmessage = async (e) => {
+          if(e.data?.type === 'AUTH_SESSION' && e.data.session) {
+            try { await sb.auth.setSession(e.data.session); } catch(_){}
+          }
+        };
+        return bc;
+      } catch(_){ return null; }
+    })();
+
     sb.auth.onAuthStateChange(async(event,session)=>{
       sbUser = session?.user||null;
       updateAuthUI();
-      // Nettoyer les params OAuth (hash implicit flow ou ?code= PKCE) de l'URL
-      if(event==='SIGNED_IN'||event==='INITIAL_SESSION'){
-        const hasOAuth = window.location.hash.includes('access_token') || window.location.search.includes('code=');
-        if(hasOAuth){
+
+      // Nettoyage URL OAuth + broadcast si on est dans l'onglet callback
+      if(event==='SIGNED_IN' || event==='INITIAL_SESSION'){
+        const isCallback = window.location.hash.includes('access_token') || window.location.search.includes('code=');
+        if(isCallback){
           history.replaceState(null,'',window.location.origin+window.location.pathname);
-          go('Home');
+          // Envoyer le token à la fenêtre PWA si on est dans un onglet navigateur
+          if(session && _authBC) _authBC.postMessage({type:'AUTH_SESSION', session});
         }
       }
+
+      // Réinitialisation mot de passe
+      if(event==='PASSWORD_RECOVERY'){
+        history.replaceState(null,'',window.location.origin+window.location.pathname);
+        openChangePasswordModal();
+        return;
+      }
+
       if(sbUser && (event==='SIGNED_IN'||event==='INITIAL_SESSION') && sbUser.id !== lastUserId){
         lastUserId = sbUser.id;
-        // sbPull inclut renderCurrentScreen() — teamFetch séparé ensuite
         await sbPull();
         await Promise.all([fetchRemoteCatalog(), teamFetch()]);
         await teamFetchItems();
         updateCtxToggle();
-        renderCurrentScreen(); // re-render final avec équipe chargée
+        renderCurrentScreen();
       }
       if(event==='SIGNED_OUT'){
         lastUserId = null;
@@ -1296,69 +1318,170 @@ async function fetchRemoteCatalog(){
     console.error('fetchRemoteCatalog',e);
   }
 }
-function openLoginModal(mode='login'){
+function openLoginModal(){
   const m=document.getElementById('modal');
   document.getElementById('modalTitle').textContent='Connexion';
-  const renderLoginForm=(md)=>{
-    const isLogin=md==='login';
+
+  // Étape 1 : saisie de l'email
+  const renderStep1 = () => {
     document.getElementById('modalContent').innerHTML=`
-      <button type="button" id="btnGoogle" style="width:100%;display:flex;align-items:center;justify-content:center;gap:10px;padding:12px;border-radius:var(--radius-sm);border:1px solid rgba(200,169,110,.3);background:var(--navy-700);color:var(--text-1);font-size:14px;font-weight:600;cursor:pointer;margin-bottom:16px">
-        <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
-        Continuer avec Google
-      </button>
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
-        <div style="flex:1;height:1px;background:rgba(200,169,110,.15)"></div>
-        <span style="color:var(--text-3);font-size:12px">ou</span>
-        <div style="flex:1;height:1px;background:rgba(200,169,110,.15)"></div>
-      </div>
-      <div class="field"><label>Email</label><input id="loginEmail" type="email" placeholder="vous@example.com" autofocus></div>
-      <div class="field"><label>Mot de passe</label><input id="loginPwd" type="password" placeholder="••••••••"></div>
-      ${!isLogin?`<div class="field"><label>Confirmer le mot de passe</label><input id="loginPwd2" type="password" placeholder="••••••••"></div>`:''}
-      <div class="form-actions" style="flex-direction:column;gap:8px">
-        <button class="btn btn-primary btn-block" id="btnLoginAction">${isLogin?'Se connecter':'Créer le compte'}</button>
-        <button type="button" class="btn btn-ghost btn-block btn-sm" id="btnToggleMode" style="font-size:13px;color:var(--text-2)">
-          ${isLogin?'Pas encore de compte ? <b>Inscription</b>':'Déjà un compte ? <b>Se connecter</b>'}
+      <p style="font-size:13px;color:var(--text-3);margin-bottom:16px;line-height:1.5">
+        Entre ton email — tu recevras un <b style="color:var(--gold)">code à 6 chiffres</b> valable 10 minutes.<br>
+        Pas de mot de passe, pas de redirect.
+      </p>
+      <div class="field"><label>Email</label><input id="loginEmail" type="email" placeholder="vous@example.com" autocomplete="email" autofocus inputmode="email"></div>
+      <div class="form-actions" style="flex-direction:column;gap:10px">
+        <button class="btn btn-primary btn-block" id="btnSendOtp">📧 Envoyer le code</button>
+        <div style="display:flex;align-items:center;gap:10px;margin:2px 0">
+          <div style="flex:1;height:1px;background:rgba(200,169,110,.12)"></div>
+          <span style="color:var(--text-3);font-size:11px;white-space:nowrap">ou connexion classique</span>
+          <div style="flex:1;height:1px;background:rgba(200,169,110,.12)"></div>
+        </div>
+        <button class="btn btn-ghost btn-block btn-sm" id="btnShowPassword" style="font-size:12px;color:var(--text-3)">🔑 Email + mot de passe</button>
+        <button class="btn btn-ghost btn-block btn-sm" id="btnShowGoogle" style="font-size:12px;color:var(--text-3);display:flex;align-items:center;justify-content:center;gap:8px">
+          <svg width="14" height="14" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+          Google (navigateur recommandé)
         </button>
       </div>`;
-    document.getElementById('btnGoogle').addEventListener('click', async()=>{
-      const{error}=await sb.auth.signInWithOAuth({provider:'google',options:{redirectTo:window.location.origin+window.location.pathname,queryParams:{prompt:'select_account'}}});
-      if(error) toast('Erreur Google: '+error.message);
+
+    const emailInput = document.getElementById('loginEmail');
+
+    document.getElementById('btnSendOtp').addEventListener('click', async () => {
+      const email = emailInput.value.trim();
+      if(!email){ toast('Email requis'); return; }
+      const btn = document.getElementById('btnSendOtp');
+      btn.disabled = true; btn.textContent = 'Envoi…';
+      const {error} = await sb.auth.signInWithOtp({email, options:{shouldCreateUser:true}});
+      if(error){ toast('❌ '+error.message); btn.disabled=false; btn.textContent='📧 Envoyer le code'; return; }
+      renderStep2(email);
     });
-    document.getElementById('btnToggleMode').addEventListener('click',()=>renderLoginForm(isLogin?'signup':'login'));
-    document.getElementById('btnLoginAction').addEventListener('click', async()=>{
-      const email=document.getElementById('loginEmail').value.trim();
-      const pwd=document.getElementById('loginPwd').value;
-      if(!email||!pwd){toast('Email et mot de passe requis');return;}
-      if(isLogin){
-        const{error}=await sb.auth.signInWithPassword({email,password:pwd});
-        if(error){
-          if(error.message.includes('Invalid login')||error.message.includes('invalid')){
-            toast('Email ou mot de passe incorrect');
-          } else { toast('Erreur: '+error.message); }
-          return;
-        }
-        closeModal();
-      } else {
-        const pwd2=document.getElementById('loginPwd2').value;
-        if(pwd!==pwd2){toast('Les mots de passe ne correspondent pas');return;}
-        if(pwd.length<6){toast('Mot de passe trop court (min. 6 caractères)');return;}
-        const{data,error}=await sb.auth.signUp({email,password:pwd});
-        if(error){toast('Erreur: '+error.message);return;}
-        if(data?.session){
-          // Email confirmation disabled — user is immediately logged in
-          closeModal();
-          toast('✅ Compte créé et connecté !');
-        } else {
-          closeModal();
-          toast('📧 Compte créé ! Confirmez votre email pour activer la synchronisation.', 5000);
-        }
-      }
+
+    emailInput.addEventListener('keydown', e => { if(e.key==='Enter') document.getElementById('btnSendOtp')?.click(); });
+
+    document.getElementById('btnShowPassword').addEventListener('click', () => renderStepPassword());
+    document.getElementById('btnShowGoogle').addEventListener('click', async () => {
+      const {data, error} = await sb.auth.signInWithOAuth({provider:'google', options:{
+        redirectTo: window.location.origin+window.location.pathname,
+        queryParams:{prompt:'select_account'}
+      }});
+      if(error) toast('❌ '+error.message);
     });
   };
-  renderLoginForm(mode);
+
+  // Étape 2 : saisie du code OTP
+  const renderStep2 = (email) => {
+    document.getElementById('modalContent').innerHTML=`
+      <p style="font-size:13px;color:var(--text-2);margin-bottom:4px">Code envoyé à :</p>
+      <p style="font-size:14px;font-weight:700;color:var(--gold);margin-bottom:16px">${escapeHtml(email)}</p>
+      <p style="font-size:12px;color:var(--text-3);margin-bottom:14px">Vérifie ta boîte mail (et les spams). Le code expire dans 10 min.</p>
+      <div class="field">
+        <label>Code à 6 chiffres</label>
+        <input id="loginOtp" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="123456"
+          autocomplete="one-time-code" autofocus
+          style="font-size:28px;font-weight:800;letter-spacing:.35em;text-align:center">
+      </div>
+      <div class="form-actions" style="flex-direction:column;gap:8px">
+        <button class="btn btn-primary btn-block" id="btnVerifyOtp">✅ Vérifier le code</button>
+        <button class="btn btn-ghost btn-block btn-sm" id="btnResendOtp" style="font-size:12px;color:var(--text-3)">Renvoyer le code</button>
+        <button class="btn btn-ghost btn-block btn-sm" id="btnBackOtp" style="font-size:12px;color:var(--text-3)">← Changer d'email</button>
+      </div>`;
+
+    const otpInput = document.getElementById('loginOtp');
+
+    document.getElementById('btnVerifyOtp').addEventListener('click', async () => {
+      const token = otpInput.value.trim().replace(/\s/g,'');
+      if(token.length!==6){ toast('Code à 6 chiffres requis'); return; }
+      const btn = document.getElementById('btnVerifyOtp');
+      btn.disabled=true; btn.textContent='Vérification…';
+      const {error} = await sb.auth.verifyOtp({email, token, type:'email'});
+      if(error){ toast('❌ Code incorrect ou expiré'); btn.disabled=false; btn.textContent='✅ Vérifier le code'; return; }
+      closeModal();
+      toast('✅ Connecté !');
+    });
+
+    otpInput.addEventListener('keydown', e => { if(e.key==='Enter') document.getElementById('btnVerifyOtp')?.click(); });
+    otpInput.addEventListener('input', () => { if(otpInput.value.length===6) document.getElementById('btnVerifyOtp')?.click(); });
+
+    document.getElementById('btnResendOtp').addEventListener('click', async () => {
+      const {error} = await sb.auth.signInWithOtp({email, options:{shouldCreateUser:true}});
+      if(!error) toast('📧 Code renvoyé !'); else toast('❌ '+error.message);
+    });
+    document.getElementById('btnBackOtp').addEventListener('click', () => renderStep1());
+  };
+
+  // Option classique : email + mot de passe
+  const renderStepPassword = (mode='login') => {
+    const isLogin = mode==='login';
+    document.getElementById('modalContent').innerHTML=`
+      <div class="field"><label>Email</label><input id="loginEmail" type="email" placeholder="vous@example.com" autofocus autocomplete="email"></div>
+      <div class="field"><label>Mot de passe</label><input id="loginPwd" type="password" placeholder="••••••••" autocomplete="${isLogin?'current-password':'new-password'}"></div>
+      ${!isLogin?`<div class="field"><label>Confirmer</label><input id="loginPwd2" type="password" placeholder="••••••••"></div>`:''}
+      <div class="form-actions" style="flex-direction:column;gap:8px">
+        <button class="btn btn-primary btn-block" id="btnLoginAction">${isLogin?'Se connecter':'Créer le compte'}</button>
+        ${isLogin?`<button class="btn btn-ghost btn-block btn-sm" id="btnForgot" style="font-size:12px;color:var(--text-3)">Mot de passe oublié ?</button>`:''}
+        <button class="btn btn-ghost btn-block btn-sm" id="btnToggleMode" style="font-size:12px;color:var(--text-3)">
+          ${isLogin?'Pas de compte ? Inscription':'Déjà un compte ? Connexion'}
+        </button>
+        <button class="btn btn-ghost btn-block btn-sm" id="btnBackPwd" style="font-size:12px;color:var(--text-3)">← Code par email</button>
+      </div>`;
+
+    document.getElementById('btnLoginAction').addEventListener('click', async () => {
+      const email = document.getElementById('loginEmail').value.trim();
+      const pwd = document.getElementById('loginPwd').value;
+      if(!email||!pwd){ toast('Email et mot de passe requis'); return; }
+      if(isLogin){
+        const {error} = await sb.auth.signInWithPassword({email, password:pwd});
+        if(error){ toast('❌ Email ou mot de passe incorrect'); return; }
+        closeModal();
+      } else {
+        const pwd2 = document.getElementById('loginPwd2').value;
+        if(pwd!==pwd2){ toast('Les mots de passe ne correspondent pas'); return; }
+        if(pwd.length<6){ toast('Mot de passe trop court (min. 6 car.)'); return; }
+        const {data, error} = await sb.auth.signUp({email, password:pwd});
+        if(error){ toast('❌ '+error.message); return; }
+        if(data?.session){ closeModal(); toast('✅ Compte créé !'); }
+        else { closeModal(); toast('📧 Vérifie ton email pour confirmer le compte.', 4000); }
+      }
+    });
+
+    document.getElementById('btnForgot')?.addEventListener('click', async () => {
+      const email = document.getElementById('loginEmail').value.trim();
+      if(!email){ toast('Entre ton email d\'abord'); return; }
+      const {error} = await sb.auth.resetPasswordForEmail(email, {redirectTo: window.location.origin+window.location.pathname});
+      if(!error) toast('📧 Lien de réinitialisation envoyé !', 4000);
+      else toast('❌ '+error.message);
+    });
+
+    document.getElementById('btnToggleMode').addEventListener('click', () => renderStepPassword(isLogin?'signup':'login'));
+    document.getElementById('btnBackPwd').addEventListener('click', () => renderStep1());
+  };
+
+  renderStep1();
   m.classList.add('show');
 }
-const BUILD = '2026-05-12b';
+
+function openChangePasswordModal(){
+  const m=document.getElementById('modal');
+  document.getElementById('modalTitle').textContent='Nouveau mot de passe';
+  document.getElementById('modalContent').innerHTML=`
+    <div class="field"><label>Nouveau mot de passe</label><input id="newPwd" type="password" placeholder="••••••••" autofocus></div>
+    <div class="field"><label>Confirmer</label><input id="newPwd2" type="password" placeholder="••••••••"></div>
+    <div class="form-actions">
+      <button class="btn btn-primary btn-block" id="btnSetPwd">Enregistrer</button>
+    </div>`;
+  document.getElementById('btnSetPwd').addEventListener('click', async () => {
+    const pwd = document.getElementById('newPwd').value;
+    const pwd2 = document.getElementById('newPwd2').value;
+    if(pwd.length<6){ toast('Mot de passe trop court'); return; }
+    if(pwd!==pwd2){ toast('Les mots de passe ne correspondent pas'); return; }
+    const {error} = await sb.auth.updateUser({password: pwd});
+    if(error){ toast('❌ '+error.message); return; }
+    closeModal();
+    toast('✅ Mot de passe mis à jour !');
+  });
+  m.classList.add('show');
+}
+const BUILD = '2026-05-12c';
 document.getElementById('buildDate').textContent = 'build ' + BUILD;
 document.getElementById('homeBuild').textContent = BUILD;
 
