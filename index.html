@@ -394,15 +394,36 @@ input,select,textarea{font:inherit;color:inherit;user-select:text;-webkit-user-s
 .team-item-sharer{color:var(--text-2)}
 
 /* Notes équipe */
-.team-notes-list{display:flex;flex-direction:column;gap:8px;margin:10px 0}
+.team-notes-list{display:flex;flex-direction:column;gap:8px;margin:10px 0 80px}
 .team-note{background:var(--navy-700);border-left:2px solid var(--gold);border-radius:0 var(--radius-sm) var(--radius-sm) 0;padding:8px 12px}
 .team-note-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px}
 .team-note-author{font-size:11px;font-weight:700;color:var(--gold)}
 .team-note-date{font-size:10px;color:var(--text-3)}
 .team-note-content{font-size:13px;color:var(--text-1);line-height:1.45;user-select:text;-webkit-user-select:text}
-.team-note-add{display:flex;gap:8px;margin-top:10px}
-.team-note-add textarea{flex:1;min-height:52px;resize:vertical;background:var(--navy-700);border:1px solid rgba(200,169,110,.18);border-radius:var(--radius-sm);padding:8px 10px;font-size:13px;color:var(--text-1)}
-.team-note-add textarea:focus{outline:none;border-color:var(--gold)}
+
+/* Barre d'actions en bas du livre pour items équipe */
+#livreTeamBar{display:none;position:fixed;bottom:0;left:0;right:0;z-index:320;
+  padding:12px 16px;background:var(--navy-800);border-top:1px solid rgba(200,169,110,.12);
+  gap:8px;flex-wrap:wrap}
+#livreTeamBar.show{display:flex}
+
+/* Saisie de commentaire équipe fixée en bas page 2 */
+.livre-team-compose{position:fixed;bottom:0;left:0;right:0;z-index:321;
+  padding:10px 12px;background:var(--navy-800);border-top:1px solid rgba(200,169,110,.12);
+  display:none;gap:8px;align-items:flex-end}
+.livre-team-compose.show{display:flex}
+.livre-team-compose textarea{flex:1;min-height:40px;max-height:100px;resize:none;
+  background:var(--navy-700);border:1px solid rgba(200,169,110,.2);border-radius:var(--radius-sm);
+  padding:8px 10px;font-size:13px;color:var(--text-1);outline:none;line-height:1.4}
+.livre-team-compose textarea:focus{border-color:var(--gold)}
+
+/* Carte équipe entière cliquable */
+.team-item-card{background:var(--navy-800);border:1px solid rgba(200,169,110,.1);
+  border-radius:var(--radius);padding:14px 16px;display:flex;align-items:center;
+  gap:12px;transition:all var(--tr);cursor:pointer;position:relative}
+.team-item-card:hover{border-color:rgba(200,169,110,.3);background:var(--navy-700);transform:translateY(-1px)}
+.team-item-card:active{transform:translateY(0)}
+.team-item-badge-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:3px}
 
 /* Membre row dans settings */
 .team-member-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.05)}
@@ -773,6 +794,17 @@ body.theme-light .team-code-box{background:var(--navy-700)}
     <div class="livre-pg" id="livrePg1" style="transform:translateX(100%)"></div>
   </div>
   <button id="btnLivreSave" class="livre-save-fab" style="display:none" title="Sauvegarder les notes">💾</button>
+  <!-- Barre d'actions pour items équipe -->
+  <div id="livreTeamBar">
+    <button class="btn btn-ghost btn-sm" id="btnLivreTeamImport" style="flex:1">📥 Importer</button>
+    <button class="btn btn-ghost btn-sm" id="btnLivreTeamEdit" style="flex:1">✏️ Modifier</button>
+    <button class="btn btn-danger btn-sm" id="btnLivreTeamDelete" style="flex:1">🗑 Retirer</button>
+  </div>
+  <!-- Zone de saisie commentaire équipe (page 2) -->
+  <div class="livre-team-compose" id="livreTeamCompose">
+    <textarea id="livreTeamNoteInput" placeholder="Ajouter un commentaire…" rows="1"></textarea>
+    <button class="btn btn-primary btn-sm" id="btnLivreTeamSendNote" style="white-space:nowrap;height:40px">Envoyer</button>
+  </div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -3632,74 +3664,25 @@ function renderTeamContent(itemType, container){
 
   function makeTeamItemCard(si){
     const el=document.createElement('div');
-    el.className='item team-item';
+    el.className='team-item-card';
     const itemName=si.data?.name||'?';
-    const isLinked=si.share_mode==='linked';
-    const isOwner=si.shared_by===sbUser.id;
-    const canRemove=isOwner||teamData.role==='admin'||teamData.role==='manager';
     const notesCount=(si._notesCount||0);
     const updatedAt=si.updated_at?new Date(si.updated_at).toLocaleDateString('fr-FR'):'';
-    // Vérifier si cet item est déjà importé dans le perso
-    const alreadyOwned=itemType==='recipe'
-      ? state.cocktails.some(x=>x.name.toLowerCase()===si.data?.name?.toLowerCase())
-      : itemType==='ingredient'
-      ? state.ingredients.some(x=>x.name.toLowerCase()===si.data?.name?.toLowerCase())
-      : false;
-    const importBtn=!isOwner&&itemType!=='batch'
-      ? `<button class="item-act" data-act="import" title="${alreadyOwned?'Déjà importé':'Copier dans mes listes'}" style="font-size:13px;${alreadyOwned?'opacity:.45':''}">${alreadyOwned?'✅':'📥'}</button>`
-      : '';
     el.innerHTML=`
-      <div class="item-thumb" style="font-size:20px">${emoji}</div>
-      <div class="item-body">
-        <div class="item-name">${escapeHtml(itemName)}${teamShareModeBadge(si.share_mode)}</div>
-        <div class="team-item-meta">
-          <span class="team-item-sharer">${t('team.sharedBy')} ${escapeHtml(si.sharer_name||'?')}</span>
+      <div style="font-size:22px;flex-shrink:0">${emoji}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:15px;font-weight:700;color:var(--text-1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+          ${escapeHtml(itemName)}${teamShareModeBadge(si.share_mode)}
+        </div>
+        <div class="team-item-badge-row">
+          <span style="font-size:11px;color:var(--text-3)">par ${escapeHtml(si.sharer_name||'?')}</span>
           ${teamRoleBadge(teamData.members.find(m=>m.user_id===si.shared_by)?.role||'user')}
-          <span>${updatedAt}</span>
+          ${updatedAt?`<span style="font-size:10px;color:var(--text-3)">${updatedAt}</span>`:''}
+          ${notesCount?`<span style="font-size:11px;color:var(--gold);font-weight:700">💬 ${notesCount}</span>`:''}
         </div>
       </div>
-      <div class="item-actions" style="gap:4px">
-        <button class="item-act" data-act="notes" title="${t('team.notes')}" style="font-size:13px;position:relative;${notesCount?'color:var(--gold)':''}">💬${notesCount?`<span style="position:absolute;top:-2px;right:-2px;font-size:9px;background:var(--gold);color:#000;border-radius:50%;width:14px;height:14px;display:flex;align-items:center;justify-content:center;font-weight:700">${notesCount}</span>`:''}
-        </button>
-        ${importBtn}
-        <button class="item-act" data-act="view" title="Voir">📖</button>
-        ${isOwner&&isLinked?`<button class="item-act" data-act="sync" title="${t('team.updatedLinked')}" style="font-size:13px">🔄</button>`:''}
-        ${canRemove?`<button class="item-act del" data-act="unshare" title="${t('team.unshare')}">${ICON.del}</button>`:''}
-      </div>`;
-    el.addEventListener('click', async e=>{
-      const act=e.target.closest('[data-act]')?.dataset.act;
-      if(act==='notes'){ openTeamNotes(si); return; }
-      if(act==='import'){
-        if(alreadyOwned){ toast('Déjà dans vos listes !'); return; }
-        const plan=getPlan(); const maxCreate=PLANS[plan].maxCreate;
-        if(itemType==='recipe'){
-          if(state.cocktails.length>=maxCreate){ toast('🔒 Limite atteinte'); return; }
-          state.cocktails.push({...structuredClone(si.data),id:uid(),_fromTeam:true});
-        } else {
-          state.ingredients.push({...structuredClone(si.data),id:uid(),_fromTeam:true});
-        }
-        save(); renderCurrentScreen(); toast('✅ "'+escapeHtml(itemName)+'" importé dans vos listes !');
-        return;
-      }
-      if(act==='view'){
-        if(itemType==='recipe') openCocktailDetail(si.data, false, true);
-        else if(itemType==='ingredient') openIngredientDetail(si.data, true);
-        else openBatchDetail(si.data, true);
-        return;
-      }
-      if(act==='sync'){
-        const orig=itemType==='recipe'
-          ? state.cocktails.find(x=>x.id===si.item_id)
-          : itemType==='ingredient'
-          ? state.ingredients.find(x=>x.id===si.item_id)
-          : state.batches.find(x=>x.id===si.item_id);
-        if(!orig){toast('⚠️ Recette originale introuvable (supprimée ?)');return;}
-        await teamSyncLinked(orig, itemType);
-        toast('🔄 Version mise à jour pour l\'équipe');
-        return;
-      }
-      if(act==='unshare'){ await teamUnshareItem(si.id); return; }
-    });
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="color:var(--text-3);flex-shrink:0"><polyline points="9 18 15 12 9 6"/></svg>`;
+    el.addEventListener('click', ()=> openTeamLivre(si, itemType));
     return el;
   }
 
@@ -3794,6 +3777,141 @@ async function openTeamNotes(sharedItem){
     if(ok){ document.getElementById('noteInput').value=''; openTeamNotes(sharedItem); }
     else toast('❌ Erreur lors de l\'ajout');
   };
+}
+
+/* ── Livre équipe : ouvre le livre modal pour un item partagé ── */
+async function openTeamLivre(si, itemType){
+  _livreC = si.data||{};
+  _livreIsCat = false; _livreBD = {}; _livreModified = false;
+
+  document.getElementById('livreTitre').textContent = _livreC.name||'?';
+  _renderLivreRecipe();
+
+  // Page 1 : loading placeholder
+  document.getElementById('livrePg1').innerHTML = `<div style="text-align:center;padding:32px;color:var(--text-3)">Chargement des commentaires…</div>`;
+
+  // Tab labels
+  document.getElementById('btnLivrePg1').textContent = '💬 Équipe';
+
+  // Masquer le FAB save (pas de notes perso ici)
+  document.getElementById('btnLivreSave').style.display = 'none';
+
+  const bar = document.getElementById('livreTeamBar');
+  const compose = document.getElementById('livreTeamCompose');
+
+  // Ouvrir le modal
+  document.getElementById('livreModal').classList.add('show');
+  document.body.style.overflow = 'hidden';
+
+  // Charger les notes
+  await _renderLivreTeamNotes(si);
+
+  // Page 0 = bar d'actions, page 1 = compose (jamais les deux en même temps)
+  function showTeamPg(n){
+    _setLivrePgTeam(n);
+    if(n===1){ bar.classList.remove('show'); compose.classList.add('show'); }
+    else      { compose.classList.remove('show'); bar.classList.add('show'); }
+  }
+
+  // Navigation pages
+  document.getElementById('btnLivrePg0').onclick = () => showTeamPg(0);
+  document.getElementById('btnLivrePg1').onclick = () => showTeamPg(1);
+
+  // Démarrer en page 0 (recette + barre d'actions)
+  showTeamPg(0);
+
+  // Swipe
+  const pages = document.getElementById('livrePages');
+  let _tx = 0;
+  const onTouchStart = e => { _tx = e.touches[0].clientX; };
+  const onTouchEnd = e => {
+    const dx = e.changedTouches[0].clientX - _tx;
+    if(Math.abs(dx)>50) showTeamPg(dx<0?1:0);
+  };
+  pages.addEventListener('touchstart', onTouchStart, {passive:true});
+  pages.addEventListener('touchend', onTouchEnd, {passive:true});
+
+  // Bouton fermer
+  document.getElementById('btnLivreClose').onclick = () => {
+    document.getElementById('livreModal').classList.remove('show');
+    document.body.style.overflow = '';
+    bar.classList.remove('show');
+    compose.classList.remove('show');
+    document.getElementById('btnLivrePg1').textContent = '✨ Notes';
+    pages.removeEventListener('touchstart', onTouchStart);
+    pages.removeEventListener('touchend', onTouchEnd);
+  };
+
+  // Envoi d'un commentaire
+  document.getElementById('btnLivreTeamSendNote').onclick = async () => {
+    const ta = document.getElementById('livreTeamNoteInput');
+    const content = ta.value.trim();
+    if(!content) return;
+    const ok = await teamAddNote(si.id, content);
+    if(ok){ ta.value=''; await _renderLivreTeamNotes(si); }
+    else toast('❌ Erreur lors de l\'envoi');
+  };
+
+  // Importer dans mes recettes / ingrédients
+  const isMine = si.shared_by === sbUser?.id;
+  document.getElementById('btnLivreTeamImport').style.display = isMine ? 'none' : '';
+  document.getElementById('btnLivreTeamImport').onclick = () => {
+    const copy = structuredClone(_livreC);
+    copy.id = uid();
+    if(itemType==='recipe'){
+      if(state.cocktails.find(c=>c.name===copy.name)){ toast('⚠️ Un cocktail avec ce nom existe déjà'); return; }
+      state.cocktails.push(copy); save();
+      toast('✅ Cocktail importé dans ta collection !');
+    } else if(itemType==='ingredient'){
+      if(state.ingredients.find(i=>i.name===copy.name)){ toast('⚠️ Ingrédient déjà dans ta liste'); return; }
+      state.ingredients.push(copy); save();
+      toast('✅ Ingrédient importé !');
+    }
+    if(sb && sbUser) sbPush();
+  };
+
+  // Modifier (uniquement si c'est mon partage)
+  document.getElementById('btnLivreTeamEdit').style.display = isMine ? '' : 'none';
+  document.getElementById('btnLivreTeamEdit').onclick = () => {
+    document.getElementById('btnLivreClose').onclick();
+    if(itemType==='recipe') openCocktailForm(structuredClone(_livreC));
+    else if(itemType==='ingredient') openIngForm(structuredClone(_livreC));
+  };
+
+  // Retirer / dé-partager
+  document.getElementById('btnLivreTeamDelete').textContent = isMine ? '🗑 Retirer' : '🚫 Masquer';
+  document.getElementById('btnLivreTeamDelete').onclick = async () => {
+    document.getElementById('btnLivreClose').onclick();
+    await teamUnshareItem(si.id);
+  };
+}
+
+function _setLivrePgTeam(n){
+  _livrePg = n;
+  document.getElementById('livrePg0').style.transform = `translateX(${-n*100}%)`;
+  document.getElementById('livrePg1').style.transform = `translateX(${(1-n)*100}%)`;
+  document.getElementById('btnLivrePg0').classList.toggle('active', n===0);
+  document.getElementById('btnLivrePg1').classList.toggle('active', n===1);
+}
+
+async function _renderLivreTeamNotes(si){
+  const pg = document.getElementById('livrePg1');
+  pg.innerHTML = `<div style="text-align:center;padding:32px;color:var(--text-3)">Chargement…</div>`;
+  const notes = await teamFetchNotes(si.id);
+  if(!notes.length){
+    pg.innerHTML = `<div style="text-align:center;color:var(--text-3);font-size:13px;padding:32px 0">Aucun commentaire pour l'instant.<br><span style="font-size:11px">Passe à l'onglet 💬 Équipe et sois le premier !</span></div>`;
+    return;
+  }
+  pg.innerHTML = notes.map(n=>`
+    <div class="team-note">
+      <div class="team-note-header">
+        <span class="team-note-author">${escapeHtml(n.author_name||'?')}</span>
+        <span class="team-note-date">${new Date(n.created_at).toLocaleDateString('fr-FR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}</span>
+      </div>
+      <div class="team-note-content">${escapeHtml(n.content)}</div>
+    </div>`).join('');
+  // Scroll to bottom
+  pg.scrollTop = pg.scrollHeight;
 }
 
 function openBatchForm(b){
