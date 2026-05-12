@@ -806,7 +806,7 @@ function initSupabase(){
       }
       if(sbUser && (event==='SIGNED_IN'||event==='INITIAL_SESSION') && sbUser.id !== lastUserId){
         lastUserId = sbUser.id;
-        await Promise.all([sbPull(), fetchRemoteCatalog()]);
+        await Promise.all([sbPull(), fetchRemoteCatalog(), teamFetch()]);
       }
       if(event==='SIGNED_OUT'){
         lastUserId = null;
@@ -842,6 +842,10 @@ function updateAuthUI(){
     if(topbarUser) topbarUser.style.display='none';
   }
   updatePlanUI();
+  // Rafraîchir la section Équipe si on est sur Paramètres
+  if(typeof renderTeamSettings==='function' && typeof currentScreen!=='undefined' && currentScreen==='Settings'){
+    renderTeamSettings();
+  }
 }
 async function sbPull(){
   if(!sb||!sbUser) return;
