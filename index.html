@@ -438,6 +438,31 @@ input,select,textarea{font:inherit;color:inherit;user-select:text;-webkit-user-s
 .team-code-hint{font-size:10px;color:var(--text-3);text-transform:uppercase;letter-spacing:.1em}
 body.theme-light .team-note{background:var(--navy-700)}
 body.theme-light .team-code-box{background:var(--navy-700)}
+
+/* ── Minuteurs ── */
+#btnTimerToggle{position:fixed;bottom:20px;left:20px;z-index:22;width:46px;height:46px;border-radius:50%;background:var(--navy-700);border:1px solid rgba(200,169,110,.25);font-size:20px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(0,0,0,.4);transition:all var(--tr);cursor:pointer}
+#btnTimerToggle:hover{border-color:var(--gold);transform:scale(1.08)}
+#btnTimerToggle.has-timers{border-color:var(--gold);background:rgba(200,169,110,.15)}
+@media(max-width:640px){#btnTimerToggle{bottom:78px}}
+
+#timerDrawer{position:fixed;bottom:-100%;left:0;right:0;z-index:200;background:var(--navy-800);border-top:1px solid rgba(200,169,110,.18);border-radius:20px 20px 0 0;max-height:80vh;overflow-y:auto;transition:bottom .35s cubic-bezier(.4,0,.2,1);box-shadow:0 -8px 40px rgba(0,0,0,.5)}
+#timerDrawer.open{bottom:0}
+#timerDrawerHandle{width:36px;height:4px;background:rgba(200,169,110,.3);border-radius:2px;margin:12px auto 16px}
+
+#timerChips{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:21;display:flex;gap:8px;flex-wrap:wrap;justify-content:center;pointer-events:none}
+@media(max-width:640px){#timerChips{bottom:82px}}
+.timer-chip{background:var(--navy-800);border:1px solid rgba(200,169,110,.35);border-radius:20px;padding:6px 14px;display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:var(--text-1);box-shadow:0 2px 12px rgba(0,0,0,.4);pointer-events:all;cursor:pointer;transition:all var(--tr)}
+.timer-chip:hover{border-color:var(--gold)}
+.timer-chip.done{border-color:var(--gold);background:rgba(200,169,110,.15);animation:timerDonePulse .6s ease 3}
+@keyframes timerDonePulse{0%,100%{box-shadow:0 2px 12px rgba(0,0,0,.4)}50%{box-shadow:0 0 0 6px rgba(200,169,110,.3)}}
+.timer-chip-time{color:var(--gold);font-variant-numeric:tabular-nums;min-width:48px}
+.timer-chip-label{font-size:11px;color:var(--text-3);max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+.timer-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid rgba(200,169,110,.07)}
+.timer-row:last-child{border-bottom:none}
+.timer-row-time{font-size:22px;font-weight:800;color:var(--gold);font-variant-numeric:tabular-nums;min-width:72px}
+.timer-row-label{flex:1;font-size:13px;color:var(--text-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.timer-row.done .timer-row-time{color:#4ade80}
 </style>
 </head>
 <body>
@@ -810,6 +835,27 @@ body.theme-light .team-code-box{background:var(--navy-700)}
 </div>
 
 <div class="toast" id="toast"></div>
+
+<!-- ── Minuteurs ── -->
+<div id="timerChips"></div>
+<button id="btnTimerToggle" title="Minuteurs">⏱️</button>
+<div id="timerDrawer">
+  <div id="timerDrawerHandle"></div>
+  <div style="padding:0 16px 24px">
+    <div style="font-size:14px;font-weight:700;color:var(--gold);margin-bottom:14px;letter-spacing:.04em">⏱️ Minuteurs</div>
+    <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px">
+      <input id="timerLabel" type="text" placeholder="Infusion, sirop, macération…" style="background:var(--navy-700);border:1px solid rgba(200,169,110,.2);border-radius:var(--radius-sm);padding:9px 12px;font-size:13px;color:var(--text-1);outline:none">
+      <div style="display:flex;gap:8px;align-items:center">
+        <input id="timerMin" type="number" min="0" max="99" value="5" style="width:72px;text-align:center;background:var(--navy-700);border:1px solid rgba(200,169,110,.2);border-radius:var(--radius-sm);padding:9px 8px;font-size:20px;font-weight:700;color:var(--text-1);outline:none">
+        <span style="color:var(--text-3);font-size:18px;font-weight:700">:</span>
+        <input id="timerSec" type="number" min="0" max="59" value="0" style="width:72px;text-align:center;background:var(--navy-700);border:1px solid rgba(200,169,110,.2);border-radius:var(--radius-sm);padding:9px 8px;font-size:20px;font-weight:700;color:var(--text-1);outline:none">
+        <span style="color:var(--text-3);font-size:12px;flex:1">min &nbsp; sec</span>
+        <button id="btnStartTimer" class="btn btn-primary btn-sm" style="height:44px;padding:0 20px;font-size:14px;white-space:nowrap">▶ Go</button>
+      </div>
+    </div>
+    <div id="timerActiveList"></div>
+  </div>
+</div>
 
 <script src="supabase.min.js"></script>
 <script src="xlsx.mini.min.js"></script>
@@ -5274,6 +5320,206 @@ function showUpdateBanner(){
   d.innerHTML='<span>🔄 Mise à jour disponible</span><button onclick="location.reload()" style="background:var(--gold);color:#000;border:none;padding:6px 16px;border-radius:8px;cursor:pointer;font-weight:700;font-size:13px">Actualiser</button><button onclick="this.parentNode.remove()" style="background:none;border:none;color:var(--clr-text-muted);cursor:pointer;font-size:18px;padding:0 4px">×</button>';
   document.body.appendChild(d);
 }
+
+/* ═══════════════════════════════════════
+   MINUTEURS
+═══════════════════════════════════════ */
+(function(){
+  const LS_TIMERS = 'mixtura_timers';
+  let timers = [];
+  let _tick = null;
+  let drawerOpen = false;
+
+  function fmtSecs(s){
+    if(s<=0) return '00:00';
+    const m=Math.floor(s/60), ss=s%60;
+    return String(m).padStart(2,'0')+':'+String(ss).padStart(2,'0');
+  }
+
+  function saveTimers(){ localStorage.setItem(LS_TIMERS, JSON.stringify(timers)); }
+
+  function loadTimers(){
+    try{ timers=JSON.parse(localStorage.getItem(LS_TIMERS)||'[]'); }catch(_){ timers=[]; }
+    // Supprimer les timers terminés depuis > 30s et déjà notifiés
+    timers=timers.filter(t=>!t.notified || (t.endAt - Date.now()) > -30000);
+  }
+
+  function beep(){
+    try{
+      const ctx=new (window.AudioContext||window.webkitAudioContext)();
+      [0,0.2,0.4].forEach(delay=>{
+        const osc=ctx.createOscillator(), gain=ctx.createGain();
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.frequency.value=880; osc.type='sine';
+        gain.gain.setValueAtTime(0.4, ctx.currentTime+delay);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime+delay+0.25);
+        osc.start(ctx.currentTime+delay);
+        osc.stop(ctx.currentTime+delay+0.25);
+      });
+    }catch(_){}
+  }
+
+  async function fireNotification(t){
+    beep();
+    toast('⏱️ '+(t.label||'Minuteur')+' — terminé !', 5000);
+    if(Notification.permission==='granted'){
+      try{
+        const reg=await navigator.serviceWorker.ready;
+        reg.showNotification('⏱️ Minuteur terminé !',{
+          body: t.label||'Le temps est écoulé',
+          icon:'./icons/icon-192.png',
+          badge:'./icons/icon-192.png',
+          vibrate:[300,100,300,100,300],
+          tag:'timer-'+t.id,
+          requireInteraction:true
+        });
+      }catch(_){
+        new Notification('⏱️ Minuteur terminé !',{body:t.label||'',icon:'./icons/icon-192.png'});
+      }
+    }
+  }
+
+  function tick(){
+    const now=Date.now();
+    let dirty=false;
+    timers.forEach(t=>{
+      if(!t.notified && now>=t.endAt){
+        t.notified=true; dirty=true;
+        fireNotification(t);
+      }
+    });
+    if(dirty) saveTimers();
+    renderChips();
+    renderActiveList();
+  }
+
+  function startTick(){
+    if(_tick) return;
+    _tick=setInterval(tick, 500);
+  }
+  function stopTick(){
+    if(!timers.filter(t=>!t.notified).length){ clearInterval(_tick); _tick=null; }
+  }
+
+  function addTimer(label, seconds){
+    if(seconds<=0){ toast('⚠️ Durée invalide'); return; }
+    const id=Date.now();
+    timers.push({id, label:label.trim(), endAt:Date.now()+seconds*1000, notified:false});
+    saveTimers();
+    startTick();
+    renderChips();
+    renderActiveList();
+    updateToggleBadge();
+    toast('⏱️ Minuteur démarré : '+fmtSecs(seconds));
+  }
+
+  function removeTimer(id){
+    timers=timers.filter(t=>t.id!==id);
+    saveTimers();
+    stopTick();
+    renderChips();
+    renderActiveList();
+    updateToggleBadge();
+  }
+
+  function renderChips(){
+    const el=document.getElementById('timerChips');
+    if(!el) return;
+    const now=Date.now();
+    const running=timers.filter(t=>!t.notified);
+    el.innerHTML=running.map(t=>{
+      const rem=Math.max(0,Math.ceil((t.endAt-now)/1000));
+      return `<div class="timer-chip" data-tid="${t.id}">
+        <span>⏱️</span>
+        <span class="timer-chip-time">${fmtSecs(rem)}</span>
+        ${t.label?`<span class="timer-chip-label">${escapeHtml(t.label)}</span>`:''}
+      </div>`;
+    }).join('');
+    el.querySelectorAll('.timer-chip').forEach(chip=>{
+      chip.addEventListener('click',()=>{ openTimerDrawer(); });
+    });
+  }
+
+  function renderActiveList(){
+    const el=document.getElementById('timerActiveList');
+    if(!el) return;
+    if(!timers.length){ el.innerHTML=`<div style="text-align:center;color:var(--text-3);font-size:12px;padding:12px 0">Aucun minuteur actif</div>`; return; }
+    const now=Date.now();
+    el.innerHTML=timers.map(t=>{
+      const rem=Math.max(0,Math.ceil((t.endAt-now)/1000));
+      const done=t.notified||rem===0;
+      return `<div class="timer-row${done?' done':''}">
+        <div class="timer-row-time">${done?'✅':fmtSecs(rem)}</div>
+        <div class="timer-row-label">${escapeHtml(t.label||'Minuteur')}</div>
+        <button class="btn btn-ghost btn-sm" data-del="${t.id}" style="padding:4px 10px;flex-shrink:0">✕</button>
+      </div>`;
+    }).join('');
+    el.querySelectorAll('[data-del]').forEach(btn=>{
+      btn.addEventListener('click',()=>removeTimer(Number(btn.dataset.del)));
+    });
+  }
+
+  function updateToggleBadge(){
+    const btn=document.getElementById('btnTimerToggle');
+    if(!btn) return;
+    const running=timers.filter(t=>!t.notified).length;
+    btn.classList.toggle('has-timers', running>0);
+    btn.title=running>0?`${running} minuteur${running>1?'s':''} actif${running>1?'s':''}`:'Minuteurs';
+  }
+
+  function openTimerDrawer(){
+    const d=document.getElementById('timerDrawer');
+    if(!d) return;
+    drawerOpen=true;
+    d.classList.add('open');
+    renderActiveList();
+  }
+
+  function closeTimerDrawer(){
+    const d=document.getElementById('timerDrawer');
+    if(d){ d.classList.remove('open'); drawerOpen=false; }
+  }
+
+  async function requestNotifPermission(){
+    if(Notification.permission==='default'){
+      await Notification.requestPermission();
+    }
+  }
+
+  // Init on DOM ready
+  window.addEventListener('DOMContentLoaded',()=>{
+    loadTimers();
+    if(timers.length){ startTick(); renderChips(); updateToggleBadge(); }
+
+    const btn=document.getElementById('btnTimerToggle');
+    const drawer=document.getElementById('timerDrawer');
+    const handle=document.getElementById('timerDrawerHandle');
+
+    btn?.addEventListener('click',()=>{ drawerOpen?closeTimerDrawer():openTimerDrawer(); });
+    handle?.addEventListener('click',closeTimerDrawer);
+
+    // Fermer si clic hors du drawer
+    document.addEventListener('click',e=>{
+      if(drawerOpen && !e.target.closest('#timerDrawer') && !e.target.closest('#btnTimerToggle')){
+        closeTimerDrawer();
+      }
+    });
+
+    document.getElementById('btnStartTimer')?.addEventListener('click',async()=>{
+      await requestNotifPermission();
+      const label=document.getElementById('timerLabel').value;
+      const min=parseInt(document.getElementById('timerMin').value)||0;
+      const sec=parseInt(document.getElementById('timerSec').value)||0;
+      addTimer(label, min*60+sec);
+      document.getElementById('timerLabel').value='';
+    });
+
+    // Valider label avec Entrée
+    document.getElementById('timerLabel')?.addEventListener('keydown',e=>{
+      if(e.key==='Enter') document.getElementById('btnStartTimer')?.click();
+    });
+  });
+})();
 
 if('serviceWorker' in navigator){
   window.addEventListener('load', async()=>{
