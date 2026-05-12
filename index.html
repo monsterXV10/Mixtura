@@ -787,11 +787,13 @@ body.theme-light .team-code-box{background:var(--navy-700)}
     <div class="livre-pg-btns">
       <button class="livre-pg-btn active" id="btnLivrePg0">Recette</button>
       <button class="livre-pg-btn" id="btnLivrePg1">✨ Notes</button>
+      <button class="livre-pg-btn" id="btnLivrePg2" style="display:none">💬 Équipe</button>
     </div>
   </div>
   <div class="livre-pages" id="livrePages">
     <div class="livre-pg" id="livrePg0"></div>
     <div class="livre-pg" id="livrePg1" style="transform:translateX(100%)"></div>
+    <div class="livre-pg" id="livrePg2" style="transform:translateX(200%);display:none"></div>
   </div>
   <button id="btnLivreSave" class="livre-save-fab" style="display:none" title="Sauvegarder les notes">💾</button>
   <!-- Barre d'actions pour items équipe -->
@@ -1310,7 +1312,7 @@ function openLoginModal(mode='login'){
   renderLoginForm(mode);
   m.classList.add('show');
 }
-const BUILD = '2026-05-12';
+const BUILD = '2026-05-12b';
 document.getElementById('buildDate').textContent = 'build ' + BUILD;
 document.getElementById('homeBuild').textContent = BUILD;
 
@@ -2639,10 +2641,13 @@ function renderCocktails(){
     menuNames.forEach(menu=>{
       const group = document.createElement('div');
       group.className='menu-group open';
-      group.innerHTML=`<div class="menu-group-head"><div class="menu-group-name">${escapeHtml(menu)}</div><div class="menu-group-count">${byMenu[menu].length}</div><div class="menu-group-chevron">${ICON.chevron}</div></div><div class="menu-group-body"><div class="list"></div></div>`;
+      group.innerHTML=`<div class="menu-group-head"><div class="menu-group-name">${escapeHtml(menu)}</div><div class="menu-group-count">${byMenu[menu].length}</div>${sbUser&&teamData?`<button class="item-act" data-act="sharemenu" title="Partager toute la carte" style="font-size:14px;flex-shrink:0">📤</button>`:''}  <div class="menu-group-chevron">${ICON.chevron}</div></div><div class="menu-group-body"><div class="list"></div></div>`;
       const listEl = group.querySelector('.list');
       byMenu[menu].forEach(c=>listEl.appendChild(renderCocktailItem(c)));
-      group.querySelector('.menu-group-head').addEventListener('click',()=>group.classList.toggle('open'));
+      group.querySelector('.menu-group-head').addEventListener('click',e=>{
+        if(e.target.closest('[data-act="sharemenu"]')){ openShareMenuModal(menu, byMenu[menu]); return; }
+        group.classList.toggle('open');
+      });
       container.appendChild(group);
     });
     if(byMenu.__none__){
@@ -3748,6 +3753,45 @@ function openShareModal(itemType, item){
   m.classList.add('show');
 }
 
+/* ── Partager toute une carte/menu ── */
+function openShareMenuModal(menuName, cocktails){
+  if(!sbUser||!teamData){ toast('⚠️ Connecte-toi et rejoins une équipe d\'abord'); return; }
+  const m=document.getElementById('modal');
+  document.getElementById('modalTitle').textContent=`📤 Partager la carte "${menuName}"`;
+  document.getElementById('modalContent').innerHTML=`
+    <div style="font-size:13px;color:var(--text-2);margin-bottom:14px">${cocktails.length} cocktail${cocktails.length!==1?'s':''} seront partagés avec l'équipe.</div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <button class="btn btn-ghost" id="btnShareMenuCopy" style="text-align:left;padding:12px 14px">
+        <div style="font-weight:700;margin-bottom:3px">${t('team.shareMode.copy')}</div>
+        <div style="font-size:12px;color:var(--text-3)">${t('team.shareModeCopyDesc')}</div>
+      </button>
+      <button class="btn btn-ghost" id="btnShareMenuLinked" style="text-align:left;padding:12px 14px">
+        <div style="font-weight:700;margin-bottom:3px">${t('team.shareMode.linked')}</div>
+        <div style="font-size:12px;color:var(--text-3)">${t('team.shareModeLinkedDesc')}</div>
+      </button>
+    </div>`;
+  document.getElementById('btnShareMenuCopy').onclick=()=>{ shareMenu(cocktails,'copy'); m.classList.remove('show'); };
+  document.getElementById('btnShareMenuLinked').onclick=()=>{ shareMenu(cocktails,'linked'); m.classList.remove('show'); };
+  m.classList.add('show');
+}
+
+async function shareMenu(cocktails, mode){
+  if(!sb||!sbUser||!teamData) return;
+  const dn=sbUser.user_metadata?.full_name||sbUser.user_metadata?.name||sbUser.email?.split('@')[0]||'';
+  try{
+    const payloads=cocktails.map(c=>({
+      team_id:teamData.id, shared_by:sbUser.id, sharer_name:dn,
+      item_type:'recipe', item_id:mode==='linked'?c.id:null,
+      share_mode:mode, data:structuredClone(c)
+    }));
+    const {error}=await sb.from('team_shared_items').insert(payloads);
+    if(error) throw error;
+    await teamFetchItems();
+    toast(`✅ ${cocktails.length} cocktail${cocktails.length!==1?'s':''} partagés avec l'équipe !`);
+    renderCurrentScreen();
+  }catch(e){ console.error('shareMenu',e); toast('❌ '+(e.message||'Erreur')); }
+}
+
 /* ── Notes équipe sur un item partagé ── */
 async function openTeamNotes(sharedItem){
   const m=document.getElementById('modal');
@@ -3779,21 +3823,43 @@ async function openTeamNotes(sharedItem){
   };
 }
 
-/* ── Livre équipe : ouvre le livre modal pour un item partagé ── */
+/* ── Livre équipe : ouvre le livre modal (3 onglets) pour un item partagé ── */
 async function openTeamLivre(si, itemType){
-  _livreC = si.data||{};
-  _livreIsCat = false; _livreBD = {}; _livreModified = false;
+  const data = si.data||{};
+  _livreC = data;
+  _livreIsCat = false;
+  _livreModified = false;
 
-  document.getElementById('livreTitre').textContent = _livreC.name||'?';
-  _renderLivreRecipe();
+  // bookData : pour les recettes, on utilise le bookData embarqué dans le partage
+  const bd = structuredClone(data.bookData||{});
+  if(!bd.activeCases) bd.activeCases=[];
+  if(bd.intensity===undefined) bd.intensity=null;
+  if(bd.bitterness===undefined) bd.bitterness=null;
+  if(bd.sour===undefined) bd.sour=null;
+  _livreBD = bd;
 
-  // Page 1 : loading placeholder
-  document.getElementById('livrePg1').innerHTML = `<div style="text-align:center;padding:32px;color:var(--text-3)">Chargement des commentaires…</div>`;
+  document.getElementById('livreTitre').textContent = data.name||'?';
 
-  // Tab labels
-  document.getElementById('btnLivrePg1').textContent = '💬 Équipe';
+  // Page 0 : contenu selon le type
+  if(itemType==='recipe') _renderLivreRecipe();
+  else if(itemType==='ingredient') _renderLivreTeamIngredient(data);
+  else if(itemType==='batch') _renderLivreTeamBatch(data);
 
-  // Masquer le FAB save (pas de notes perso ici)
+  // Page 1 : notes du barman (bookData)
+  if(itemType==='recipe'){
+    document.getElementById('btnLivrePg1').style.display='';
+    document.getElementById('btnLivrePg1').textContent='✨ Notes';
+    _renderLivreNotes();
+  } else {
+    document.getElementById('btnLivrePg1').style.display='none';
+  }
+
+  // Page 2 : commentaires équipe
+  document.getElementById('btnLivrePg2').style.display='';
+  document.getElementById('livrePg2').style.display='';
+  document.getElementById('livrePg2').innerHTML=`<div style="text-align:center;padding:32px;color:var(--text-3)">Chargement…</div>`;
+
+  // Masquer le FAB save (géré par la page 1 normale)
   document.getElementById('btnLivreSave').style.display = 'none';
 
   const bar = document.getElementById('livreTeamBar');
@@ -3803,41 +3869,55 @@ async function openTeamLivre(si, itemType){
   document.getElementById('livreModal').classList.add('show');
   document.body.style.overflow = 'hidden';
 
-  // Charger les notes
+  // Charger les commentaires équipe
   await _renderLivreTeamNotes(si);
 
-  // Page 0 = bar d'actions, page 1 = compose (jamais les deux en même temps)
+  const maxPg = itemType==='recipe' ? 2 : 1;
+
   function showTeamPg(n){
-    _setLivrePgTeam(n);
-    if(n===1){ bar.classList.remove('show'); compose.classList.add('show'); }
-    else      { compose.classList.remove('show'); bar.classList.add('show'); }
+    n = Math.max(0, Math.min(n, maxPg));
+    _livrePg = n;
+    document.getElementById('livrePg0').style.transform = `translateX(${-n*100}%)`;
+    document.getElementById('livrePg1').style.transform = `translateX(${(1-n)*100}%)`;
+    document.getElementById('livrePg2').style.transform = `translateX(${(2-n)*100}%)`;
+    document.getElementById('btnLivrePg0').classList.toggle('active', n===0);
+    document.getElementById('btnLivrePg1').classList.toggle('active', n===1);
+    document.getElementById('btnLivrePg2').classList.toggle('active', n===2);
+    // Barre d'actions sur page 0 et page 2 (sauf si compose actif)
+    if(n===2){ bar.classList.remove('show'); compose.classList.add('show'); }
+    else { compose.classList.remove('show'); bar.classList.add('show'); }
+    // bouton save perso uniquement page 1
+    document.getElementById('btnLivreSave').style.display = (n===1 && itemType==='recipe') ? 'flex' : 'none';
   }
 
-  // Navigation pages
   document.getElementById('btnLivrePg0').onclick = () => showTeamPg(0);
   document.getElementById('btnLivrePg1').onclick = () => showTeamPg(1);
+  document.getElementById('btnLivrePg2').onclick = () => showTeamPg(2);
 
-  // Démarrer en page 0 (recette + barre d'actions)
+  // Démarrer sur page 0
   showTeamPg(0);
 
-  // Swipe
+  // Swipe (3 pages)
   const pages = document.getElementById('livrePages');
   let _tx = 0;
   const onTouchStart = e => { _tx = e.touches[0].clientX; };
   const onTouchEnd = e => {
     const dx = e.changedTouches[0].clientX - _tx;
-    if(Math.abs(dx)>50) showTeamPg(dx<0?1:0);
+    if(Math.abs(dx)>50) showTeamPg(_livrePg + (dx<0?1:-1));
   };
   pages.addEventListener('touchstart', onTouchStart, {passive:true});
   pages.addEventListener('touchend', onTouchEnd, {passive:true});
 
   // Bouton fermer
   document.getElementById('btnLivreClose').onclick = () => {
+    if(_livreModified) _saveLivreBookData();
     document.getElementById('livreModal').classList.remove('show');
     document.body.style.overflow = '';
     bar.classList.remove('show');
     compose.classList.remove('show');
-    document.getElementById('btnLivrePg1').textContent = '✨ Notes';
+    document.getElementById('btnLivrePg2').style.display='none';
+    document.getElementById('livrePg2').style.display='none';
+    if(itemType!=='recipe') document.getElementById('btnLivrePg1').style.display='';
     pages.removeEventListener('touchstart', onTouchStart);
     pages.removeEventListener('touchend', onTouchEnd);
   };
@@ -3852,11 +3932,11 @@ async function openTeamLivre(si, itemType){
     else toast('❌ Erreur lors de l\'envoi');
   };
 
-  // Importer dans mes recettes / ingrédients
+  // Boutons d'action
   const isMine = si.shared_by === sbUser?.id;
-  document.getElementById('btnLivreTeamImport').style.display = isMine ? 'none' : '';
+  document.getElementById('btnLivreTeamImport').style.display = (isMine||itemType==='batch') ? 'none' : '';
   document.getElementById('btnLivreTeamImport').onclick = () => {
-    const copy = structuredClone(_livreC);
+    const copy = structuredClone(data);
     copy.id = uid();
     if(itemType==='recipe'){
       if(state.cocktails.find(c=>c.name===copy.name)){ toast('⚠️ Un cocktail avec ce nom existe déjà'); return; }
@@ -3870,15 +3950,14 @@ async function openTeamLivre(si, itemType){
     if(sb && sbUser) sbPush();
   };
 
-  // Modifier (uniquement si c'est mon partage)
   document.getElementById('btnLivreTeamEdit').style.display = isMine ? '' : 'none';
   document.getElementById('btnLivreTeamEdit').onclick = () => {
     document.getElementById('btnLivreClose').onclick();
-    if(itemType==='recipe') openCocktailForm(structuredClone(_livreC));
-    else if(itemType==='ingredient') openIngForm(structuredClone(_livreC));
+    if(itemType==='recipe') openCocktailForm(structuredClone(data));
+    else if(itemType==='ingredient') openIngForm(structuredClone(data));
+    else if(itemType==='batch') openBatchForm(structuredClone(data));
   };
 
-  // Retirer / dé-partager
   document.getElementById('btnLivreTeamDelete').textContent = isMine ? '🗑 Retirer' : '🚫 Masquer';
   document.getElementById('btnLivreTeamDelete').onclick = async () => {
     document.getElementById('btnLivreClose').onclick();
@@ -3886,20 +3965,65 @@ async function openTeamLivre(si, itemType){
   };
 }
 
-function _setLivrePgTeam(n){
-  _livrePg = n;
-  document.getElementById('livrePg0').style.transform = `translateX(${-n*100}%)`;
-  document.getElementById('livrePg1').style.transform = `translateX(${(1-n)*100}%)`;
-  document.getElementById('btnLivrePg0').classList.toggle('active', n===0);
-  document.getElementById('btnLivrePg1').classList.toggle('active', n===1);
+/* ── Rendu page 0 pour un ingrédient partagé ── */
+function _renderLivreTeamIngredient(data){
+  const catLabel = {spirits:'Spiritueux',liqueur:'Liqueur',wine:'Vin/Bière',juice:'Jus/Sucre',
+    syrup:'Sirop',bitters:'Bitters',garnish:'Garniture',homemade:'Fait maison',misc:'Autre'}[data.category||'misc']||data.category||'';
+  const typeLabel = {bought:'Acheté',homemade:'Fait maison',default:''}[data.type||'bought']||'';
+  document.getElementById('livrePg0').innerHTML=`
+    <div class="livre-recipe-name">${escapeHtml(data.name||'?')}</div>
+    <div class="livre-recipe-meta">${[catLabel, typeLabel].filter(Boolean).join(' · ')}</div>
+    <div style="border-top:1px solid rgba(200,169,110,.1);margin:16px 0"></div>
+    ${data.stock!==undefined?`
+      <div class="livre-ing-row"><span class="livre-ing-name">Stock actuel</span><span class="livre-ing-qty" style="color:var(--gold)">${data.stock||0} ${escapeHtml(data.unit||'')}</span></div>
+      ${data.minStock?`<div class="livre-ing-row"><span class="livre-ing-name">Stock minimum</span><span class="livre-ing-qty">${data.minStock} ${escapeHtml(data.unit||'')}</span></div>`:''}
+      ${data.bottleSize?`<div class="livre-ing-row"><span class="livre-ing-name">Taille bouteille</span><span class="livre-ing-qty">${data.bottleSize} ${escapeHtml(data.unit||'')}</span></div>`:''}
+      ${data.bottlePrice?`<div class="livre-ing-row"><span class="livre-ing-name">Prix bouteille</span><span class="livre-ing-qty">${data.bottlePrice}€</span></div>`:''}
+    `:''}
+    ${data.type==='homemade'&&(data.recipe||[]).length?`
+      <div class="section-title" style="margin-top:12px">Recette maison</div>
+      ${data.recipe.map(i=>`<div class="livre-ing-row"><span class="livre-ing-name">${escapeHtml(i.name)}</span><span class="livre-ing-qty">${i.qty||''} ${escapeHtml(i.unit||'')}</span></div>`).join('')}
+      ${data.steps?`<div class="section-title">Étapes</div><div class="livre-steps">${escapeHtml(data.steps)}</div>`:''}
+    `:''}
+  `;
 }
 
+/* ── Rendu page 0 pour un batch partagé ── */
+function _renderLivreTeamBatch(data){
+  const items = data.items||[];
+  const rows = items.map(it=>{
+    // Résoudre le nom depuis les items partagés ou état local
+    let name='?', emoji='📄';
+    const inShared = teamSharedItems.find(x=>x.data?.id===it.refId || x.item_id===it.refId);
+    if(inShared){ name=inShared.data?.name||'?'; emoji=it.kind==='cocktail'?'🍸':'🧪'; }
+    else if(it.kind==='cocktail'){
+      const c=state.cocktails.find(x=>x.id===it.refId);
+      if(c){ name=c.name; emoji='🍸'; }
+    } else {
+      const i=state.ingredients.find(x=>x.id===it.refId);
+      if(i){ name=i.name; emoji='🧪'; }
+    }
+    return `<div class="livre-ing-row">
+      <span class="livre-ing-name">${emoji} ${escapeHtml(name)}</span>
+      <span class="livre-ing-qty" style="color:var(--gold)">${it.qty||''} ${it.kind==='cocktail'?'service':'cl'}</span>
+    </div>`;
+  }).join('');
+  document.getElementById('livrePg0').innerHTML=`
+    <div class="livre-recipe-name">${escapeHtml(data.name||'?')}</div>
+    <div class="livre-recipe-meta">${data.date||''} · ${items.length} item${items.length!==1?'s':''}</div>
+    <div style="border-top:1px solid rgba(200,169,110,.1);margin:16px 0"></div>
+    <div class="section-title" style="margin-top:0">Contenu du batch</div>
+    ${rows||'<div style="color:var(--text-3);font-size:13px">Batch vide</div>'}
+  `;
+}
+
+/* ── Rendu page 2 : commentaires équipe ── */
 async function _renderLivreTeamNotes(si){
-  const pg = document.getElementById('livrePg1');
-  pg.innerHTML = `<div style="text-align:center;padding:32px;color:var(--text-3)">Chargement…</div>`;
+  const pg = document.getElementById('livrePg2');
+  if(!pg) return;
   const notes = await teamFetchNotes(si.id);
   if(!notes.length){
-    pg.innerHTML = `<div style="text-align:center;color:var(--text-3);font-size:13px;padding:32px 0">Aucun commentaire pour l'instant.<br><span style="font-size:11px">Passe à l'onglet 💬 Équipe et sois le premier !</span></div>`;
+    pg.innerHTML=`<div style="text-align:center;color:var(--text-3);font-size:13px;padding:32px 0">Aucun commentaire pour l'instant.<br><span style="font-size:11px">Sois le premier à commenter !</span></div>`;
     return;
   }
   pg.innerHTML = notes.map(n=>`
@@ -3910,7 +4034,6 @@ async function _renderLivreTeamNotes(si){
       </div>
       <div class="team-note-content">${escapeHtml(n.content)}</div>
     </div>`).join('');
-  // Scroll to bottom
   pg.scrollTop = pg.scrollHeight;
 }
 
