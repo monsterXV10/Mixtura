@@ -1058,9 +1058,27 @@ async function teamInviteByEmail(email, role){
     const {error}=await sb.from('team_invitations').insert({team_id:teamData.id,email,role,token,invited_by:sbUser.id});
     if(error) throw error;
     const link=window.location.origin+window.location.pathname+'#team-invite='+token;
-    // Copier le lien dans le presse-papier
-    try{ await navigator.clipboard.writeText(link); toast('📋 Lien d\'invitation copié ! Partage-le avec '+email,3000); }
-    catch{ toast('🔗 Lien : '+link,6000); }
+    const roleLbl={'admin':'👑 Admin','manager':'⭐ Manager','user':'🍹 Barman'}[role]||role;
+    const subject=encodeURIComponent(`Invitation à rejoindre l'équipe ${teamData.name} sur Mixtura`);
+    const body=encodeURIComponent(`Bonjour,\n\nTu es invité(e) à rejoindre l'équipe "${teamData.name}" sur Mixtura en tant que ${roleLbl}.\n\nClique sur ce lien pour accepter l'invitation :\n${link}\n\nLe lien est valable 7 jours.\n\nÀ bientôt !\n${sbUser.user_metadata?.full_name||sbUser.email}`);
+    const mailtoHref=`mailto:${encodeURIComponent(email)}?subject=${subject}&body=${body}`;
+    // Afficher modal avec lien visible + boutons
+    const m=document.getElementById('modal');
+    document.getElementById('modalTitle').textContent='🔗 Invitation envoyée';
+    document.getElementById('modalContent').innerHTML=`
+      <div style="margin-bottom:12px;font-size:13px;color:var(--text-2)">Invitation créée pour <strong style="color:var(--text-1)">${escapeHtml(email)}</strong> · ${escapeHtml(roleLbl)}</div>
+      <div style="font-size:12px;color:var(--text-3);margin-bottom:6px">Lien d'invitation (valable 7 jours) :</div>
+      <div style="background:var(--navy-700);border:1px solid rgba(200,169,110,.2);border-radius:var(--radius-sm);padding:10px 12px;font-size:11px;word-break:break-all;color:var(--gold);user-select:text;-webkit-user-select:text;margin-bottom:12px">${escapeHtml(link)}</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-primary btn-sm" id="btnCopyInvLink" style="flex:1">📋 Copier le lien</button>
+        <a href="${mailtoHref}" class="btn btn-ghost btn-sm" style="flex:1;text-align:center;text-decoration:none">✉️ Envoyer par email</a>
+      </div>
+      <div style="margin-top:10px;font-size:11px;color:var(--text-3);text-align:center">Le destinataire doit cliquer le lien après s'être connecté à Mixtura</div>`;
+    document.getElementById('btnCopyInvLink').onclick=async()=>{
+      try{ await navigator.clipboard.writeText(link); toast('📋 Lien copié !'); }
+      catch{ toast('🔗 Copie manuelle : '+link,8000); }
+    };
+    m.classList.add('show');
   }catch(e){ console.error('teamInviteByEmail',e); toast('❌ '+(e.message||'Erreur')); }
 }
 
@@ -1261,7 +1279,7 @@ function openLoginModal(mode='login'){
   renderLoginForm(mode);
   m.classList.add('show');
 }
-const BUILD = '2026-04-28';
+const BUILD = '2026-05-12';
 document.getElementById('buildDate').textContent = 'build ' + BUILD;
 document.getElementById('homeBuild').textContent = BUILD;
 
@@ -3622,6 +3640,15 @@ function renderTeamContent(itemType, container){
     const canRemove=isOwner||teamData.role==='admin'||teamData.role==='manager';
     const notesCount=(si._notesCount||0);
     const updatedAt=si.updated_at?new Date(si.updated_at).toLocaleDateString('fr-FR'):'';
+    // Vérifier si cet item est déjà importé dans le perso
+    const alreadyOwned=itemType==='recipe'
+      ? state.cocktails.some(x=>x.name.toLowerCase()===si.data?.name?.toLowerCase())
+      : itemType==='ingredient'
+      ? state.ingredients.some(x=>x.name.toLowerCase()===si.data?.name?.toLowerCase())
+      : false;
+    const importBtn=!isOwner&&itemType!=='batch'
+      ? `<button class="item-act" data-act="import" title="${alreadyOwned?'Déjà importé':'Copier dans mes listes'}" style="font-size:13px;${alreadyOwned?'opacity:.45':''}">${alreadyOwned?'✅':'📥'}</button>`
+      : '';
     el.innerHTML=`
       <div class="item-thumb" style="font-size:20px">${emoji}</div>
       <div class="item-body">
@@ -3633,8 +3660,9 @@ function renderTeamContent(itemType, container){
         </div>
       </div>
       <div class="item-actions" style="gap:4px">
-        <button class="item-act" data-act="notes" title="${t('team.notes')}" style="font-size:13px;position:relative">📝${notesCount?`<span style="position:absolute;top:0;right:0;font-size:9px;background:var(--gold);color:#000;border-radius:50%;width:14px;height:14px;display:flex;align-items:center;justify-content:center;font-weight:700">${notesCount}</span>`:''}
+        <button class="item-act" data-act="notes" title="${t('team.notes')}" style="font-size:13px;position:relative;${notesCount?'color:var(--gold)':''}">💬${notesCount?`<span style="position:absolute;top:-2px;right:-2px;font-size:9px;background:var(--gold);color:#000;border-radius:50%;width:14px;height:14px;display:flex;align-items:center;justify-content:center;font-weight:700">${notesCount}</span>`:''}
         </button>
+        ${importBtn}
         <button class="item-act" data-act="view" title="Voir">📖</button>
         ${isOwner&&isLinked?`<button class="item-act" data-act="sync" title="${t('team.updatedLinked')}" style="font-size:13px">🔄</button>`:''}
         ${canRemove?`<button class="item-act del" data-act="unshare" title="${t('team.unshare')}">${ICON.del}</button>`:''}
@@ -3642,6 +3670,18 @@ function renderTeamContent(itemType, container){
     el.addEventListener('click', async e=>{
       const act=e.target.closest('[data-act]')?.dataset.act;
       if(act==='notes'){ openTeamNotes(si); return; }
+      if(act==='import'){
+        if(alreadyOwned){ toast('Déjà dans vos listes !'); return; }
+        const plan=getPlan(); const maxCreate=PLANS[plan].maxCreate;
+        if(itemType==='recipe'){
+          if(state.cocktails.length>=maxCreate){ toast('🔒 Limite atteinte'); return; }
+          state.cocktails.push({...structuredClone(si.data),id:uid(),_fromTeam:true});
+        } else {
+          state.ingredients.push({...structuredClone(si.data),id:uid(),_fromTeam:true});
+        }
+        save(); renderCurrentScreen(); toast('✅ "'+escapeHtml(itemName)+'" importé dans vos listes !');
+        return;
+      }
       if(act==='view'){
         if(itemType==='recipe') openCocktailDetail(si.data, false, true);
         else if(itemType==='ingredient') openIngredientDetail(si.data, true);
@@ -3649,7 +3689,6 @@ function renderTeamContent(itemType, container){
         return;
       }
       if(act==='sync'){
-        // Trouver l'item original dans les données perso
         const orig=itemType==='recipe'
           ? state.cocktails.find(x=>x.id===si.item_id)
           : itemType==='ingredient'
@@ -4200,7 +4239,8 @@ function renderTeamSettings(){
     </div>
     <div class="setting-label" style="margin:12px 0 6px">Membres</div>
     <div id="teamMembersList">${membersHtml}</div>
-    ${inviteHtml}`;
+    ${inviteHtml}
+    <div id="teamPendingInvites"></div>`;
 
   document.getElementById('teamCodeBox').onclick=()=>{
     navigator.clipboard?.writeText(teamData.code).then(()=>toast('📋 Code copié !')).catch(()=>toast('Code : '+teamData.code,3000));
@@ -4221,8 +4261,46 @@ function renderTeamSettings(){
       if(!email){toast('⚠️ Entre un email');return;}
       await teamInviteByEmail(email,role);
       document.getElementById('inviteEmail').value='';
+      loadPendingInvites();
     };
   }
+
+  // Charger les invitations en attente en arrière-plan
+  async function loadPendingInvites(){
+    const div=document.getElementById('teamPendingInvites');
+    if(!div||!sb||!sbUser||!teamData) return;
+    const {data,error}=await sb.from('team_invitations')
+      .select('id,email,role,created_at,expires_at,accepted')
+      .eq('team_id',teamData.id)
+      .eq('accepted',false)
+      .gt('expires_at',new Date().toISOString())
+      .order('created_at',{ascending:false});
+    if(error||!data?.length){ div.innerHTML=''; return; }
+    const roleLblMap={'admin':'👑 Admin','manager':'⭐ Manager','user':'🍹 Barman'};
+    const rows=data.map(inv=>{
+      const exp=new Date(inv.expires_at);
+      const daysLeft=Math.ceil((exp-new Date())/(1000*60*60*24));
+      return `<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.04)">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:12px;color:var(--text-1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(inv.email)}</div>
+          <div style="font-size:10px;color:var(--text-3)">${escapeHtml(roleLblMap[inv.role]||inv.role)} · expire dans ${daysLeft}j</div>
+        </div>
+        ${canManage?`<button class="btn btn-danger btn-sm pending-cancel-btn" data-iid="${inv.id}" style="font-size:10px;padding:2px 6px">✕</button>`:''}
+      </div>`;
+    }).join('');
+    div.innerHTML=`<div style="border-top:1px solid rgba(200,169,110,.1);margin-top:10px;padding-top:10px">
+      <div class="setting-label">📨 Invitations en attente (${data.length})</div>
+      <div style="margin-top:6px">${rows}</div>
+    </div>`;
+    div.querySelectorAll('.pending-cancel-btn').forEach(btn=>{
+      btn.onclick=async()=>{
+        const {error}=await sb.from('team_invitations').delete().eq('id',btn.dataset.iid);
+        if(error){ toast('❌ Erreur'); return; }
+        toast('🗑 Invitation annulée'); loadPendingInvites();
+      };
+    });
+  }
+  loadPendingInvites();
 }
 ['settFirst','settLast','settEmail','settPhone','settVenue','settAddress','settCity','settCountry'].forEach(id=>{
   document.getElementById(id).addEventListener('input', e=>{
