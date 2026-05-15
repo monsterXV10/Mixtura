@@ -1,0 +1,58 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: #0A0E1A;
+  --surface: #0F1629;
+  --surface2: #1A2340;
+  --border: rgba(200, 169, 110, 0.15);
+  --text: #F2EDE4;
+  --text-dim: #C4BDB2;
+  --gold: #C8A96E;
+  --gold-dim: #9B7E4F;
+  --radius: 14px;
+  --radius-sm: 8px;
+}
+
+.theme-light {
+  --bg: #F5F0E8;
+  --surface: #FFFFFF;
+  --surface2: #F0EBE0;
+  --border: rgba(155, 126, 79, 0.2);
+  --text: #1A1208;
+  --text-dim: #6B5B3E;
+  --gold: #9B7E4F;
+  --gold-dim: #C8A96E;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  height: 100%;
+  overscroll-behavior: none;
+}
+
+body {
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Scrollbar fine style dark */
+::-webkit-scrollbar {
+  width: 4px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 2px;
+}

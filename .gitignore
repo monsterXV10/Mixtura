@@ -1,22 +1,39 @@
+# Système
+.DS_Store
 .~lock.*
 *.bak
 *.bak_*
-.DS_Store
+
+# Dépendances
 node_modules/
-package.json
 package-lock.json
-index.html.bak_*
+
+# Next.js build
+.next/
+out/
+
+# Variables d'environnement (ne jamais commiter)
+.env.local
+.env*.local
+
+# Vercel
 .vercel
+
+# TypeScript build info
+*.tsbuildinfo
+next-env.d.ts
+
+# Éditeurs
 .claude/
-Cahier_des_charges_MIXTURA.docx
-*.txt
+
+# Fichiers legacy non pertinents pour le repo
 *.bat
 *.ps1
 *.py
-*.sql
 *.xlsx
 *.docx
 firebase-guide.md
 README_GITHUB.md
 SCHEMA.md
 cocktail-pwa/
+Cahier_des_charges_MIXTURA.docx
