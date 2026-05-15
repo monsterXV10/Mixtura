@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { getSupabaseBrowserClient } from '@/lib/supabase/client'
 
@@ -146,6 +147,18 @@ export default function LoginPage() {
             {mode === 'login' ? "S'inscrire" : 'Se connecter'}
           </button>
         </p>
+
+        {/* Accès public au catalogue */}
+        <div className="mt-6 pt-4" style={{ borderTop: '1px solid var(--border)' }}>
+          <Link
+            href="/catalog"
+            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-[var(--radius-sm)] text-sm transition-opacity hover:opacity-80"
+            style={{ background: 'var(--surface2)', color: 'var(--text-dim)', border: '1px solid var(--border)' }}
+          >
+            <span>📖</span>
+            Parcourir le catalogue sans compte
+          </Link>
+        </div>
       </div>
     </div>
   )
