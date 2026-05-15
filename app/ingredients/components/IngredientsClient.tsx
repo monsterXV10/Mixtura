@@ -1,9 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import type { Ingredient, IngredientData } from '@/types/ingredient'
 import { INGREDIENT_TYPES, costPerUnit } from '@/types/ingredient'
 import { useIngredients } from '@/hooks/useIngredients'
+import { useCatalogSearch, type CatalogIngredient } from '@/hooks/useCatalogSearch'
 import TopBar from '@/app/components/TopBar'
 
 interface Props {
@@ -19,21 +20,31 @@ function emptyForm(): Omit<IngredientData, 'id'> {
 
 export default function IngredientsClient({ initialIngredients, userId }: Props) {
   const { ingredients, saving, create, update, remove } = useIngredients(userId, initialIngredients)
+  const { results: catalogResults, loading: catalogLoading, search: searchCatalog, clear: clearCatalog } = useCatalogSearch()
+
   const [search, setSearch] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [editId, setEditId] = useState<string | null>(null)
   const [form, setForm] = useState<Omit<IngredientData, 'id'>>(emptyForm())
   const [formError, setFormError] = useState<string | null>(null)
+  const [catalogQuery, setCatalogQuery] = useState('')
+  const [showCatalogDrop, setShowCatalogDrop] = useState(false)
+  const catalogInputRef = useRef<HTMLInputElement>(null)
 
   const visible = ingredients.filter(i =>
     i.data.name?.toLowerCase().includes(search.toLowerCase())
   )
 
-  const totalValue = ingredients.reduce((sum, i) => sum + (i.data.price ?? 0) * (i.data.stock ?? 0), 0)
+  const totalValue = ingredients.reduce((sum, i) => {
+    const bottles = i.data.stock ?? 0
+    return sum + (i.data.price ?? 0) * bottles
+  }, 0)
 
   function openCreate() {
     setEditId(null)
     setForm(emptyForm())
+    setCatalogQuery('')
+    clearCatalog()
     setFormError(null)
     setShowForm(true)
   }
@@ -43,8 +54,34 @@ export default function IngredientsClient({ initialIngredients, userId }: Props)
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { id: _id, ...rest } = ing.data
     setForm(rest)
+    setCatalogQuery('')
+    clearCatalog()
     setFormError(null)
     setShowForm(true)
+  }
+
+  function applyFromCatalog(item: CatalogIngredient) {
+    setForm(prev => ({
+      ...prev,
+      name: item.name,
+      category: item.category,
+      type: item.type as IngredientData['type'],
+      format: item.default_format,
+      unit: item.default_unit,
+      // Pré-remplir le prix typique seulement si l'utilisateur n'en a pas déjà saisi un
+      price: prev.price > 0 ? prev.price : (item.typical_price ?? 0),
+    }))
+    setCatalogQuery(item.name)
+    setShowCatalogDrop(false)
+    clearCatalog()
+  }
+
+  function handleCatalogInput(val: string) {
+    setCatalogQuery(val)
+    setShowCatalogDrop(true)
+    searchCatalog(val)
+    // Mettre à jour le nom du formulaire en même temps
+    setForm(prev => ({ ...prev, name: val }))
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -156,7 +193,7 @@ export default function IngredientsClient({ initialIngredients, userId }: Props)
                       {costPerUnit(ing.data).toFixed(3)} €/{ing.data.unit}
                     </p>
                     <p className="text-xs" style={{ color: 'var(--text-dim)' }}>
-                      Stock: {ing.data.stock} × {ing.data.format}{ing.data.unit}
+                      Stock : {ing.data.stock} × {ing.data.format}{ing.data.unit}
                     </p>
                   </div>
                 </button>
@@ -166,7 +203,7 @@ export default function IngredientsClient({ initialIngredients, userId }: Props)
         )}
       </div>
 
-      {/* Drawer / formulaire */}
+      {/* Drawer formulaire */}
       {showForm && (
         <div
           className="fixed inset-0 flex flex-col justify-end z-50"
@@ -175,10 +212,14 @@ export default function IngredientsClient({ initialIngredients, userId }: Props)
         >
           <div
             className="w-full max-w-lg mx-auto rounded-t-[var(--radius)] overflow-y-auto"
-            style={{ background: 'var(--surface)', maxHeight: '90vh' }}
+            style={{ background: 'var(--surface)', maxHeight: '92vh' }}
             onClick={e => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between p-4 sticky top-0" style={{ background: 'var(--surface)', borderBottom: '1px solid var(--border)' }}>
+            {/* Header drawer */}
+            <div
+              className="flex items-center justify-between p-4 sticky top-0 z-10"
+              style={{ background: 'var(--surface)', borderBottom: '1px solid var(--border)' }}
+            >
               <h2 className="font-semibold" style={{ color: 'var(--text)' }}>
                 {editId ? 'Modifier' : 'Nouvel ingrédient'}
               </h2>
@@ -186,62 +227,204 @@ export default function IngredientsClient({ initialIngredients, userId }: Props)
             </div>
 
             <form onSubmit={handleSubmit} className="p-4 space-y-4 pb-8">
+
+              {/* ── Recherche catalogue ─────────────────────── */}
+              <div>
+                <label className="text-xs font-medium block mb-1.5" style={{ color: 'var(--gold)' }}>
+                  🔍 RECHERCHER DANS LE CATALOGUE
+                </label>
+                <div className="relative">
+                  <input
+                    ref={catalogInputRef}
+                    type="text"
+                    value={catalogQuery}
+                    onChange={e => handleCatalogInput(e.target.value)}
+                    onFocus={() => catalogQuery.length >= 2 && setShowCatalogDrop(true)}
+                    onBlur={() => setTimeout(() => setShowCatalogDrop(false), 180)}
+                    placeholder="Ex : Hendrick's, Cointreau, Monin..."
+                    className="field-input"
+                    autoComplete="off"
+                  />
+                  {catalogLoading && (
+                    <span
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-xs"
+                      style={{ color: 'var(--text-dim)' }}
+                    >
+                      …
+                    </span>
+                  )}
+
+                  {/* Dropdown résultats catalogue */}
+                  {showCatalogDrop && catalogResults.length > 0 && (
+                    <ul
+                      className="absolute left-0 right-0 top-full mt-1 rounded-[var(--radius-sm)] overflow-hidden z-20 shadow-lg"
+                      style={{ background: 'var(--surface2)', border: '1px solid var(--border)' }}
+                    >
+                      {catalogResults.map(item => (
+                        <li key={item.id}>
+                          <button
+                            type="button"
+                            onMouseDown={() => applyFromCatalog(item)}
+                            className="w-full flex items-center justify-between px-4 py-3 text-left hover:opacity-80"
+                            style={{ borderBottom: '1px solid var(--border)' }}
+                          >
+                            <div>
+                              <p className="text-sm font-medium" style={{ color: 'var(--text)' }}>
+                                {item.name}
+                              </p>
+                              <p className="text-xs" style={{ color: 'var(--text-dim)' }}>
+                                {item.category}
+                                {item.country ? ` · ${item.country}` : ''}
+                                {item.abv ? ` · ${item.abv}% vol` : ''}
+                              </p>
+                            </div>
+                            <div className="text-right ml-3 flex-shrink-0">
+                              {item.typical_price != null && (
+                                <p className="text-xs font-mono" style={{ color: 'var(--gold)' }}>
+                                  ~{item.typical_price.toFixed(2)} €
+                                </p>
+                              )}
+                              <p className="text-xs" style={{ color: 'var(--text-dim)' }}>
+                                {item.default_format}{item.default_unit}
+                              </p>
+                            </div>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+                <p className="text-xs mt-1" style={{ color: 'var(--text-dim)' }}>
+                  Sélectionnez un produit pour pré-remplir les informations
+                </p>
+              </div>
+
+              <div
+                className="border-t my-2"
+                style={{ borderColor: 'var(--border)' }}
+              />
+
+              {/* ── Champs du formulaire ─────────────────────── */}
               <div className="grid grid-cols-2 gap-3">
                 <div className="col-span-2">
-                  <label className="text-xs font-medium block mb-1.5" style={{ color: 'var(--text-dim)' }}>NOM</label>
-                  <input type="text" value={form.name} onChange={e => setField('name', e.target.value)}
-                    placeholder="Gin Hendrick's" className="field-input" />
+                  <label className="text-xs font-medium block mb-1.5" style={{ color: 'var(--text-dim)' }}>
+                    NOM
+                  </label>
+                  <input
+                    type="text"
+                    value={form.name}
+                    onChange={e => { setField('name', e.target.value); setCatalogQuery(e.target.value) }}
+                    placeholder="Gin Hendrick's"
+                    className="field-input"
+                  />
                 </div>
 
                 <div>
-                  <label className="text-xs font-medium block mb-1.5" style={{ color: 'var(--text-dim)' }}>TYPE</label>
-                  <select value={form.type} onChange={e => setField('type', e.target.value as IngredientData['type'])} className="field-input">
-                    {INGREDIENT_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                  <label className="text-xs font-medium block mb-1.5" style={{ color: 'var(--text-dim)' }}>
+                    TYPE
+                  </label>
+                  <select
+                    value={form.type}
+                    onChange={e => setField('type', e.target.value as IngredientData['type'])}
+                    className="field-input"
+                  >
+                    {INGREDIENT_TYPES.map(t => (
+                      <option key={t.value} value={t.value}>{t.label}</option>
+                    ))}
                   </select>
                 </div>
 
                 <div>
-                  <label className="text-xs font-medium block mb-1.5" style={{ color: 'var(--text-dim)' }}>CATÉGORIE</label>
-                  <input type="text" value={form.category} onChange={e => setField('category', e.target.value)}
-                    placeholder="Gin, Champagne..." className="field-input" />
+                  <label className="text-xs font-medium block mb-1.5" style={{ color: 'var(--text-dim)' }}>
+                    CATÉGORIE
+                  </label>
+                  <input
+                    type="text"
+                    value={form.category}
+                    onChange={e => setField('category', e.target.value)}
+                    placeholder="Gin, Sirop, Vin..."
+                    className="field-input"
+                  />
                 </div>
 
                 <div>
-                  <label className="text-xs font-medium block mb-1.5" style={{ color: 'var(--text-dim)' }}>PRIX D'ACHAT (€)</label>
-                  <input type="number" value={form.price || ''} onChange={e => setField('price', Number(e.target.value))}
-                    min={0} step={0.01} placeholder="28.50" className="field-input" />
+                  <label className="text-xs font-medium block mb-1.5" style={{ color: 'var(--text-dim)' }}>
+                    PRIX D'ACHAT (€)
+                  </label>
+                  <input
+                    type="number"
+                    value={form.price || ''}
+                    onChange={e => setField('price', Number(e.target.value))}
+                    min={0}
+                    step={0.01}
+                    placeholder="28.50"
+                    className="field-input"
+                  />
                 </div>
 
                 <div>
-                  <label className="text-xs font-medium block mb-1.5" style={{ color: 'var(--text-dim)' }}>FORMAT</label>
+                  <label className="text-xs font-medium block mb-1.5" style={{ color: 'var(--text-dim)' }}>
+                    FORMAT
+                  </label>
                   <div className="flex gap-1">
-                    <input type="number" value={form.format || ''} onChange={e => setField('format', Number(e.target.value))}
-                      min={0} step={0.1} placeholder="70" className="field-input" />
-                    <select value={form.unit} onChange={e => setField('unit', e.target.value)} className="field-input w-16">
+                    <input
+                      type="number"
+                      value={form.format || ''}
+                      onChange={e => setField('format', Number(e.target.value))}
+                      min={0}
+                      step={0.1}
+                      placeholder="70"
+                      className="field-input"
+                    />
+                    <select
+                      value={form.unit}
+                      onChange={e => setField('unit', e.target.value)}
+                      className="field-input w-16"
+                    >
                       {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
                     </select>
                   </div>
                 </div>
 
                 <div>
-                  <label className="text-xs font-medium block mb-1.5" style={{ color: 'var(--text-dim)' }}>STOCK (bouteilles)</label>
-                  <input type="number" value={form.stock || ''} onChange={e => setField('stock', Number(e.target.value))}
-                    min={0} step={0.1} placeholder="3" className="field-input" />
+                  <label className="text-xs font-medium block mb-1.5" style={{ color: 'var(--text-dim)' }}>
+                    STOCK (bouteilles)
+                  </label>
+                  <input
+                    type="number"
+                    value={form.stock || ''}
+                    onChange={e => setField('stock', Number(e.target.value))}
+                    min={0}
+                    step={0.1}
+                    placeholder="3"
+                    className="field-input"
+                  />
                 </div>
-
-                {/* Coût calculé en temps réel */}
-                {cpu > 0 && (
-                  <div className="col-span-2 p-3 rounded-[var(--radius-sm)]" style={{ background: 'var(--surface2)' }}>
-                    <p className="text-xs" style={{ color: 'var(--text-dim)' }}>Coût calculé</p>
-                    <p className="text-sm font-mono font-bold mt-0.5" style={{ color: 'var(--gold)' }}>
-                      {cpu.toFixed(4)} € / {form.unit}
-                      {form.unit === 'cl' ? ` — ${(cpu * 4.5).toFixed(3)} € / 4.5cl` : ''}
-                    </p>
-                  </div>
-                )}
               </div>
 
-              {formError && <p className="text-sm text-red-400">{formError}</p>}
+              {/* Coût calculé en temps réel */}
+              {cpu > 0 && (
+                <div
+                  className="p-3 rounded-[var(--radius-sm)]"
+                  style={{ background: 'var(--surface2)', border: '1px solid var(--border)' }}
+                >
+                  <p className="text-xs" style={{ color: 'var(--text-dim)' }}>Coût calculé</p>
+                  <p className="text-base font-mono font-bold mt-0.5" style={{ color: 'var(--gold)' }}>
+                    {cpu.toFixed(4)} € / {form.unit}
+                  </p>
+                  {form.unit === 'cl' && (
+                    <p className="text-xs mt-1" style={{ color: 'var(--text-dim)' }}>
+                      4.5cl → {(cpu * 4.5).toFixed(3)} €
+                      {' · '}
+                      3cl → {(cpu * 3).toFixed(3)} €
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {formError && (
+                <p className="text-sm text-red-400">{formError}</p>
+              )}
 
               <div className="flex gap-3 pt-2">
                 {editId && (
