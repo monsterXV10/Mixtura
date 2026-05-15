@@ -3,13 +3,28 @@ import CatalogClient from './components/CatalogClient'
 
 export const revalidate = 3600
 
+export interface CatalogRecipe {
+  id: string
+  name: string
+  glass: string | null
+  family: string | null
+  alcohol: string | null
+  method: string | null
+  ice: string | null
+  garnish: string | null
+  ingredients: { qty: number; name: string; unit: string }[]
+  steps: string | null
+  source: string | null
+}
+
 export default async function CatalogPage() {
   const supabase = await getSupabaseServerClient()
-  const { data: ingredients } = await supabase
-    .from('catalog_ingredients')
-    .select('id, name, brand, category, type, default_format, default_unit, typical_price, abv, country')
-    .order('category')
+  const { data: { user } } = await supabase.auth.getUser()
+
+  const { data: recipes } = await supabase
+    .from('catalog')
+    .select('id, name, glass, family, alcohol, method, ice, garnish, ingredients, steps, source')
     .order('name')
 
-  return <CatalogClient ingredients={ingredients ?? []} />
+  return <CatalogClient recipes={(recipes ?? []) as CatalogRecipe[]} userId={user?.id ?? null} />
 }
