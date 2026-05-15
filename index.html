@@ -439,6 +439,10 @@ input,select,textarea{font:inherit;color:inherit;user-select:text;-webkit-user-s
 body.theme-light .team-note{background:var(--navy-700)}
 body.theme-light .team-code-box{background:var(--navy-700)}
 
+/* ── Tutoriel ── */
+.tuto-step{display:flex;align-items:flex-start;gap:8px;padding:4px 0}
+.tuto-action{background:rgba(200,169,110,.15);border:1px solid rgba(200,169,110,.25);border-radius:6px;padding:2px 8px;font-size:11px;font-weight:700;color:var(--gold);white-space:nowrap;flex-shrink:0;margin-top:1px}
+
 /* ── Minuteurs ── */
 #btnTimerToggle{position:fixed;bottom:20px;left:20px;z-index:22;width:46px;height:46px;border-radius:50%;background:var(--navy-700);border:1px solid rgba(200,169,110,.25);font-size:20px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(0,0,0,.4);transition:all var(--tr);cursor:pointer}
 #btnTimerToggle:hover{border-color:var(--gold);transform:scale(1.08)}
@@ -547,8 +551,6 @@ body.theme-light .team-code-box{background:var(--navy-700)}
         </div>
       </button>
     </div>
-    <!-- Bouton aide -->
-    <button id="btnHelp" title="Guide d'utilisation" style="position:fixed;bottom:24px;left:24px;width:44px;height:44px;border-radius:50%;background:rgba(200,169,110,.12);border:1.5px solid rgba(200,169,110,.3);color:var(--gold);font-size:20px;font-weight:700;display:flex;align-items:center;justify-content:center;z-index:50;box-shadow:0 2px 12px rgba(0,0,0,.3)">?</button>
   </div>
 
   <!-- Cocktails -->
@@ -698,6 +700,13 @@ body.theme-light .team-code-box{background:var(--navy-700)}
           <div class="setting-sub">Vide le cache et recharge la dernière version</div>
         </div>
         <button class="btn btn-ghost btn-sm" id="btnClearCache">Update</button>
+      </div>
+      <div class="setting-row" style="border-top:1px solid rgba(200,169,110,.1);margin-top:8px;padding-top:12px">
+        <div>
+          <div class="setting-label">📚 Guide complet</div>
+          <div class="setting-sub">Toutes les fonctionnalités expliquées</div>
+        </div>
+        <button class="btn btn-ghost btn-sm" id="btnOpenTutorial">Ouvrir</button>
       </div>
     </div>
 
@@ -871,6 +880,14 @@ function initSupabase(){
   try{
     sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
     let lastUserId = null;
+
+    // Restaurer l'UI immédiatement depuis le cache (évite le flash "non connecté" au F5)
+    sb.auth.getSession().then(({data:{session}})=>{
+      if(session?.user && !sbUser){
+        sbUser = session.user;
+        updateAuthUI();
+      }
+    });
     // BroadcastChannel : reçoit le token OAuth depuis l'onglet callback
     const _authBC = (() => {
       try {
@@ -910,6 +927,7 @@ function initSupabase(){
         await sbPull();
         await Promise.all([fetchRemoteCatalog(), teamFetch()]);
         await teamFetchItems();
+        if(window._timerSyncFromCloud) window._timerSyncFromCloud();
         updateCtxToggle();
         renderCurrentScreen();
       }
@@ -1481,7 +1499,146 @@ function openChangePasswordModal(){
   });
   m.classList.add('show');
 }
-const BUILD = '2026-05-12c';
+const BUILD = '2026-05-15a';
+
+/* ═══════════════════════════════════════
+   TUTORIEL — contenu du guide complet
+═══════════════════════════════════════ */
+const TUTORIAL_HTML = `
+
+<div style="margin-bottom:20px">
+  <div style="color:var(--gold);font-weight:800;font-size:16px;margin-bottom:10px;display:flex;align-items:center;gap:8px">🍸 Cocktails — Créer & gérer tes recettes</div>
+  <div style="display:flex;flex-direction:column;gap:6px">
+    <div class="tuto-step"><span class="tuto-action">✚ FAB</span> Créer un cocktail : nom, verre, famille, méthode, garniture, ingrédients</div>
+    <div class="tuto-step"><span class="tuto-action">📖</span> Ouvrir la Vue Livre (recette complète + notes + dégustation)</div>
+    <div class="tuto-step"><span class="tuto-action">📤</span> Partager avec l'équipe → choisir Copie (snapshot) ou Lié (auto-sync)</div>
+    <div class="tuto-step"><span class="tuto-action">✏️ / 🗑</span> Modifier ou supprimer le cocktail</div>
+    <div class="tuto-step"><span class="tuto-action">Filtre haut</span> Toutes les cartes, IBA, ou tes cartes personnalisées</div>
+    <div class="tuto-step"><span class="tuto-action">Appui long</span> Sélection multiple → supprimer ou exporter en lot</div>
+    <div class="tuto-step"><span class="tuto-action">📤 sur la carte</span> Partager tous les cocktails d'une carte d'un coup avec l'équipe</div>
+    <div style="background:rgba(200,169,110,.07);border-left:3px solid var(--gold);padding:8px 10px;border-radius:0 6px 6px 0;margin-top:4px;font-size:12px">
+      💡 <b>Food cost</b> : renseigne le prix et la taille de bouteille des ingrédients → Mixtura calcule automatiquement le coût et la marge de chaque recette.
+    </div>
+  </div>
+</div>
+
+<div style="margin-bottom:20px">
+  <div style="color:var(--gold);font-weight:800;font-size:16px;margin-bottom:10px;display:flex;align-items:center;gap:8px">✨ Vue Livre — Notes & dégustation</div>
+  <div style="display:flex;flex-direction:column;gap:6px">
+    <div class="tuto-step"><span class="tuto-action">Onglet Recette</span> Ingrédients, quantités, étapes, verre, famille, alcool, garniture</div>
+    <div class="tuto-step"><span class="tuto-action">Onglet Notes</span> Active les cases : Profil sensoriel · Notes aromatiques · Photo · Croquis</div>
+    <div class="tuto-step"><span class="tuto-action">📊 Profil</span> Curseurs interactifs : Puissance / Amertume / Sauer (0–10)</div>
+    <div class="tuto-step"><span class="tuto-action">🌿 Arômes</span> Zone de texte libre : arômes, bouche, finale, accords mets</div>
+    <div class="tuto-step"><span class="tuto-action">📷 Photo</span> Caméra ou galerie, compressée et stockée dans le cloud</div>
+    <div class="tuto-step"><span class="tuto-action">✏️ Croquis</span> Dessin à la main sur un canvas (effacer avec 🗑️)</div>
+    <div class="tuto-step"><span class="tuto-action">💾</span> Sauvegarde manuelle ou automatique à la fermeture</div>
+    <div class="tuto-step"><span class="tuto-action">Swipe ←→</span> Naviguer entre les onglets avec un glissement</div>
+  </div>
+</div>
+
+<div style="margin-bottom:20px">
+  <div style="color:var(--gold);font-weight:800;font-size:16px;margin-bottom:10px;display:flex;align-items:center;gap:8px">🧪 Ingrédients — Stock & maison</div>
+  <div style="display:flex;flex-direction:column;gap:6px">
+    <div class="tuto-step"><span class="tuto-action">✚ FAB</span> Créer un ingrédient : deux types possibles</div>
+    <div class="tuto-step"><span class="tuto-action">Type Acheté</span> Nom, catégorie, prix bouteille, taille (cl/ml/L) → coût/cl calculé auto</div>
+    <div class="tuto-step"><span class="tuto-action">Type Maison</span> Sirop, infusion, liqueur... Décris la recette + rendement (principal + sous-produits)</div>
+    <div class="tuto-step"><span class="tuto-action">Stock</span> Quantité actuelle et minimum (alerte rouge 🔴 si stock trop bas)</div>
+    <div class="tuto-step"><span class="tuto-action">Filtre chips</span> Spiritueux / Liqueur / Sirop / Jus-Sucre / Bitters / Garniture / Maison / Autre</div>
+    <div class="tuto-step"><span class="tuto-action">📤</span> Partager un ingrédient maison avec l'équipe</div>
+  </div>
+</div>
+
+<div style="margin-bottom:20px">
+  <div style="color:var(--gold);font-weight:800;font-size:16px;margin-bottom:10px;display:flex;align-items:center;gap:8px">📋 Batch — Préparations en volume</div>
+  <div style="display:flex;flex-direction:column;gap:6px">
+    <div class="tuto-step"><span class="tuto-action">✚ FAB</span> Nouveau batch : nom, date, ajouter cocktails et/ou ingrédients</div>
+    <div class="tuto-step"><span class="tuto-action">Cocktail</span> Indique le nombre de services → toutes les matières premières sont calculées</div>
+    <div class="tuto-step"><span class="tuto-action">Ingrédient</span> Ajoute une quantité directe (ex: 5L de sirop de sucre à préparer)</div>
+    <div class="tuto-step"><span class="tuto-action">Résumé</span> Vue agrégée de tous les ingrédients nécessaires avec les quantités totales</div>
+    <div class="tuto-step"><span class="tuto-action">Maison</span> Si un ingrédient est de type Maison, sa recette est détaillée dans le batch</div>
+    <div class="tuto-step"><span class="tuto-action">📤</span> Partager le batch avec l'équipe</div>
+  </div>
+</div>
+
+<div style="margin-bottom:20px">
+  <div style="color:var(--gold);font-weight:800;font-size:16px;margin-bottom:10px;display:flex;align-items:center;gap:8px">👥 Équipe — Partage & collaboration</div>
+  <div style="display:flex;flex-direction:column;gap:6px">
+    <div class="tuto-step"><span class="tuto-action">Paramètres</span> Créer une équipe (nom → code 6 lettres généré) ou Rejoindre (entrer le code)</div>
+    <div class="tuto-step"><span class="tuto-action">Toggle 👤↔👥</span> Basculer entre mode Personnel et mode Équipe en haut de chaque écran</div>
+    <div class="tuto-step"><span class="tuto-action">Mode Équipe</span> Affiche uniquement les items partagés par les membres</div>
+    <div class="tuto-step"><span class="tuto-action">Partager 📤</span> Deux modes : <b>Copie</b> (snapshot figé) ou <b>Lié</b> (se met à jour quand tu modifies)</div>
+    <div class="tuto-step"><span class="tuto-action">Cliquer un item</span> Ouvre le Livre en 3 onglets : Recette · ✨ Notes · 💬 Équipe</div>
+    <div class="tuto-step"><span class="tuto-action">💬 Équipe</span> Lis et ajoute des commentaires partagés avec toute l'équipe</div>
+    <div class="tuto-step"><span class="tuto-action">📥 Importer</span> Copier un item partagé dans ta collection personnelle</div>
+    <div class="tuto-step"><span class="tuto-action">Rôles</span> Admin (tout gérer) · Manager (partager+commenter) · Barman (lecture+commentaires)</div>
+    <div class="tuto-step"><span class="tuto-action">Inviter</span> Depuis les paramètres équipe → lien d'invitation avec rôle choisi</div>
+  </div>
+</div>
+
+<div style="margin-bottom:20px">
+  <div style="color:var(--gold);font-weight:800;font-size:16px;margin-bottom:10px;display:flex;align-items:center;gap:8px">📖 Catalogue IBA</div>
+  <div style="display:flex;flex-direction:column;gap:6px">
+    <div class="tuto-step"><span class="tuto-action">Filtre IBA</span> 201 cocktails de référence : Contemporains, Classiques, Nouvelles Ères</div>
+    <div class="tuto-step"><span class="tuto-action">＋</span> Ajouter un cocktail IBA à ta collection (tu peux ensuite le modifier)</div>
+    <div class="tuto-step"><span class="tuto-action">📖</span> Ouvrir la Vue Livre : ajouter tes notes de dégustation sur un cocktail IBA</div>
+    <div style="background:rgba(200,169,110,.07);border-left:3px solid var(--gold);padding:8px 10px;border-radius:0 6px 6px 0;margin-top:4px;font-size:12px">
+      💡 Connecte-toi pour accéder aux 201 recettes. Sans connexion, seul le catalogue de base est disponible.
+    </div>
+  </div>
+</div>
+
+<div style="margin-bottom:20px">
+  <div style="color:var(--gold);font-weight:800;font-size:16px;margin-bottom:10px;display:flex;align-items:center;gap:8px">⏱️ Minuteur</div>
+  <div style="display:flex;flex-direction:column;gap:6px">
+    <div class="tuto-step"><span class="tuto-action">Bouton ⏱️</span> Fixe en bas à gauche de l'écran</div>
+    <div class="tuto-step"><span class="tuto-action">Commentaire</span> Décris ce que tu surveilles : "Infusion gin 24h", "Sirop caramel", "Marinage"…</div>
+    <div class="tuto-step"><span class="tuto-action">Durée mm:ss</span> Indique la durée → ▶ Go pour démarrer</div>
+    <div class="tuto-step"><span class="tuto-action">Chips</span> Compte à rebours flottant au-dessus de la nav — visible sur tous les écrans</div>
+    <div class="tuto-step"><span class="tuto-action">Expiration</span> Bip sonore + notification push (même écran verrouillé ou app en arrière-plan)</div>
+    <div class="tuto-step"><span class="tuto-action">Multi-timers</span> Plusieurs minuteurs simultanés, tous persistés après rechargement</div>
+  </div>
+</div>
+
+<div style="margin-bottom:20px">
+  <div style="color:var(--gold);font-weight:800;font-size:16px;margin-bottom:10px;display:flex;align-items:center;gap:8px">🔐 Connexion & Synchronisation</div>
+  <div style="display:flex;flex-direction:column;gap:6px">
+    <div class="tuto-step"><span class="tuto-action">Code OTP ✉️</span> Entre ton email → reçois un code 6 chiffres → saisis-le → connecté ! (recommandé PWA)</div>
+    <div class="tuto-step"><span class="tuto-action">Mot de passe 🔑</span> Email + mot de passe classique, avec option "Mot de passe oublié"</div>
+    <div class="tuto-step"><span class="tuto-action">Google</span> Connexion rapide via navigateur</div>
+    <div class="tuto-step"><span class="tuto-action">Synchro auto</span> Toutes tes données (cocktails, ingrédients, notes, photos) sont sauvées dans le cloud</div>
+    <div class="tuto-step"><span class="tuto-action">Hors-ligne</span> L'app fonctionne sans réseau avec les dernières données synchronisées</div>
+  </div>
+</div>
+
+<div style="margin-bottom:20px">
+  <div style="color:var(--gold);font-weight:800;font-size:16px;margin-bottom:10px;display:flex;align-items:center;gap:8px">⚙️ Paramètres</div>
+  <div style="display:flex;flex-direction:column;gap:6px">
+    <div class="tuto-step"><span class="tuto-action">Coordonnées</span> Prénom, nom, email, téléphone (pour les exports PDF à venir)</div>
+    <div class="tuto-step"><span class="tuto-action">Bar / Restaurant</span> Nom de l'établissement, adresse (apparaît dans les exports)</div>
+    <div class="tuto-step"><span class="tuto-action">Export JSON</span> Sauvegarde ingrédients seuls, ou tout (cocktails + ingrédients + batches)</div>
+    <div class="tuto-step"><span class="tuto-action">Export Excel</span> Fichier .xlsx structuré : cocktails + food cost + ingrédients</div>
+    <div class="tuto-step"><span class="tuto-action">Import</span> Restaure depuis un fichier JSON ou Excel MIXTURA</div>
+    <div class="tuto-step"><span class="tuto-action">Unités perso</span> Définis tes propres unités (ex: 1 goutte = 0.05 ml, 1 dash = 0.6 ml)</div>
+    <div class="tuto-step"><span class="tuto-action">Thème</span> Mode sombre 🌙 ou clair ☀️</div>
+    <div class="tuto-step"><span class="tuto-action">Langue</span> Français 🇫🇷 ou English 🇬🇧</div>
+    <div class="tuto-step"><span class="tuto-action">Reset</span> Efface toutes les données locales (les données cloud restent intactes)</div>
+    <div class="tuto-step"><span class="tuto-action">Update</span> Force le rechargement de la dernière version de l'app</div>
+  </div>
+</div>
+
+<div style="background:rgba(200,169,110,.07);border:1px solid rgba(200,169,110,.2);border-radius:10px;padding:14px;font-size:13px">
+  <div style="color:var(--gold);font-weight:700;margin-bottom:10px">💡 Astuces</div>
+  <div style="display:flex;flex-direction:column;gap:5px">
+    <div>📱 <b>Installer l'app</b> : dans ton navigateur → "Ajouter à l'écran d'accueil" → fonctionne comme une vraie app native</div>
+    <div>👆 <b>Appui long</b> sur un cocktail ou ingrédient → sélection multiple → supprimer ou exporter en lot</div>
+    <div>👈👉 <b>Swipe</b> gauche/droite dans la Vue Livre pour changer d'onglet</div>
+    <div>💰 <b>Food cost</b> calculé uniquement si le prix bouteille et la taille sont renseignés dans l'ingrédient</div>
+    <div>🔗 <b>Partage Lié</b> : quand tu modifies un cocktail, le partage équipe se met à jour automatiquement</div>
+    <div>☁️ <b>Données photos</b> : les photos du Livre sont stockées dans Supabase Storage (lien permanent)</div>
+  </div>
+</div>
+`;
+
 document.getElementById('buildDate').textContent = 'build ' + BUILD;
 document.getElementById('homeBuild').textContent = BUILD;
 
@@ -2553,9 +2710,9 @@ const CATALOG = [
    ingredients:[{name:'Angostura bitters',qty:4.5,unit:'cl'},{name:'Sirop d\'orgeat',qty:2.25,unit:'cl'},{name:'Rye whisky',qty:0.75,unit:'cl'},{name:'Jus de citron',qty:2.25,unit:'cl'}],
    steps:'Shaker avec glace. Double-strain. Rare — le bitter est l\'ingrédient principal.'},
 ];
-CATALOG.slice(0,6).forEach(c=>c.livre='Tuto');
+// Tuto livre supprimé — tous les cocktails du catalogue sont dans IBA
 CATALOG.slice(6).forEach(c=>c.livre='IBA');
-const BUILTIN_BOOKS=[{id:'Tuto',name:'Tuto',icon:'📚'},{id:'IBA',name:'IBA',icon:'🏆'}];
+const BUILTIN_BOOKS=[{id:'IBA',name:'IBA',icon:'🏆'}];
 const GLASS_MAP={
   'Cocktail Glass':'coupe','Lowball':'old-fashioned','Highball':'highball',
   'Martini Glass':'martini','Martini glass':'martini','Martin Glass':'martini',
@@ -2646,11 +2803,10 @@ function openEditLivreMenu(bookName){
 function buildBookOptions(current){
   const opts=[
     `<option value="">— Sans livre —</option>`,
-    `<option value="Tuto"${current==='Tuto'?' selected':''}>📚 Tuto</option>`,
     `<option value="IBA"${current==='IBA'?' selected':''}>🏆 IBA</option>`
   ];
   const extra=[...state.books];
-  if(current&&current!=='Tuto'&&current!=='IBA'&&!extra.includes(current)) extra.push(current);
+  if(current&&current!=='IBA'&&!extra.includes(current)) extra.push(current);
   extra.forEach(b=>opts.push(`<option value="${escapeHtml(b)}"${current===b?' selected':''}>${escapeHtml(b)}</option>`));
   opts.push(`<option value="__new__">＋ Créer un livre...</option>`);
   return opts.join('');
@@ -2737,7 +2893,7 @@ function renderCocktails(){
     const bk=BUILTIN_BOOKS.find(b=>b.id===livreId);
     const label=bk?bk.icon+' '+bk.name:livreId;
     const stateKey='cat_'+livreId+'_open';
-    const demoHint=livreId==='Tuto'&&plan==='demo'?`· ${getCatalog().length-6} autres à la connexion`:null;
+    const demoHint=null;
     renderCatalogGroup(container,label,items,stateKey,demoHint);
   });
 
@@ -4803,6 +4959,7 @@ document.getElementById('btnClearCache').addEventListener('click', async()=>{
     setTimeout(()=>location.reload(true), 500);
   }
 });
+document.getElementById('btnOpenTutorial').addEventListener('click', ()=>openTutorialModal());
 document.getElementById('btnExportIng').addEventListener('click', ()=>download('mixtura-ingredients.json', state.ingredients));
 document.getElementById('btnExportAll').addEventListener('click', ()=>download('mixtura-all.json', state));
 document.getElementById('btnImportIng').addEventListener('click', ()=>document.getElementById('fileImportIng').click());
@@ -4988,62 +5145,12 @@ document.getElementById('modalClose').addEventListener('click', closeModal);
 document.getElementById('modal').addEventListener('click', e=>{ if(e.target.id==='modal') closeModal(); });
 
 /* ── Guide d'utilisation ── */
-document.getElementById('btnHelp').addEventListener('click', ()=>{
-  const m = document.getElementById('modal');
-  document.getElementById('modalTitle').textContent = '📖 Guide d\'utilisation';
-  document.getElementById('modalContent').innerHTML = `
-    <div style="line-height:1.7;color:var(--text-2);font-size:14px">
-
-      <div style="margin-bottom:18px">
-        <div style="color:var(--gold);font-weight:700;font-size:15px;margin-bottom:6px">🍸 Cocktails</div>
-        <p>Crée et gère tes recettes de cocktails. Pour chaque recette tu peux :</p>
-        <ul style="margin:6px 0 0 16px;display:flex;flex-direction:column;gap:4px">
-          <li>Ajouter les ingrédients avec les quantités</li>
-          <li>Calculer le <strong style="color:var(--cream)">food cost</strong> automatiquement</li>
-          <li>Définir un prix de vente et voir la marge</li>
-          <li>Filtrer par catégorie ou chercher par nom</li>
-          <li>Appuyer longuement pour sélectionner plusieurs recettes</li>
-        </ul>
-      </div>
-
-      <div style="margin-bottom:18px">
-        <div style="color:var(--gold);font-weight:700;font-size:15px;margin-bottom:6px">🧪 Ingrédients</div>
-        <p>Gère ton stock d'ingrédients. Deux types :</p>
-        <ul style="margin:6px 0 0 16px;display:flex;flex-direction:column;gap:4px">
-          <li><strong style="color:var(--cream)">Acheté</strong> — bouteille, produit du marché. Tu renseignes prix et taille de bouteille → coût au cl calculé automatiquement</li>
-          <li><strong style="color:var(--cream)">Maison</strong> — sirop, infusion, liqueur… Tu décris la recette et les produits obtenus (principal + sous-produits)</li>
-        </ul>
-        <p style="margin-top:6px">Filtre par catégorie avec les chips en haut (Spirit, Liqueur, Sirop…)</p>
-      </div>
-
-      <div style="margin-bottom:18px">
-        <div style="color:var(--gold);font-weight:700;font-size:15px;margin-bottom:6px">📦 Batch</div>
-        <p>Planifie des <strong style="color:var(--cream)">préparations en grande quantité</strong> pour un événement ou un service.</p>
-        <ul style="margin:6px 0 0 16px;display:flex;flex-direction:column;gap:4px">
-          <li>Choisir un cocktail ou un ingrédient maison à préparer</li>
-          <li>Indiquer le nombre de portions souhaitées</li>
-          <li>L'app calcule toutes les quantités à acheter</li>
-          <li>Marquer les étapes comme faites au fur et à mesure</li>
-        </ul>
-      </div>
-
-      <div style="margin-bottom:18px">
-        <div style="color:var(--gold);font-weight:700;font-size:15px;margin-bottom:6px">⚙️ Paramètres</div>
-        <ul style="margin:6px 0 0 16px;display:flex;flex-direction:column;gap:4px">
-          <li><strong style="color:var(--cream)">Connexion Google</strong> — synchronise tes données sur tous tes appareils via le cloud</li>
-          <li><strong style="color:var(--cream)">Export / Import</strong> — sauvegarde tes données en JSON ou Excel</li>
-          <li><strong style="color:var(--cream)">Langue</strong> — Français / English</li>
-          <li><strong style="color:var(--cream)">Réinitialiser</strong> — remet l'app à zéro (les données cloud restent intactes)</li>
-        </ul>
-      </div>
-
-      <div style="background:rgba(200,169,110,.07);border:1px solid rgba(200,169,110,.2);border-radius:10px;padding:12px;font-size:13px">
-        💡 <strong style="color:var(--gold)">Astuce</strong> — Appuie longuement sur un élément dans une liste pour activer la sélection multiple et supprimer ou exporter plusieurs éléments à la fois.
-      </div>
-    </div>
-  `;
+function openTutorialModal(){
+  const m=document.getElementById('modal');
+  document.getElementById('modalTitle').textContent='📚 Guide complet Mixtura';
+  document.getElementById('modalContent').innerHTML=`<div style="line-height:1.65;color:var(--text-2);font-size:13px">${TUTORIAL_HTML}</div>`;
   m.classList.add('show');
-});
+}
 
 /* FAB */
 const fabEl = document.getElementById('fab');
@@ -5467,6 +5574,59 @@ function showUpdateBanner(){
     timers=timers.filter(t=>!t.notified || (t.endAt - Date.now()) > -30000);
   }
 
+  // ── Supabase sync helpers ──
+  async function sbUpsertTimer(t){
+    if(!window.sb||!window.sbUser) return;
+    try{
+      await window.sb.from('user_timers').upsert({
+        id: t.id,
+        user_id: window.sbUser.id,
+        label: t.label||null,
+        end_at: new Date(t.endAt).toISOString(),
+        notified: t.notified||false
+      },{onConflict:'id'});
+    }catch(_){}
+  }
+
+  async function sbDeleteTimer(id){
+    if(!window.sb||!window.sbUser) return;
+    try{ await window.sb.from('user_timers').delete().eq('id',id).eq('user_id',window.sbUser.id); }catch(_){}
+  }
+
+  async function syncFromCloud(){
+    if(!window.sb||!window.sbUser) return;
+    try{
+      const {data}=await window.sb.from('user_timers').select('*').eq('user_id',window.sbUser.id);
+      if(!data||!data.length) return;
+      const now=Date.now();
+      data.forEach(row=>{
+        const endAt=new Date(row.end_at).getTime();
+        if(row.notified && (endAt - now) < -30000) return; // skip stale finished
+        const existing=timers.find(t=>t.id===row.id);
+        if(!existing){
+          timers.push({id:row.id, label:row.label||'', endAt, notified:row.notified||false});
+        }
+      });
+      // Remove local timers not in cloud that belong to this user (were deleted elsewhere)
+      // We identify cloud IDs to keep
+      const cloudIds=new Set(data.map(r=>r.id));
+      // Only remove timers that were already synced (existed before this session)
+      // Keep any timer added in this session (those will be upserted)
+      timers=timers.filter(t=>!t._local||cloudIds.has(t.id));
+      saveTimers();
+    }catch(_){}
+  }
+
+  // Exposed for auth hook
+  window._timerSyncFromCloud = async function(){
+    await syncFromCloud();
+    if(timers.length){ startTick(); renderChips(); updateToggleBadge(); }
+    renderActiveList();
+  };
+  window._timerClearCloud = function(){
+    // On logout keep timers local only, nothing to clear
+  };
+
   function beep(){
     try{
       const ctx=new (window.AudioContext||window.webkitAudioContext)();
@@ -5509,6 +5669,7 @@ function showUpdateBanner(){
       if(!t.notified && now>=t.endAt){
         t.notified=true; dirty=true;
         fireNotification(t);
+        sbUpsertTimer(t);
       }
     });
     if(dirty) saveTimers();
@@ -5527,8 +5688,10 @@ function showUpdateBanner(){
   function addTimer(label, seconds){
     if(seconds<=0){ toast('⚠️ Durée invalide'); return; }
     const id=Date.now();
-    timers.push({id, label:label.trim(), endAt:Date.now()+seconds*1000, notified:false});
+    const t={id, label:label.trim(), endAt:Date.now()+seconds*1000, notified:false};
+    timers.push(t);
     saveTimers();
+    sbUpsertTimer(t);
     startTick();
     renderChips();
     renderActiveList();
@@ -5539,6 +5702,7 @@ function showUpdateBanner(){
   function removeTimer(id){
     timers=timers.filter(t=>t.id!==id);
     saveTimers();
+    sbDeleteTimer(id);
     stopTick();
     renderChips();
     renderActiveList();
