@@ -320,7 +320,7 @@ export default function RecipeForm({ userId, initial }: Props) {
         </div>
         <div className="space-y-2">
           {ingredients.map((ing, idx) => (
-            <div key={idx} className="flex gap-2 items-center">
+            <div key={idx} className="flex gap-2 items-center" style={{ minWidth: 0 }}>
               <input
                 type="number"
                 value={ing.qty || ''}
@@ -328,12 +328,14 @@ export default function RecipeForm({ userId, initial }: Props) {
                 placeholder="0"
                 min={0}
                 step="0.1"
-                className="field-input w-16 text-center flex-shrink-0"
+                className="field-input text-center"
+                style={{ width: '3.5rem', flexShrink: 0 }}
               />
               <select
                 value={ing.unit}
                 onChange={e => updateIngredient(idx, 'unit', e.target.value)}
-                className="field-input w-16 flex-shrink-0"
+                className="field-input"
+                style={{ width: '3.5rem', flexShrink: 0, paddingLeft: '6px', paddingRight: '4px' }}
               >
                 {['cl', 'ml', 'oz', 'g', 'kg', 'trait', 'goutte', 'pièce'].map(u => (
                   <option key={u} value={u}>{u}</option>
@@ -344,7 +346,8 @@ export default function RecipeForm({ userId, initial }: Props) {
                 value={ing.name}
                 onChange={e => updateIngredient(idx, 'name', e.target.value)}
                 placeholder="Nom de l'ingrédient"
-                className="field-input flex-1"
+                className="field-input"
+                style={{ flex: 1, minWidth: 0 }}
               />
               {ingredients.length > 1 && (
                 <button

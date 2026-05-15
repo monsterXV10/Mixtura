@@ -12,6 +12,8 @@ const TILES = [
   { icon: '🧪', label: 'Ingrédients', href: '/ingredients' },
   { icon: '📦', label: 'Batch', href: '/batch' },
   { icon: '📖', label: 'Livre', href: '/book' },
+  { icon: '🗂', label: 'Catalogue', href: '/catalog' },
+  { icon: '⚙️', label: 'Paramètres', href: '/settings' },
 ]
 
 export default function HomeClient({ user }: HomeClientProps) {
