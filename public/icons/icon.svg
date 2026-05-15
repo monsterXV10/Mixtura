@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="96" fill="#0D1B2A"/>
+  <path d="M140 110 L372 110 L270 290 L270 370 L310 370 L310 400 L202 400 L202 370 L242 370 L242 290 Z"
+        fill="none" stroke="#C8A96E" stroke-width="18" stroke-linejoin="round" stroke-linecap="round"/>
+  <clipPath id="glass">
+    <path d="M152 130 L360 130 L270 285 L242 285 Z"/>
+  </clipPath>
+  <rect x="0" y="230" width="512" height="120" fill="#C8A96E" opacity="0.25" clip-path="url(#glass)"/>
+  <rect x="220" y="170" width="36" height="36" rx="6" fill="#C8A96E" opacity="0.5" transform="rotate(15,238,188)"/>
+  <circle cx="375" cy="108" r="22" fill="none" stroke="#C8A96E" stroke-width="10"/>
+  <line x1="375" y1="86" x2="375" y2="70" stroke="#C8A96E" stroke-width="8" stroke-linecap="round"/>
+</svg>

@@ -1,0 +1,6 @@
+# Ancienne app vanilla JS — non pertinente pour le build Next.js
+index.html
+sw.js
+supabase.min.js
+xlsx.mini.min.js
+*.sql
