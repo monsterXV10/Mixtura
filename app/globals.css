@@ -45,14 +45,33 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* Scrollbar fine style dark */
-::-webkit-scrollbar {
-  width: 4px;
+/* Input / select réutilisable */
+.field-input {
+  width: 100%;
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  background: var(--surface2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  font-size: 0.875rem;
+  outline: none;
+  transition: border-color 0.15s;
 }
-::-webkit-scrollbar-track {
-  background: transparent;
+.field-input:focus {
+  border-color: var(--gold-dim);
 }
-::-webkit-scrollbar-thumb {
-  background: var(--border);
-  border-radius: 2px;
+.field-input::placeholder {
+  color: var(--text-dim);
+  opacity: 0.6;
 }
+
+/* Scrollbar fine */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-none::-webkit-scrollbar { display: none; }
