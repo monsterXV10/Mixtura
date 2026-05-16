@@ -15,6 +15,7 @@ interface AuthContextValue {
   user: User | null
   session: Session | null
   loading: boolean
+  isAnonymous: boolean
   signOut: () => Promise<void>
 }
 
@@ -23,7 +24,6 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined)
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [session, setSession] = useState<Session | null>(null)
-  // loading=true jusqu'à la résolution de getUser() — empêche le flash de déconnexion au F5
   const [loading, setLoading] = useState(true)
 
   const supabase = getSupabaseBrowserClient()
@@ -31,19 +31,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let mounted = true
 
-    // Validation immédiate de la session via réseau (~50ms).
-    // On utilise getUser() et non getSession() car getSession() lit localStorage
-    // sans appel réseau et peut retourner une session expirée/révoquée.
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (!mounted) return
       setUser(user)
       setLoading(false)
     })
 
-    // Écoute les changements d'état en temps réel (login, logout, refresh token)
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!mounted) return
       setSession(session)
       setUser(session?.user ?? null)
@@ -62,8 +56,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSession(null)
   }, [supabase])
 
+  const isAnonymous = user?.is_anonymous ?? false
+
   return (
-    <AuthContext.Provider value={{ user, session, loading, signOut }}>
+    <AuthContext.Provider value={{ user, session, loading, isAnonymous, signOut }}>
       {children}
     </AuthContext.Provider>
   )

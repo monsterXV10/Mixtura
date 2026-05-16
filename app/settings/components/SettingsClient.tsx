@@ -1,10 +1,12 @@
 'use client'
 
+import { useState } from 'react'
 import type { User } from '@supabase/supabase-js'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import TopBar from '@/app/components/TopBar'
 import { useAuth } from '@/contexts/AuthContext'
+import { getSupabaseBrowserClient } from '@/lib/supabase/client'
 
 interface Props {
   user: User
@@ -12,15 +14,43 @@ interface Props {
 }
 
 export default function SettingsClient({ user, profile }: Props) {
-  const { signOut } = useAuth()
+  const { signOut, isAnonymous } = useAuth()
   const router = useRouter()
+  const supabase = getSupabaseBrowserClient()
+
+  const [convertEmail, setConvertEmail] = useState('')
+  const [convertPassword, setConvertPassword] = useState('')
+  const [convertLoading, setConvertLoading] = useState(false)
+  const [convertError, setConvertError] = useState<string | null>(null)
+  const [convertDone, setConvertDone] = useState(false)
 
   async function handleSignOut() {
     await signOut()
     router.push('/login')
   }
 
-  const name = profile?.display_name ?? user.user_metadata?.full_name ?? user.email?.split('@')[0]
+  async function handleConvert(e: React.FormEvent) {
+    e.preventDefault()
+    setConvertLoading(true)
+    setConvertError(null)
+
+    const { error } = await supabase.auth.updateUser({
+      email: convertEmail,
+      password: convertPassword,
+    })
+
+    if (error) {
+      setConvertError(error.message)
+      setConvertLoading(false)
+      return
+    }
+
+    setConvertDone(true)
+    setConvertLoading(false)
+    router.refresh()
+  }
+
+  const name = profile?.display_name ?? user.user_metadata?.full_name ?? user.email?.split('@')[0] ?? 'Démo'
   const plan = profile?.plan ?? 'free'
 
   return (
@@ -28,6 +58,70 @@ export default function SettingsClient({ user, profile }: Props) {
       <TopBar title="Paramètres" backHref="/" />
 
       <div className="p-4 space-y-4 pb-8 max-w-lg mx-auto">
+
+        {/* Bloc conversion compte anonyme */}
+        {isAnonymous && !convertDone && (
+          <section
+            className="rounded-[var(--radius)] overflow-hidden"
+            style={{ border: '2px solid var(--gold)' }}
+          >
+            <div className="px-4 py-3" style={{ background: '#1a1400', borderBottom: '1px solid var(--gold)' }}>
+              <p className="font-bold text-sm" style={{ color: 'var(--gold)' }}>
+                ⚡ Mode démo — Activez votre compte gratuit
+              </p>
+              <p className="text-xs mt-0.5" style={{ color: 'var(--text-dim)' }}>
+                Vos recettes et ingrédients seront sauvegardés définitivement.
+              </p>
+            </div>
+            <form onSubmit={handleConvert} className="p-4 space-y-3" style={{ background: 'var(--surface)' }}>
+              <input
+                type="email"
+                placeholder="Votre email"
+                value={convertEmail}
+                onChange={e => setConvertEmail(e.target.value)}
+                required
+                className="w-full px-4 py-3 rounded-[var(--radius-sm)] outline-none text-sm"
+                style={{ background: 'var(--surface2)', color: 'var(--text)', border: '1px solid var(--border)' }}
+              />
+              <input
+                type="password"
+                placeholder="Choisir un mot de passe (min. 6 caractères)"
+                value={convertPassword}
+                onChange={e => setConvertPassword(e.target.value)}
+                required
+                minLength={6}
+                className="w-full px-4 py-3 rounded-[var(--radius-sm)] outline-none text-sm"
+                style={{ background: 'var(--surface2)', color: 'var(--text)', border: '1px solid var(--border)' }}
+              />
+              {convertError && (
+                <p className="text-xs text-red-400">{convertError}</p>
+              )}
+              <button
+                type="submit"
+                disabled={convertLoading}
+                className="w-full py-3 rounded-[var(--radius-sm)] font-bold text-sm disabled:opacity-50"
+                style={{ background: 'var(--gold)', color: '#0A0E1A' }}
+              >
+                {convertLoading ? 'Activation…' : 'Créer mon compte & sauvegarder mes données'}
+              </button>
+            </form>
+          </section>
+        )}
+
+        {isAnonymous && convertDone && (
+          <div
+            className="rounded-[var(--radius)] p-4 text-center"
+            style={{ background: '#0f2a0f', border: '1px solid #1a5c1a' }}
+          >
+            <p className="font-semibold text-sm" style={{ color: '#4ade80' }}>
+              ✓ Compte créé ! Vérifiez votre email pour confirmer.
+            </p>
+            <p className="text-xs mt-1" style={{ color: 'var(--text-dim)' }}>
+              Vos données de démonstration sont maintenant liées à votre compte.
+            </p>
+          </div>
+        )}
+
         {/* Profil */}
         <section
           className="rounded-[var(--radius)] overflow-hidden"
@@ -36,27 +130,31 @@ export default function SettingsClient({ user, profile }: Props) {
           <div className="px-4 py-3" style={{ background: 'var(--surface)', borderBottom: '1px solid var(--border)' }}>
             <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-dim)' }}>Compte</p>
           </div>
-          <div className="divide-y" style={{ background: 'var(--surface2)', borderColor: 'var(--border)' }}>
-            <Row label="Nom" value={name ?? '—'} />
-            <Row label="Email" value={user.email ?? '—'} />
+          <div style={{ background: 'var(--surface2)' }}>
+            <Row label="Nom" value={isAnonymous ? 'Utilisateur démo' : name} />
+            <Row label="Email" value={isAnonymous ? '—' : (user.email ?? '—')} />
             <Row label="Plan">
               <span
                 className="text-xs px-2 py-0.5 rounded-full font-semibold"
-                style={{ background: plan === 'free' ? 'var(--surface)' : 'var(--gold)', color: plan === 'free' ? 'var(--text-dim)' : '#0A0E1A', border: '1px solid var(--border)' }}
+                style={{
+                  background: isAnonymous ? 'var(--surface)' : plan === 'free' ? 'var(--surface)' : 'var(--gold)',
+                  color: isAnonymous ? '#C8A96E' : plan === 'free' ? 'var(--text-dim)' : '#0A0E1A',
+                  border: '1px solid var(--border)',
+                }}
               >
-                {plan.toUpperCase()}
+                {isAnonymous ? 'DÉMO' : plan.toUpperCase()}
               </span>
             </Row>
           </div>
         </section>
 
-        {/* Navigation */}
+        {/* Navigation rapide */}
         <section
           className="rounded-[var(--radius)] overflow-hidden"
           style={{ border: '1px solid var(--border)' }}
         >
           <div className="px-4 py-3" style={{ background: 'var(--surface)', borderBottom: '1px solid var(--border)' }}>
-            <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-dim)' }}>Accès rapide</p>
+            <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-dim)' }}>Navigation</p>
           </div>
           <div style={{ background: 'var(--surface2)' }}>
             {[
@@ -79,13 +177,12 @@ export default function SettingsClient({ user, profile }: Props) {
           </div>
         </section>
 
-        {/* Déconnexion */}
         <button
           onClick={handleSignOut}
           className="w-full py-3 rounded-[var(--radius)] text-sm font-semibold"
           style={{ background: '#2B0F0F', color: '#FF6B6B', border: '1px solid #5C1A1A' }}
         >
-          Se déconnecter
+          {isAnonymous ? 'Quitter le mode démo' : 'Se déconnecter'}
         </button>
       </div>
     </div>
