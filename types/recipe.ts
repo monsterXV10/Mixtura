@@ -27,6 +27,7 @@ export interface CocktailMetadata {
   type: 'cocktail'
   glass?: string
   family?: string
+  menu?: string
   alcohol?: string
   method?: string[]
   garnish?: string

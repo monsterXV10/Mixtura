@@ -14,6 +14,7 @@ const TYPES: { value: RecipeType; label: string; icon: string }[] = [
 
 const COCKTAIL_FAMILIES = ['Sour', 'Fizz', 'Highball', 'Sling', 'Flip', 'Collins', 'Old Fashioned', 'Martini', 'Negroni', 'Tropical', 'Hot', 'Autre']
 const GLASS_OPTIONS = ['Cocktail / Martini', 'Coupe', 'Rocks / Old Fashioned', 'Highball', 'Collins', 'Nick & Nora', 'Flûte', 'Verre à vin', 'Tiki Mug', 'Shot', 'Mug', 'Tumbler']
+const MENU_OPTIONS = ['Carte principale', 'Carte saison', 'Carte été', 'Carte hiver', 'Brunch', 'Happy Hour', 'Signature', 'Classiques', 'Sans alcool', 'Hors carte']
 const GRIND_OPTIONS: CoffeeMetadata['grind'][] = ['fine', 'medium-fine', 'medium', 'coarse']
 const GRIND_LABELS: Record<string, string> = { fine: 'Fine', 'medium-fine': 'Médium-fine', medium: 'Médium', coarse: 'Grosse' }
 const DIFFICULTY: CuisineMetadata['difficulty'][] = ['easy', 'medium', 'hard']
@@ -46,6 +47,8 @@ export default function RecipeForm({ userId, initial }: Props) {
   )
   const initGlass = isCocktailMetadata(initMeta) ? (initMeta.glass ?? '') : ''
   const [glassCustom, setGlassCustom] = useState(!GLASS_OPTIONS.includes(initGlass) && initGlass !== '')
+  const initMenu = isCocktailMetadata(initMeta) ? (initMeta.menu ?? '') : ''
+  const [menuCustom, setMenuCustom] = useState(!MENU_OPTIONS.includes(initMenu) && initMenu !== '')
   const [coffeeMeta, setCoffeeMeta] = useState<CoffeeMetadata>(
     isCoffeeMetadata(initMeta) ? initMeta : { type: 'coffee', temperature: 'hot', grind: 'medium-fine' }
   )
@@ -242,14 +245,44 @@ export default function RecipeForm({ userId, initial }: Props) {
                 </select>
               </div>
               <div>
-                <label className="block text-xs mb-1.5" style={{ color: 'var(--text-dim)' }}>Alcool de base</label>
-                <input
-                  type="text"
-                  value={cocktailMeta.alcohol ?? ''}
-                  onChange={e => setCocktailMeta(m => ({ ...m, alcohol: e.target.value }))}
-                  placeholder="Gin, Rhum..."
-                  className="field-input"
-                />
+                <label className="block text-xs mb-1.5" style={{ color: 'var(--text-dim)' }}>Menu / Carte</label>
+                {!menuCustom ? (
+                  <select
+                    value={cocktailMeta.menu ?? ''}
+                    onChange={e => {
+                      if (e.target.value === '__autre') {
+                        setMenuCustom(true)
+                        setCocktailMeta(m => ({ ...m, menu: '' }))
+                      } else {
+                        setCocktailMeta(m => ({ ...m, menu: e.target.value }))
+                      }
+                    }}
+                    className="field-input"
+                  >
+                    <option value="">— Choisir —</option>
+                    {MENU_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
+                    <option value="__autre">Autre…</option>
+                  </select>
+                ) : (
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={cocktailMeta.menu ?? ''}
+                      onChange={e => setCocktailMeta(m => ({ ...m, menu: e.target.value }))}
+                      placeholder="Ex: Carte printemps..."
+                      className="field-input flex-1"
+                      autoFocus
+                    />
+                    <button
+                      type="button"
+                      onClick={() => { setMenuCustom(false); setCocktailMeta(m => ({ ...m, menu: '' })) }}
+                      className="px-3 rounded-[var(--radius-sm)] text-xs flex-shrink-0"
+                      style={{ background: 'var(--surface2)', color: 'var(--text-dim)', border: '1px solid var(--border)' }}
+                    >
+                      ← Liste
+                    </button>
+                  </div>
+                )}
               </div>
               <div>
                 <label className="block text-xs mb-1.5" style={{ color: 'var(--text-dim)' }}>Garniture</label>
