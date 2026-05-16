@@ -13,6 +13,7 @@ const TYPES: { value: RecipeType; label: string; icon: string }[] = [
 ]
 
 const COCKTAIL_FAMILIES = ['Sour', 'Fizz', 'Highball', 'Sling', 'Flip', 'Collins', 'Old Fashioned', 'Martini', 'Negroni', 'Tropical', 'Hot', 'Autre']
+const GLASS_OPTIONS = ['Cocktail / Martini', 'Coupe', 'Rocks / Old Fashioned', 'Highball', 'Collins', 'Nick & Nora', 'Flûte', 'Verre à vin', 'Tiki Mug', 'Shot', 'Mug', 'Tumbler']
 const GRIND_OPTIONS: CoffeeMetadata['grind'][] = ['fine', 'medium-fine', 'medium', 'coarse']
 const GRIND_LABELS: Record<string, string> = { fine: 'Fine', 'medium-fine': 'Médium-fine', medium: 'Médium', coarse: 'Grosse' }
 const DIFFICULTY: CuisineMetadata['difficulty'][] = ['easy', 'medium', 'hard']
@@ -43,6 +44,8 @@ export default function RecipeForm({ userId, initial }: Props) {
   const [cocktailMeta, setCocktailMeta] = useState<CocktailMetadata>(
     isCocktailMetadata(initMeta) ? initMeta : { type: 'cocktail' }
   )
+  const initGlass = isCocktailMetadata(initMeta) ? (initMeta.glass ?? '') : ''
+  const [glassCustom, setGlassCustom] = useState(!GLASS_OPTIONS.includes(initGlass) && initGlass !== '')
   const [coffeeMeta, setCoffeeMeta] = useState<CoffeeMetadata>(
     isCoffeeMetadata(initMeta) ? initMeta : { type: 'coffee', temperature: 'hot', grind: 'medium-fine' }
   )
@@ -189,13 +192,43 @@ export default function RecipeForm({ userId, initial }: Props) {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs mb-1.5" style={{ color: 'var(--text-dim)' }}>Verre</label>
-                <input
-                  type="text"
-                  value={cocktailMeta.glass ?? ''}
-                  onChange={e => setCocktailMeta(m => ({ ...m, glass: e.target.value }))}
-                  placeholder="Coupe, Rocks..."
-                  className="field-input"
-                />
+                {!glassCustom ? (
+                  <select
+                    value={cocktailMeta.glass ?? ''}
+                    onChange={e => {
+                      if (e.target.value === '__autre') {
+                        setGlassCustom(true)
+                        setCocktailMeta(m => ({ ...m, glass: '' }))
+                      } else {
+                        setCocktailMeta(m => ({ ...m, glass: e.target.value }))
+                      }
+                    }}
+                    className="field-input"
+                  >
+                    <option value="">— Choisir —</option>
+                    {GLASS_OPTIONS.map(g => <option key={g} value={g}>{g}</option>)}
+                    <option value="__autre">Autre…</option>
+                  </select>
+                ) : (
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={cocktailMeta.glass ?? ''}
+                      onChange={e => setCocktailMeta(m => ({ ...m, glass: e.target.value }))}
+                      placeholder="Ex: Ceramic tiki mug..."
+                      className="field-input flex-1"
+                      autoFocus
+                    />
+                    <button
+                      type="button"
+                      onClick={() => { setGlassCustom(false); setCocktailMeta(m => ({ ...m, glass: '' })) }}
+                      className="px-3 rounded-[var(--radius-sm)] text-xs"
+                      style={{ background: 'var(--surface2)', color: 'var(--text-dim)', border: '1px solid var(--border)', flexShrink: 0 }}
+                    >
+                      ← Liste
+                    </button>
+                  </div>
+                )}
               </div>
               <div>
                 <label className="block text-xs mb-1.5" style={{ color: 'var(--text-dim)' }}>Famille</label>
