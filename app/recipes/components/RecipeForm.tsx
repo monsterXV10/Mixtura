@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import type { Recipe, RecipeType, RecipeIngredient, LegacyRecipeData, CoffeeMetadata, CocktailMetadata, CuisineMetadata } from '@/types/recipe'
 import { isCoffeeMetadata, isCocktailMetadata, isCuisineMetadata, defaultMetadata } from '@/types/recipe'
@@ -23,13 +23,14 @@ const DIFFICULTY_LABELS: Record<string, string> = { easy: 'Facile', medium: 'Moy
 interface Props {
   userId: string
   initial?: Recipe
+  ingredientNames?: string[]
 }
 
 function emptyIngredient(): RecipeIngredient {
   return { name: '', qty: 0, unit: 'cl' }
 }
 
-export default function RecipeForm({ userId, initial }: Props) {
+export default function RecipeForm({ userId, initial, ingredientNames = [] }: Props) {
   const router = useRouter()
   const { create, update, saving } = useRecipes(userId, [])
 
@@ -40,6 +41,8 @@ export default function RecipeForm({ userId, initial }: Props) {
     initial?.data.ingredients?.length ? initial.data.ingredients : [emptyIngredient()]
   )
   const [error, setError] = useState<string | null>(null)
+  const [activeIngIdx, setActiveIngIdx] = useState<number | null>(null)
+  const ingInputRefs = useRef<(HTMLInputElement | null)[]>([])
 
   const initMeta = initial?.metadata ?? defaultMetadata(type)
   const [cocktailMeta, setCocktailMeta] = useState<CocktailMetadata>(
@@ -136,16 +139,48 @@ export default function RecipeForm({ userId, initial }: Props) {
         {/* Ingrédients — section centrale */}
         <Section title="Ingrédients" icon="🧪">
           <div className="space-y-2">
-            {ingredients.map((ing, idx) => (
+            {ingredients.map((ing, idx) => {
+              const query = ing.name.toLowerCase()
+              const suggestions = activeIngIdx === idx && ing.name.length >= 1
+                ? ingredientNames.filter(n => n.toLowerCase().includes(query) && n.toLowerCase() !== query)
+                : []
+              return (
               <div key={idx} className="flex gap-2 items-center">
-                <input
-                  type="text"
-                  value={ing.name}
-                  onChange={e => updateIngredient(idx, 'name', e.target.value)}
-                  placeholder="Ingrédient"
-                  className="field-input"
-                  style={{ flex: 1, minWidth: 0 }}
-                />
+                <div className="relative" style={{ flex: 1, minWidth: 0 }}>
+                  <input
+                    ref={el => { ingInputRefs.current[idx] = el }}
+                    type="text"
+                    value={ing.name}
+                    onChange={e => updateIngredient(idx, 'name', e.target.value)}
+                    onFocus={() => setActiveIngIdx(idx)}
+                    onBlur={() => setTimeout(() => setActiveIngIdx(null), 160)}
+                    placeholder="Ingrédient"
+                    className="field-input"
+                    style={{ width: '100%' }}
+                  />
+                  {suggestions.length > 0 && (
+                    <ul
+                      className="absolute left-0 right-0 top-full mt-1 rounded-[var(--radius-sm)] overflow-hidden z-30 shadow-lg"
+                      style={{ background: 'var(--surface2)', border: '1px solid var(--border)' }}
+                    >
+                      {suggestions.slice(0, 6).map(s => (
+                        <li key={s}>
+                          <button
+                            type="button"
+                            onMouseDown={() => {
+                              updateIngredient(idx, 'name', s)
+                              setActiveIngIdx(null)
+                            }}
+                            className="w-full text-left px-3 py-2 text-sm hover:opacity-80"
+                            style={{ color: 'var(--text)', borderBottom: '1px solid var(--border)' }}
+                          >
+                            {s}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
                 <input
                   type="number"
                   value={ing.qty || ''}
@@ -177,7 +212,8 @@ export default function RecipeForm({ userId, initial }: Props) {
                   </button>
                 )}
               </div>
-            ))}
+              )
+            })}
           </div>
           <button
             type="button"

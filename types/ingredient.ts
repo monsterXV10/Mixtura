@@ -14,6 +14,7 @@ export interface IngredientData {
   format: number
   unit: string
   stock: number
+  homemade?: boolean
   recipe?: string
 }
 

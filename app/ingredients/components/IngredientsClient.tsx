@@ -228,159 +228,168 @@ export default function IngredientsClient({ initialIngredients, userId }: Props)
 
             <form onSubmit={handleSubmit} className="p-4 space-y-4 pb-8">
 
-              {/* ── Recherche catalogue ─────────────────────── */}
-              <div>
-                <label className="text-xs font-medium block mb-1.5" style={{ color: 'var(--gold)' }}>
-                  🔍 RECHERCHER DANS LE CATALOGUE
-                </label>
-                <div className="relative">
-                  <input
-                    ref={catalogInputRef}
-                    type="text"
-                    value={catalogQuery}
-                    onChange={e => handleCatalogInput(e.target.value)}
-                    onFocus={() => catalogQuery.length >= 2 && setShowCatalogDrop(true)}
-                    onBlur={() => setTimeout(() => setShowCatalogDrop(false), 180)}
-                    placeholder="Ex : Hendrick's, Cointreau, Monin..."
-                    className="field-input"
-                    autoComplete="off"
-                  />
-                  {catalogLoading && (
-                    <span
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-xs"
-                      style={{ color: 'var(--text-dim)' }}
-                    >
-                      …
-                    </span>
-                  )}
-
-                  {/* Dropdown résultats catalogue */}
-                  {showCatalogDrop && catalogResults.length > 0 && (
-                    <ul
-                      className="absolute left-0 right-0 top-full mt-1 rounded-[var(--radius-sm)] overflow-hidden z-20 shadow-lg"
-                      style={{ background: 'var(--surface2)', border: '1px solid var(--border)' }}
-                    >
-                      {catalogResults.map(item => (
-                        <li key={item.id}>
-                          <button
-                            type="button"
-                            onMouseDown={() => applyFromCatalog(item)}
-                            className="w-full flex items-center justify-between px-4 py-3 text-left hover:opacity-80"
-                            style={{ borderBottom: '1px solid var(--border)' }}
-                          >
-                            <div>
-                              <p className="text-sm font-medium" style={{ color: 'var(--text)' }}>
-                                {item.name}
-                              </p>
-                              <p className="text-xs" style={{ color: 'var(--text-dim)' }}>
-                                {item.category}
-                                {item.country ? ` · ${item.country}` : ''}
-                                {item.abv ? ` · ${item.abv}% vol` : ''}
-                              </p>
-                            </div>
-                            <div className="text-right ml-3 flex-shrink-0">
-                              {item.typical_price != null && (
-                                <p className="text-xs font-mono" style={{ color: 'var(--gold)' }}>
-                                  ~{item.typical_price.toFixed(2)} €
-                                </p>
-                              )}
-                              <p className="text-xs" style={{ color: 'var(--text-dim)' }}>
-                                {item.default_format}{item.default_unit}
-                              </p>
-                            </div>
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-                <p className="text-xs mt-1" style={{ color: 'var(--text-dim)' }}>
-                  Sélectionnez un produit pour pré-remplir les informations
-                </p>
+              {/* ── Toggle Acheté / Maison ─────────────────── */}
+              <div
+                className="flex rounded-[var(--radius-sm)] overflow-hidden p-1 gap-1"
+                style={{ background: 'var(--surface2)' }}
+              >
+                <button
+                  type="button"
+                  onClick={() => setField('homemade', false)}
+                  className="flex-1 py-2 rounded-[var(--radius-sm)] text-sm font-semibold transition-all"
+                  style={{
+                    background: !form.homemade ? 'var(--gold)' : 'transparent',
+                    color: !form.homemade ? '#0A0E1A' : 'var(--text-dim)',
+                  }}
+                >
+                  🛒 Acheté
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setField('homemade', true)}
+                  className="flex-1 py-2 rounded-[var(--radius-sm)] text-sm font-semibold transition-all"
+                  style={{
+                    background: form.homemade ? 'var(--gold)' : 'transparent',
+                    color: form.homemade ? '#0A0E1A' : 'var(--text-dim)',
+                  }}
+                >
+                  🏠 Maison
+                </button>
               </div>
 
-              <div
-                className="border-t my-2"
-                style={{ borderColor: 'var(--border)' }}
-              />
+              {/* ── Recherche catalogue (mode Acheté seulement) ── */}
+              {!form.homemade && (
+                <div>
+                  <label className="text-xs font-medium block mb-1.5" style={{ color: 'var(--gold)' }}>
+                    🔍 RECHERCHER DANS LE CATALOGUE
+                  </label>
+                  <div className="relative">
+                    <input
+                      ref={catalogInputRef}
+                      type="text"
+                      value={catalogQuery}
+                      onChange={e => handleCatalogInput(e.target.value)}
+                      onFocus={() => catalogQuery.length >= 2 && setShowCatalogDrop(true)}
+                      onBlur={() => setTimeout(() => setShowCatalogDrop(false), 180)}
+                      placeholder="Ex : Hendrick's, Cointreau, Monin..."
+                      className="field-input"
+                      autoComplete="off"
+                    />
+                    {catalogLoading && (
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs" style={{ color: 'var(--text-dim)' }}>…</span>
+                    )}
+                    {showCatalogDrop && catalogResults.length > 0 && (
+                      <ul
+                        className="absolute left-0 right-0 top-full mt-1 rounded-[var(--radius-sm)] overflow-hidden z-20 shadow-lg"
+                        style={{ background: 'var(--surface2)', border: '1px solid var(--border)' }}
+                      >
+                        {catalogResults.map(item => (
+                          <li key={item.id}>
+                            <button
+                              type="button"
+                              onMouseDown={() => applyFromCatalog(item)}
+                              className="w-full flex items-center justify-between px-4 py-3 text-left hover:opacity-80"
+                              style={{ borderBottom: '1px solid var(--border)' }}
+                            >
+                              <div>
+                                <p className="text-sm font-medium" style={{ color: 'var(--text)' }}>{item.name}</p>
+                                <p className="text-xs" style={{ color: 'var(--text-dim)' }}>
+                                  {item.category}{item.country ? ` · ${item.country}` : ''}{item.abv ? ` · ${item.abv}% vol` : ''}
+                                </p>
+                              </div>
+                              <div className="text-right ml-3 flex-shrink-0">
+                                {item.typical_price != null && (
+                                  <p className="text-xs font-mono" style={{ color: 'var(--gold)' }}>~{item.typical_price.toFixed(2)} €</p>
+                                )}
+                                <p className="text-xs" style={{ color: 'var(--text-dim)' }}>{item.default_format}{item.default_unit}</p>
+                              </div>
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                  <p className="text-xs mt-1" style={{ color: 'var(--text-dim)' }}>
+                    Sélectionnez un produit pour pré-remplir les informations
+                  </p>
+                </div>
+              )}
 
-              {/* ── Champs du formulaire ─────────────────────── */}
+              <div className="border-t" style={{ borderColor: 'var(--border)' }} />
+
+              {/* ── Champs communs ───────────────────────────── */}
               <div className="grid grid-cols-2 gap-3">
                 <div className="col-span-2">
-                  <label className="text-xs font-medium block mb-1.5" style={{ color: 'var(--text-dim)' }}>
-                    NOM
-                  </label>
+                  <label className="text-xs font-medium block mb-1.5" style={{ color: 'var(--text-dim)' }}>NOM</label>
                   <input
                     type="text"
                     value={form.name}
-                    onChange={e => { setField('name', e.target.value); setCatalogQuery(e.target.value) }}
-                    placeholder="Gin Hendrick's"
+                    onChange={e => { setField('name', e.target.value); if (!form.homemade) setCatalogQuery(e.target.value) }}
+                    placeholder={form.homemade ? 'Sirop maison, Infusion gin...' : "Gin Hendrick's"}
                     className="field-input"
+                    autoFocus={form.homemade}
                   />
                 </div>
 
                 <div>
-                  <label className="text-xs font-medium block mb-1.5" style={{ color: 'var(--text-dim)' }}>
-                    TYPE
-                  </label>
-                  <select
-                    value={form.type}
-                    onChange={e => setField('type', e.target.value as IngredientData['type'])}
-                    className="field-input"
-                  >
-                    {INGREDIENT_TYPES.map(t => (
-                      <option key={t.value} value={t.value}>{t.label}</option>
-                    ))}
+                  <label className="text-xs font-medium block mb-1.5" style={{ color: 'var(--text-dim)' }}>TYPE</label>
+                  <select value={form.type} onChange={e => setField('type', e.target.value as IngredientData['type'])} className="field-input">
+                    {INGREDIENT_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
                   </select>
                 </div>
 
                 <div>
-                  <label className="text-xs font-medium block mb-1.5" style={{ color: 'var(--text-dim)' }}>
-                    CATÉGORIE
-                  </label>
+                  <label className="text-xs font-medium block mb-1.5" style={{ color: 'var(--text-dim)' }}>CATÉGORIE</label>
                   <input
                     type="text"
                     value={form.category}
                     onChange={e => setField('category', e.target.value)}
-                    placeholder="Gin, Sirop, Vin..."
+                    placeholder="Sirop, Liqueur..."
                     className="field-input"
                   />
                 </div>
 
-                <div>
-                  <label className="text-xs font-medium block mb-1.5" style={{ color: 'var(--text-dim)' }}>
-                    PRIX D'ACHAT (€)
-                  </label>
-                  <input
-                    type="number"
-                    value={form.price || ''}
-                    onChange={e => setField('price', Number(e.target.value))}
-                    min={0}
-                    step={0.01}
-                    placeholder="28.50"
-                    className="field-input"
-                  />
-                </div>
+                {/* Mode Acheté : Prix d'achat */}
+                {!form.homemade && (
+                  <div>
+                    <label className="text-xs font-medium block mb-1.5" style={{ color: 'var(--text-dim)' }}>PRIX D&apos;ACHAT (€)</label>
+                    <input
+                      type="number"
+                      value={form.price || ''}
+                      onChange={e => setField('price', Number(e.target.value))}
+                      min={0} step={0.01} placeholder="28.50"
+                      className="field-input"
+                    />
+                  </div>
+                )}
+
+                {/* Mode Maison : Coût de revient */}
+                {form.homemade && (
+                  <div>
+                    <label className="text-xs font-medium block mb-1.5" style={{ color: 'var(--text-dim)' }}>COÛT DE REVIENT (€)</label>
+                    <input
+                      type="number"
+                      value={form.price || ''}
+                      onChange={e => setField('price', Number(e.target.value))}
+                      min={0} step={0.01} placeholder="Ex: 4.50"
+                      className="field-input"
+                    />
+                  </div>
+                )}
 
                 <div>
                   <label className="text-xs font-medium block mb-1.5" style={{ color: 'var(--text-dim)' }}>
-                    FORMAT
+                    {form.homemade ? 'QUANTITÉ PRODUITE' : 'FORMAT'}
                   </label>
                   <div className="flex gap-1">
                     <input
                       type="number"
                       value={form.format || ''}
                       onChange={e => setField('format', Number(e.target.value))}
-                      min={0}
-                      step={0.1}
-                      placeholder="70"
+                      min={0} step={0.1} placeholder={form.homemade ? '50' : '70'}
                       className="field-input"
                     />
-                    <select
-                      value={form.unit}
-                      onChange={e => setField('unit', e.target.value)}
-                      className="field-input w-16"
-                    >
+                    <select value={form.unit} onChange={e => setField('unit', e.target.value)} className="field-input" style={{ width: '4rem', flexShrink: 0 }}>
                       {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
                     </select>
                   </div>
@@ -388,43 +397,52 @@ export default function IngredientsClient({ initialIngredients, userId }: Props)
 
                 <div>
                   <label className="text-xs font-medium block mb-1.5" style={{ color: 'var(--text-dim)' }}>
-                    STOCK (bouteilles)
+                    {form.homemade ? 'STOCK (unités)' : 'STOCK (bouteilles)'}
                   </label>
                   <input
                     type="number"
                     value={form.stock || ''}
                     onChange={e => setField('stock', Number(e.target.value))}
-                    min={0}
-                    step={0.1}
-                    placeholder="3"
+                    min={0} step={0.1} placeholder="3"
                     className="field-input"
                   />
                 </div>
               </div>
 
-              {/* Coût calculé en temps réel */}
+              {/* ── Recette maison ───────────────────────────── */}
+              {form.homemade && (
+                <div>
+                  <label className="text-xs font-medium block mb-1.5" style={{ color: 'var(--gold)' }}>
+                    📋 RECETTE / PROCÉDÉ
+                  </label>
+                  <textarea
+                    value={form.recipe ?? ''}
+                    onChange={e => setField('recipe', e.target.value)}
+                    placeholder={'Ex : 1L eau + 1kg sucre, chauffer à 60°C, infuser 24h avec 50g lavande, filtrer et mettre en bouteille...'}
+                    rows={5}
+                    className="field-input resize-none"
+                  />
+                </div>
+              )}
+
+              {/* ── Coût calculé ─────────────────────────────── */}
               {cpu > 0 && (
-                <div
-                  className="p-3 rounded-[var(--radius-sm)]"
-                  style={{ background: 'var(--surface2)', border: '1px solid var(--border)' }}
-                >
-                  <p className="text-xs" style={{ color: 'var(--text-dim)' }}>Coût calculé</p>
+                <div className="p-3 rounded-[var(--radius-sm)]" style={{ background: 'var(--surface2)', border: '1px solid var(--border)' }}>
+                  <p className="text-xs" style={{ color: 'var(--text-dim)' }}>
+                    {form.homemade ? 'Coût de revient' : 'Coût calculé'}
+                  </p>
                   <p className="text-base font-mono font-bold mt-0.5" style={{ color: 'var(--gold)' }}>
                     {cpu.toFixed(4)} € / {form.unit}
                   </p>
                   {form.unit === 'cl' && (
                     <p className="text-xs mt-1" style={{ color: 'var(--text-dim)' }}>
-                      4.5cl → {(cpu * 4.5).toFixed(3)} €
-                      {' · '}
-                      3cl → {(cpu * 3).toFixed(3)} €
+                      4.5cl → {(cpu * 4.5).toFixed(3)} € · 3cl → {(cpu * 3).toFixed(3)} €
                     </p>
                   )}
                 </div>
               )}
 
-              {formError && (
-                <p className="text-sm text-red-400">{formError}</p>
-              )}
+              {formError && <p className="text-sm text-red-400">{formError}</p>}
 
               <div className="flex gap-3 pt-2">
                 {editId && (

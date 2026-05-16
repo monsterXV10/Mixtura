@@ -14,18 +14,19 @@ export default async function EditRecipePage({ params }: Props) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const { data: recipe } = await supabase
-    .from('recipes')
-    .select('*')
-    .eq('id', id)
-    .single()
+  const [{ data: recipe }, { data: ingredients }] = await Promise.all([
+    supabase.from('recipes').select('*').eq('id', id).single(),
+    supabase.from('ingredients').select('data').eq('user_id', user.id).order('data->name'),
+  ])
 
   if (!recipe) notFound()
+
+  const ingredientNames = (ingredients ?? []).map((i: { data: { name: string } }) => i.data.name as string).filter(Boolean)
 
   return (
     <div className="min-h-screen flex flex-col" style={{ background: 'var(--bg)' }}>
       <TopBar title="Modifier la recette" backHref={`/recipes/${id}`} />
-      <RecipeForm userId={user.id} initial={recipe as Recipe} />
+      <RecipeForm userId={user.id} initial={recipe as Recipe} ingredientNames={ingredientNames} />
     </div>
   )
 }
