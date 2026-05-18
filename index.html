@@ -366,6 +366,108 @@ input,select,textarea{font:inherit;color:inherit;user-select:text;-webkit-user-s
   .toast{bottom:154px}
   .selection-bar{bottom:62px}
 }
+
+/* ══════════════════════════════════════
+   ÉQUIPE — styles
+══════════════════════════════════════ */
+/* Context toggle Perso / Équipe */
+#ctxToggle{display:none;align-items:center;gap:2px;background:rgba(200,169,110,.08);border:1px solid rgba(200,169,110,.18);border-radius:20px;padding:3px}
+.ctx-btn{padding:4px 12px;border-radius:16px;font-size:12px;font-weight:600;color:var(--text-2);transition:all var(--tr);line-height:1.4}
+.ctx-btn.active{background:var(--gold);color:#0A0E1A}
+.ctx-btn:hover:not(.active){color:var(--text-1)}
+
+/* Badges de rôle */
+.team-role-badge{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;letter-spacing:.04em;vertical-align:middle}
+.badge-admin{background:rgba(200,169,110,.18);color:var(--gold);border:1px solid rgba(200,169,110,.35)}
+.badge-manager{background:rgba(232,184,75,.12);color:var(--warn);border:1px solid rgba(232,184,75,.3)}
+.badge-user{background:rgba(255,255,255,.06);color:var(--text-2);border:1px solid rgba(255,255,255,.12)}
+
+/* Mode partage badge */
+.share-mode-badge{display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:600;padding:2px 6px;border-radius:10px;margin-left:6px}
+.share-mode-copy{background:rgba(46,204,154,.1);color:#2ECC9A;border:1px solid rgba(46,204,154,.25)}
+.share-mode-linked{background:rgba(100,149,237,.12);color:#6495ED;border:1px solid rgba(100,149,237,.3)}
+
+/* Section équipe dans les listes */
+.team-section-head{display:flex;align-items:center;justify-content:space-between;padding:10px 0 6px;border-bottom:1px solid rgba(200,169,110,.12);margin-bottom:8px}
+.team-section-head span{font-size:13px;font-weight:700;color:var(--gold);letter-spacing:.05em;text-transform:uppercase}
+.team-item{position:relative}
+.team-item-meta{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text-3);margin-top:2px;flex-wrap:wrap}
+.team-item-sharer{color:var(--text-2)}
+
+/* Notes équipe */
+.team-notes-list{display:flex;flex-direction:column;gap:8px;margin:10px 0 80px}
+.team-note{background:var(--navy-700);border-left:2px solid var(--gold);border-radius:0 var(--radius-sm) var(--radius-sm) 0;padding:8px 12px}
+.team-note-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px}
+.team-note-author{font-size:11px;font-weight:700;color:var(--gold)}
+.team-note-date{font-size:10px;color:var(--text-3)}
+.team-note-content{font-size:13px;color:var(--text-1);line-height:1.45;user-select:text;-webkit-user-select:text}
+
+/* Barre d'actions en bas du livre pour items équipe */
+#livreTeamBar{display:none;position:fixed;bottom:0;left:0;right:0;z-index:320;
+  padding:12px 16px;background:var(--navy-800);border-top:1px solid rgba(200,169,110,.12);
+  gap:8px;flex-wrap:wrap}
+#livreTeamBar.show{display:flex}
+
+/* Saisie de commentaire équipe fixée en bas page 2 */
+.livre-team-compose{position:fixed;bottom:0;left:0;right:0;z-index:321;
+  padding:10px 12px;background:var(--navy-800);border-top:1px solid rgba(200,169,110,.12);
+  display:none;gap:8px;align-items:flex-end}
+.livre-team-compose.show{display:flex}
+.livre-team-compose textarea{flex:1;min-height:40px;max-height:100px;resize:none;
+  background:var(--navy-700);border:1px solid rgba(200,169,110,.2);border-radius:var(--radius-sm);
+  padding:8px 10px;font-size:13px;color:var(--text-1);outline:none;line-height:1.4}
+.livre-team-compose textarea:focus{border-color:var(--gold)}
+
+/* Carte équipe entière cliquable */
+.team-item-card{background:var(--navy-800);border:1px solid rgba(200,169,110,.1);
+  border-radius:var(--radius);padding:14px 16px;display:flex;align-items:center;
+  gap:12px;transition:all var(--tr);cursor:pointer;position:relative}
+.team-item-card:hover{border-color:rgba(200,169,110,.3);background:var(--navy-700);transform:translateY(-1px)}
+.team-item-card:active{transform:translateY(0)}
+.team-item-badge-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:3px}
+
+/* Membre row dans settings */
+.team-member-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.05)}
+.team-member-row:last-child{border-bottom:none}
+.team-member-avatar{width:32px;height:32px;border-radius:50%;background:rgba(200,169,110,.12);border:1.5px solid rgba(200,169,110,.25);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:var(--gold);flex-shrink:0}
+.team-member-info{flex:1;min-width:0}
+.team-member-name{font-size:13px;font-weight:600;color:var(--text-1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.team-member-email{font-size:11px;color:var(--text-3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.team-code-box{background:var(--navy-700);border:1px dashed rgba(200,169,110,.35);border-radius:var(--radius-sm);padding:10px 14px;display:flex;align-items:center;justify-content:space-between;margin:8px 0;cursor:pointer;transition:all var(--tr)}
+.team-code-box:hover{border-color:var(--gold)}
+.team-code-val{font-size:20px;font-weight:800;letter-spacing:.25em;color:var(--gold)}
+.team-code-hint{font-size:10px;color:var(--text-3);text-transform:uppercase;letter-spacing:.1em}
+body.theme-light .team-note{background:var(--navy-700)}
+body.theme-light .team-code-box{background:var(--navy-700)}
+
+/* ── Tutoriel ── */
+.tuto-step{display:flex;align-items:flex-start;gap:8px;padding:4px 0}
+.tuto-action{background:rgba(200,169,110,.15);border:1px solid rgba(200,169,110,.25);border-radius:6px;padding:2px 8px;font-size:11px;font-weight:700;color:var(--gold);white-space:nowrap;flex-shrink:0;margin-top:1px}
+
+/* ── Minuteurs ── */
+#btnTimerToggle{position:fixed;bottom:20px;left:20px;z-index:22;width:46px;height:46px;border-radius:50%;background:var(--navy-700);border:1px solid rgba(200,169,110,.25);font-size:20px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(0,0,0,.4);transition:all var(--tr);cursor:pointer}
+#btnTimerToggle:hover{border-color:var(--gold);transform:scale(1.08)}
+#btnTimerToggle.has-timers{border-color:var(--gold);background:rgba(200,169,110,.15)}
+@media(max-width:640px){#btnTimerToggle{bottom:78px}}
+
+#timerDrawer{position:fixed;bottom:-100%;left:0;right:0;z-index:200;background:var(--navy-800);border-top:1px solid rgba(200,169,110,.18);border-radius:20px 20px 0 0;max-height:80vh;overflow-y:auto;transition:bottom .35s cubic-bezier(.4,0,.2,1);box-shadow:0 -8px 40px rgba(0,0,0,.5)}
+#timerDrawer.open{bottom:0}
+#timerDrawerHandle{width:36px;height:4px;background:rgba(200,169,110,.3);border-radius:2px;margin:12px auto 16px}
+
+#timerChips{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:21;display:flex;gap:8px;flex-wrap:wrap;justify-content:center;pointer-events:none}
+@media(max-width:640px){#timerChips{bottom:82px}}
+.timer-chip{background:var(--navy-800);border:1px solid rgba(200,169,110,.35);border-radius:20px;padding:6px 14px;display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:var(--text-1);box-shadow:0 2px 12px rgba(0,0,0,.4);pointer-events:all;cursor:pointer;transition:all var(--tr)}
+.timer-chip:hover{border-color:var(--gold)}
+.timer-chip.done{border-color:var(--gold);background:rgba(200,169,110,.15);animation:timerDonePulse .6s ease 3}
+@keyframes timerDonePulse{0%,100%{box-shadow:0 2px 12px rgba(0,0,0,.4)}50%{box-shadow:0 0 0 6px rgba(200,169,110,.3)}}
+.timer-chip-time{color:var(--gold);font-variant-numeric:tabular-nums;min-width:48px}
+.timer-chip-label{font-size:11px;color:var(--text-3);max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+.timer-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid rgba(200,169,110,.07)}
+.timer-row:last-child{border-bottom:none}
+.timer-row-time{font-size:22px;font-weight:800;color:var(--gold);font-variant-numeric:tabular-nums;min-width:72px}
+.timer-row-label{flex:1;font-size:13px;color:var(--text-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.timer-row.done .timer-row-time{color:#4ade80}
 </style>
 </head>
 <body>
@@ -394,6 +496,10 @@ input,select,textarea{font:inherit;color:inherit;user-select:text;-webkit-user-s
       </button>
     </nav>
     <div class="topbar-actions" id="topbarActions">
+      <div id="ctxToggle">
+        <button class="ctx-btn active" data-ctx="personal" title="Mes données">👤</button>
+        <button class="ctx-btn" data-ctx="team" title="Équipe">👥</button>
+      </div>
       <div id="topbarUser" style="display:none;align-items:center;gap:8px;cursor:pointer" onclick="go('Settings')" title="Paramètres du compte">
         <div style="width:30px;height:30px;border-radius:50%;background:rgba(200,169,110,.15);border:1.5px solid rgba(200,169,110,.3);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:var(--gold)" id="topbarAvatar">?</div>
         <span id="topbarName" style="font-size:12px;color:var(--text-2);max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
@@ -446,8 +552,6 @@ input,select,textarea{font:inherit;color:inherit;user-select:text;-webkit-user-s
         </div>
       </button>
     </div>
-    <!-- Bouton aide -->
-    <button id="btnHelp" title="Guide d'utilisation" style="position:fixed;bottom:24px;left:24px;width:44px;height:44px;border-radius:50%;background:rgba(200,169,110,.12);border:1.5px solid rgba(200,169,110,.3);color:var(--gold);font-size:20px;font-weight:700;display:flex;align-items:center;justify-content:center;z-index:50;box-shadow:0 2px 12px rgba(0,0,0,.3)">?</button>
   </div>
 
   <!-- Cocktails -->
@@ -598,6 +702,13 @@ input,select,textarea{font:inherit;color:inherit;user-select:text;-webkit-user-s
         </div>
         <button class="btn btn-ghost btn-sm" id="btnClearCache">Update</button>
       </div>
+      <div class="setting-row" style="border-top:1px solid rgba(200,169,110,.1);margin-top:8px;padding-top:12px">
+        <div>
+          <div class="setting-label">📚 Guide complet</div>
+          <div class="setting-sub">Toutes les fonctionnalités expliquées</div>
+        </div>
+        <button class="btn btn-ghost btn-sm" id="btnOpenTutorial">Ouvrir</button>
+      </div>
     </div>
 
     <div class="setting-section">
@@ -619,6 +730,11 @@ input,select,textarea{font:inherit;color:inherit;user-select:text;-webkit-user-s
       <div style="font-size:12px;color:var(--text-3);margin-bottom:10px">Définis tes propres unités de mesure<br><span style="color:var(--text-3)">Ex : 1 goutte = 0.05 ml · 1 dash = 0.6 ml</span></div>
       <div id="customUnitsRows" style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px"></div>
       <button class="btn btn-ghost btn-sm" id="btnAddCustomUnit">+ Ajouter une unité</button>
+    </div>
+
+    <div class="setting-section" id="settingTeamSection">
+      <h3>👥 Équipe</h3>
+      <div id="teamSectionContent"><!-- rendu par renderTeamSettings() --></div>
     </div>
 
     <div class="setting-section">
@@ -706,18 +822,52 @@ input,select,textarea{font:inherit;color:inherit;user-select:text;-webkit-user-s
     <div class="livre-pg-btns">
       <button class="livre-pg-btn active" id="btnLivrePg0">Recette</button>
       <button class="livre-pg-btn" id="btnLivrePg1">✨ Notes</button>
+      <button class="livre-pg-btn" id="btnLivrePg2" style="display:none">💬 Équipe</button>
     </div>
   </div>
   <div class="livre-pages" id="livrePages">
     <div class="livre-pg" id="livrePg0"></div>
     <div class="livre-pg" id="livrePg1" style="transform:translateX(100%)"></div>
+    <div class="livre-pg" id="livrePg2" style="transform:translateX(200%);display:none"></div>
   </div>
   <button id="btnLivreSave" class="livre-save-fab" style="display:none" title="Sauvegarder les notes">💾</button>
+  <!-- Barre d'actions pour items équipe -->
+  <div id="livreTeamBar">
+    <button class="btn btn-ghost btn-sm" id="btnLivreTeamImport" style="flex:1">📥 Importer</button>
+    <button class="btn btn-ghost btn-sm" id="btnLivreTeamEdit" style="flex:1">✏️ Modifier</button>
+    <button class="btn btn-danger btn-sm" id="btnLivreTeamDelete" style="flex:1">🗑 Retirer</button>
+  </div>
+  <!-- Zone de saisie commentaire équipe (page 2) -->
+  <div class="livre-team-compose" id="livreTeamCompose">
+    <textarea id="livreTeamNoteInput" placeholder="Ajouter un commentaire…" rows="1"></textarea>
+    <button class="btn btn-primary btn-sm" id="btnLivreTeamSendNote" style="white-space:nowrap;height:40px">Envoyer</button>
+  </div>
 </div>
 
 <div class="toast" id="toast"></div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<!-- ── Minuteurs ── -->
+<div id="timerChips"></div>
+<button id="btnTimerToggle" title="Minuteurs">⏱️</button>
+<div id="timerDrawer">
+  <div id="timerDrawerHandle"></div>
+  <div style="padding:0 16px 24px">
+    <div style="font-size:14px;font-weight:700;color:var(--gold);margin-bottom:14px;letter-spacing:.04em">⏱️ Minuteurs</div>
+    <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px">
+      <input id="timerLabel" type="text" placeholder="Infusion, sirop, macération…" style="background:var(--navy-700);border:1px solid rgba(200,169,110,.2);border-radius:var(--radius-sm);padding:9px 12px;font-size:13px;color:var(--text-1);outline:none">
+      <div style="display:flex;gap:8px;align-items:center">
+        <input id="timerMin" type="number" min="0" max="99" value="5" style="width:72px;text-align:center;background:var(--navy-700);border:1px solid rgba(200,169,110,.2);border-radius:var(--radius-sm);padding:9px 8px;font-size:20px;font-weight:700;color:var(--text-1);outline:none">
+        <span style="color:var(--text-3);font-size:18px;font-weight:700">:</span>
+        <input id="timerSec" type="number" min="0" max="59" value="0" style="width:72px;text-align:center;background:var(--navy-700);border:1px solid rgba(200,169,110,.2);border-radius:var(--radius-sm);padding:9px 8px;font-size:20px;font-weight:700;color:var(--text-1);outline:none">
+        <span style="color:var(--text-3);font-size:12px;flex:1">min &nbsp; sec</span>
+        <button id="btnStartTimer" class="btn btn-primary btn-sm" style="height:44px;padding:0 20px;font-size:14px;white-space:nowrap">▶ Go</button>
+      </div>
+    </div>
+    <div id="timerActiveList"></div>
+  </div>
+</div>
+
+<script src="supabase.min.js"></script>
 <script src="xlsx.mini.min.js"></script>
 <script>
 const LS_KEY = 'mixtura_v3';
@@ -731,27 +881,64 @@ function initSupabase(){
   try{
     sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
     let lastUserId = null;
+
+    // Restaurer l'UI immédiatement depuis le cache (évite le flash "non connecté" au F5)
+    sb.auth.getSession().then(({data:{session}})=>{
+      if(session?.user && !sbUser){
+        sbUser = session.user;
+        updateAuthUI();
+      }
+    });
+    // BroadcastChannel : reçoit le token OAuth depuis l'onglet callback
+    const _authBC = (() => {
+      try {
+        const bc = new BroadcastChannel('mixtura_auth');
+        bc.onmessage = async (e) => {
+          if(e.data?.type === 'AUTH_SESSION' && e.data.session) {
+            try { await sb.auth.setSession(e.data.session); } catch(_){}
+          }
+        };
+        return bc;
+      } catch(_){ return null; }
+    })();
+
     sb.auth.onAuthStateChange(async(event,session)=>{
       sbUser = session?.user||null;
       updateAuthUI();
-      // Mettre à jour immédiatement le catalogue (plan demo→free ou free→demo)
-      if(typeof renderCocktails==='function') renderCocktails();
-      // Nettoyer les params OAuth (hash implicit flow ou ?code= PKCE) de l'URL
-      if(event==='SIGNED_IN'||event==='INITIAL_SESSION'){
-        const hasOAuth = window.location.hash.includes('access_token') || window.location.search.includes('code=');
-        if(hasOAuth){
+
+      // Nettoyage URL OAuth + broadcast si on est dans l'onglet callback
+      if(event==='SIGNED_IN' || event==='INITIAL_SESSION'){
+        const isCallback = window.location.hash.includes('access_token') || window.location.search.includes('code=');
+        if(isCallback){
           history.replaceState(null,'',window.location.origin+window.location.pathname);
-          go('Home');
+          // Envoyer le token à la fenêtre PWA si on est dans un onglet navigateur
+          if(session && _authBC) _authBC.postMessage({type:'AUTH_SESSION', session});
         }
       }
+
+      // Réinitialisation mot de passe
+      if(event==='PASSWORD_RECOVERY'){
+        history.replaceState(null,'',window.location.origin+window.location.pathname);
+        openChangePasswordModal();
+        return;
+      }
+
       if(sbUser && (event==='SIGNED_IN'||event==='INITIAL_SESSION') && sbUser.id !== lastUserId){
         lastUserId = sbUser.id;
-        await Promise.all([sbPull(), fetchRemoteCatalog()]);
+        await sbPull();
+        await Promise.all([fetchRemoteCatalog(), teamFetch()]);
+        await teamFetchItems();
+        if(window._timerSyncFromCloud) window._timerSyncFromCloud();
+        updateCtxToggle();
+        renderCurrentScreen();
       }
       if(event==='SIGNED_OUT'){
         lastUserId = null;
         remoteCatalog = null;
-        if(typeof renderCocktails==='function') renderCocktails();
+        teamData = null; teamSharedItems = [];
+        if(teamContext==='team'){ teamContext='personal'; localStorage.setItem('mixtura_teamCtx','personal'); }
+        updateCtxToggle();
+        renderCurrentScreen();
       }
     });
   }catch(e){
@@ -779,6 +966,10 @@ function updateAuthUI(){
     if(topbarUser) topbarUser.style.display='none';
   }
   updatePlanUI();
+  // Rafraîchir la section Équipe si on est sur Paramètres
+  if(typeof renderTeamSettings==='function' && typeof currentScreen!=='undefined' && currentScreen==='Settings'){
+    renderTeamSettings();
+  }
 }
 async function sbPull(){
   if(!sb||!sbUser) return;
@@ -797,12 +988,18 @@ async function sbPull(){
     state.catalogNotes = cloudNotes;
     localStorage.setItem(LS_KEY, JSON.stringify(state));
     toast(cloudIngs.length||cloudCocktails.length ? '☁️ Données synchronisées' : '☁️ Compte vide — prêt !');
-    if(currentScreen==='Ingredients') renderIngredients();
-    if(currentScreen==='Cocktails') renderCocktails();
+    // Re-render quel que soit l'écran actif pour que les données soient visibles
+    renderCurrentScreen();
   }catch(e){console.error('sbPull',e); toast('❌ Erreur de synchronisation');}
 }
 async function sbPush(){
   if(!sb||!sbUser) return;
+  // Garde de sécurité : ne jamais écraser Supabase avec un état vide
+  // si l'utilisateur avait des données (évite d'effacer la DB par accident)
+  if(!state.cocktails.length && !state.ingredients.length){
+    const {data:existing}=await sb.from('recipes').select('id').eq('user_id',sbUser.id).limit(1);
+    if(existing?.length) return; // données en base → on ne push pas un état vide
+  }
   try{
     const [delIng, delRec] = await Promise.all([
       sb.from('ingredients').delete().eq('user_id',sbUser.id),
@@ -825,6 +1022,19 @@ async function sbPush(){
     const hm = new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
     if(sub) sub.textContent = '☁️ Sync · ' + hm;
     toast('☁️ Sauvegardé · ' + hm, 1200);
+    // Synchroniser les items équipe liés (mode 'linked')
+    if(teamData&&teamSharedItems.length){
+      const linkedShares=teamSharedItems.filter(x=>x.share_mode==='linked'&&x.shared_by===sbUser.id);
+      if(linkedShares.length){
+        // Regrouper par item_id et synchroniser chaque item original
+        const ids=new Set(linkedShares.map(x=>x.item_id).filter(Boolean));
+        ids.forEach(origId=>{
+          const orig=state.cocktails.find(x=>x.id===origId)||state.ingredients.find(x=>x.id===origId)||state.batches.find(x=>x.id===origId);
+          const otype=state.cocktails.find(x=>x.id===origId)?'recipe':state.ingredients.find(x=>x.id===origId)?'ingredient':'batch';
+          if(orig) teamSyncLinked(orig, otype).catch(e=>console.warn('teamSyncLinked auto',e));
+        });
+      }
+    }
   }catch(e){
     console.error('sbPush',e);
     toast('❌ Sync cloud : ' + (e.message||JSON.stringify(e)), 4000);
@@ -834,6 +1044,272 @@ function sbDebouncedPush(){
   clearTimeout(sbSyncTimer);
   sbSyncTimer=setTimeout(sbPush, 800);
 }
+
+/* ══════════════════════════════════════
+   ÉQUIPE — fonctions Supabase
+══════════════════════════════════════ */
+
+function teamRoleBadge(role){
+  const key='team.role.'+(role||'user');
+  const cls={'admin':'badge-admin','manager':'badge-manager','user':'badge-user'}[role||'user']||'badge-user';
+  return `<span class="team-role-badge ${cls}">${t(key)}</span>`;
+}
+function teamShareModeBadge(mode){
+  const cls=mode==='linked'?'share-mode-linked':'share-mode-copy';
+  return `<span class="share-mode-badge ${cls}">${t('team.shareMode.'+(mode||'copy'))}</span>`;
+}
+function teamGenCode(){
+  return Math.random().toString(36).slice(2,8).toUpperCase();
+}
+
+async function teamFetch(){
+  if(!sb||!sbUser){ teamData=null; updateCtxToggle(); return; }
+  try{
+    // Chercher la membership de l'utilisateur
+    const {data:mems,error:me}=await sb.from('team_members').select('team_id,role,display_name').eq('user_id',sbUser.id);
+    if(me||!mems?.length){ teamData=null; updateCtxToggle(); return; }
+    const {team_id,role}=mems[0];
+    // Charger l'équipe + tous les membres
+    const [{data:team,error:te},{data:members,error:me2}]=await Promise.all([
+      sb.from('teams').select('*').eq('id',team_id).single(),
+      sb.from('team_members').select('*').eq('team_id',team_id)
+    ]);
+    if(te||!team){ teamData=null; updateCtxToggle(); return; }
+    teamData={...team, role, members:members||[]};
+    updateCtxToggle();
+    if(typeof renderTeamSettings==='function' && currentScreen==='Settings') renderTeamSettings();
+  }catch(e){ console.error('teamFetch',e); teamData=null; updateCtxToggle(); }
+}
+
+async function teamFetchItems(){
+  if(!sb||!sbUser||!teamData){ teamSharedItems=[]; return; }
+  try{
+    const {data,error}=await sb.from('team_shared_items').select('*').eq('team_id',teamData.id).order('updated_at',{ascending:false});
+    if(error) throw error;
+    teamSharedItems=data||[];
+  }catch(e){ console.error('teamFetchItems',e); teamSharedItems=[]; }
+}
+
+async function teamCreate(name){
+  if(!sb||!sbUser) return false;
+  try{
+    const code=teamGenCode();
+    const dn=sbUser.user_metadata?.full_name||sbUser.user_metadata?.name||sbUser.email?.split('@')[0]||'';
+    const {data:team,error:te}=await sb.from('teams').insert({name,code,owner_id:sbUser.id}).select().single();
+    if(te) throw te;
+    const {error:me}=await sb.from('team_members').insert({team_id:team.id,user_id:sbUser.id,email:sbUser.email,display_name:dn,role:'admin'});
+    if(me) throw me;
+    await teamFetch();
+    // Utiliser le code retourné par le serveur (via teamData) pour être sûr
+    const finalCode=(teamData?.code)||code;
+    toast('✅ Équipe "'+name+'" créée ! Code : '+finalCode, 5000);
+    return true;
+  }catch(e){ console.error('teamCreate',e); toast('❌ '+(e.message||'Erreur création équipe'),3000); return false; }
+}
+
+async function teamJoin(code){
+  if(!sb||!sbUser) return false;
+  try{
+    const {data:team,error:te}=await sb.from('teams').select('*').eq('code',code.toUpperCase().trim()).single();
+    if(te||!team){ toast('❌ Code invalide ou équipe introuvable'); return false; }
+    // Vérifier si déjà membre
+    const {data:existing}=await sb.from('team_members').select('id').eq('team_id',team.id).eq('user_id',sbUser.id);
+    if(existing?.length){ toast('⚠️ Tu fais déjà partie de cette équipe'); return false; }
+    // Vérifier si déjà dans une autre équipe
+    if(teamData){ toast('⚠️ Quitte ton équipe actuelle avant d\'en rejoindre une autre'); return false; }
+    const dn=sbUser.user_metadata?.full_name||sbUser.user_metadata?.name||sbUser.email?.split('@')[0]||'';
+    const {error:ie}=await sb.from('team_members').insert({team_id:team.id,user_id:sbUser.id,email:sbUser.email,display_name:dn,role:'user'});
+    if(ie) throw ie;
+    await teamFetch(); await teamFetchItems();
+    toast('✅ Bienvenue dans l\'équipe "'+team.name+'" !');
+    return true;
+  }catch(e){ console.error('teamJoin',e); toast('❌ '+(e.message||'Erreur'), 3000); return false; }
+}
+
+async function teamLeave(){
+  if(!sb||!sbUser||!teamData) return;
+  if(!confirm(t('team.confirmLeave'))) return;
+  try{
+    const isOwner=teamData.owner_id===sbUser.id;
+    if(isOwner && teamData.members.length>1){ toast('⚠️ Transfère l\'administration avant de partir'); return; }
+    if(isOwner){
+      // Supprimer toute l'équipe
+      await sb.from('teams').delete().eq('id',teamData.id);
+    } else {
+      await sb.from('team_members').delete().eq('team_id',teamData.id).eq('user_id',sbUser.id);
+    }
+    teamData=null; teamSharedItems=[];
+    if(teamContext==='team'){ teamContext='personal'; localStorage.setItem('mixtura_teamCtx','personal'); }
+    updateCtxToggle();
+    toast('👋 Tu as quitté l\'équipe');
+    if(currentScreen==='Settings') renderSettings();
+  }catch(e){ console.error('teamLeave',e); toast('❌ '+(e.message||'Erreur')); }
+}
+
+async function teamUpdateRole(memberId, newRole){
+  if(!sb||!sbUser||!teamData) return;
+  if(!['admin','manager','user'].includes(newRole)) return;
+  try{
+    const {error}=await sb.from('team_members').update({role:newRole}).eq('id',memberId).eq('team_id',teamData.id);
+    if(error) throw error;
+    const m=teamData.members.find(x=>x.id===memberId);
+    if(m) m.role=newRole;
+    toast('✅ Rôle mis à jour');
+    if(currentScreen==='Settings') renderTeamSettings();
+  }catch(e){ console.error('teamUpdateRole',e); toast('❌ '+(e.message||'Erreur')); }
+}
+
+async function teamRemoveMember(memberId){
+  if(!sb||!sbUser||!teamData) return;
+  if(!confirm(t('confirm.delete'))) return;
+  try{
+    const {error}=await sb.from('team_members').delete().eq('id',memberId).eq('team_id',teamData.id);
+    if(error) throw error;
+    teamData.members=teamData.members.filter(x=>x.id!==memberId);
+    toast(t('deleted'));
+    if(currentScreen==='Settings') renderTeamSettings();
+  }catch(e){ console.error('teamRemoveMember',e); toast('❌ '+(e.message||'Erreur')); }
+}
+
+async function teamInviteByEmail(email, role){
+  if(!sb||!sbUser||!teamData) return;
+  try{
+    const token=Math.random().toString(36).slice(2)+Date.now().toString(36);
+    const {error}=await sb.from('team_invitations').insert({team_id:teamData.id,email,role,token,invited_by:sbUser.id});
+    if(error) throw error;
+    const link=window.location.origin+window.location.pathname+'#team-invite='+token;
+    const roleLbl={'admin':'👑 Admin','manager':'⭐ Manager','user':'🍹 Barman'}[role]||role;
+    const subject=encodeURIComponent(`Invitation à rejoindre l'équipe ${teamData.name} sur Mixtura`);
+    const body=encodeURIComponent(`Bonjour,\n\nTu es invité(e) à rejoindre l'équipe "${teamData.name}" sur Mixtura en tant que ${roleLbl}.\n\nClique sur ce lien pour accepter l'invitation :\n${link}\n\nLe lien est valable 7 jours.\n\nÀ bientôt !\n${sbUser.user_metadata?.full_name||sbUser.email}`);
+    const mailtoHref=`mailto:${encodeURIComponent(email)}?subject=${subject}&body=${body}`;
+    // Afficher modal avec lien visible + boutons
+    const m=document.getElementById('modal');
+    document.getElementById('modalTitle').textContent='🔗 Invitation envoyée';
+    document.getElementById('modalContent').innerHTML=`
+      <div style="margin-bottom:12px;font-size:13px;color:var(--text-2)">Invitation créée pour <strong style="color:var(--text-1)">${escapeHtml(email)}</strong> · ${escapeHtml(roleLbl)}</div>
+      <div style="font-size:12px;color:var(--text-3);margin-bottom:6px">Lien d'invitation (valable 7 jours) :</div>
+      <div style="background:var(--navy-700);border:1px solid rgba(200,169,110,.2);border-radius:var(--radius-sm);padding:10px 12px;font-size:11px;word-break:break-all;color:var(--gold);user-select:text;-webkit-user-select:text;margin-bottom:12px">${escapeHtml(link)}</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-primary btn-sm" id="btnCopyInvLink" style="flex:1">📋 Copier le lien</button>
+        <a href="${mailtoHref}" class="btn btn-ghost btn-sm" style="flex:1;text-align:center;text-decoration:none">✉️ Envoyer par email</a>
+      </div>
+      <div style="margin-top:10px;font-size:11px;color:var(--text-3);text-align:center">Le destinataire doit cliquer le lien après s'être connecté à Mixtura</div>`;
+    document.getElementById('btnCopyInvLink').onclick=async()=>{
+      try{ await navigator.clipboard.writeText(link); toast('📋 Lien copié !'); }
+      catch{ toast('🔗 Copie manuelle : '+link,8000); }
+    };
+    m.classList.add('show');
+  }catch(e){ console.error('teamInviteByEmail',e); toast('❌ '+(e.message||'Erreur')); }
+}
+
+async function teamAcceptInvite(token){
+  if(!sb||!sbUser) return false;
+  try{
+    const {data:inv,error:ie}=await sb.from('team_invitations').select('*').eq('token',token).eq('accepted',false).single();
+    if(ie||!inv){ toast('❌ Invitation invalide ou expirée',3000); return false; }
+    if(new Date(inv.expires_at)<new Date()){ toast('❌ Invitation expirée'); return false; }
+    const dn=sbUser.user_metadata?.full_name||sbUser.user_metadata?.name||sbUser.email?.split('@')[0]||'';
+    const {error:me}=await sb.from('team_members').insert({team_id:inv.team_id,user_id:sbUser.id,email:sbUser.email,display_name:dn,role:inv.role});
+    if(me && me.code!=='23505') throw me; // 23505 = déjà membre
+    await sb.from('team_invitations').update({accepted:true}).eq('id',inv.id);
+    await teamFetch(); await teamFetchItems();
+    toast('✅ Invitation acceptée !');
+    history.replaceState(null,'',window.location.pathname);
+    return true;
+  }catch(e){ console.error('teamAcceptInvite',e); toast('❌ '+(e.message||'Erreur')); return false; }
+}
+
+async function teamShareItem(itemType, item, mode){
+  if(!sb||!sbUser||!teamData) return;
+  try{
+    const dn=sbUser.user_metadata?.full_name||sbUser.user_metadata?.name||sbUser.email?.split('@')[0]||'';
+    const payload={team_id:teamData.id,shared_by:sbUser.id,sharer_name:dn,item_type:itemType,
+      item_id:mode==='linked'?item.id:null,share_mode:mode,data:structuredClone(item)};
+    const {error}=await sb.from('team_shared_items').insert(payload);
+    if(error) throw error;
+    await teamFetchItems();
+    toast('✅ '+t('team.share')+' ('+t('team.shareMode.'+mode)+')');
+    const screen=itemType==='recipe'?'Cocktails':itemType==='ingredient'?'Ingredients':'Batch';
+    if(currentScreen===screen) renderCurrentScreen();
+  }catch(e){ console.error('teamShareItem',e); toast('❌ '+(e.message||'Erreur')); }
+}
+
+async function teamUnshareItem(sharedItemId){
+  if(!sb||!sbUser||!teamData) return;
+  if(!confirm(t('team.confirmUnshare'))) return;
+  try{
+    const {error}=await sb.from('team_shared_items').delete().eq('id',sharedItemId);
+    if(error) throw error;
+    teamSharedItems=teamSharedItems.filter(x=>x.id!==sharedItemId);
+    toast(t('deleted'));
+    renderCurrentScreen();
+  }catch(e){ console.error('teamUnshareItem',e); toast('❌ '+(e.message||'Erreur')); }
+}
+
+async function teamSyncLinked(originalItem, itemType){
+  if(!sb||!sbUser||!teamData) return;
+  const linked=teamSharedItems.filter(x=>x.share_mode==='linked'&&x.item_id===originalItem.id&&x.shared_by===sbUser.id&&x.item_type===itemType);
+  if(!linked.length) return;
+  try{
+    await Promise.all(linked.map(sh=>
+      sb.from('team_shared_items').update({data:structuredClone(originalItem),updated_at:new Date().toISOString()}).eq('id',sh.id)
+    ));
+    linked.forEach(sh=>{ const x=teamSharedItems.find(s=>s.id===sh.id); if(x){x.data=structuredClone(originalItem);x.updated_at=new Date().toISOString();} });
+  }catch(e){ console.error('teamSyncLinked',e); }
+}
+
+async function teamFetchNotes(sharedItemId){
+  if(!sb||!sbUser||!teamData) return [];
+  try{
+    const {data,error}=await sb.from('team_notes').select('*').eq('item_id',sharedItemId).order('created_at',{ascending:true});
+    if(error) throw error;
+    return data||[];
+  }catch(e){ console.error('teamFetchNotes',e); return []; }
+}
+
+async function teamAddNote(sharedItemId, content){
+  if(!sb||!sbUser||!teamData||!content.trim()) return false;
+  try{
+    const dn=sbUser.user_metadata?.full_name||sbUser.user_metadata?.name||sbUser.email?.split('@')[0]||'';
+    const {error}=await sb.from('team_notes').insert({team_id:teamData.id,user_id:sbUser.id,author_name:dn,item_id:sharedItemId,content:content.trim()});
+    if(error) throw error;
+    return true;
+  }catch(e){ console.error('teamAddNote',e); return false; }
+}
+
+function renderCurrentScreen(){
+  if(currentScreen==='Cocktails') renderCocktails();
+  else if(currentScreen==='Ingredients') renderIngredients();
+  else if(currentScreen==='Batch') renderBatches();
+}
+
+function updateCtxToggle(){
+  const el=document.getElementById('ctxToggle');
+  if(!el) return;
+  const show=!!(sbUser&&teamData);
+  el.style.display=show?'flex':'none';
+  if(!show && teamContext==='team'){
+    teamContext='personal';
+    localStorage.setItem('mixtura_teamCtx','personal');
+  }
+  el.querySelectorAll('.ctx-btn').forEach(b=>b.classList.toggle('active',b.dataset.ctx===teamContext));
+  // Mettre à jour la visibilité du FAB selon le contexte
+  const fab=document.getElementById('fab');
+  if(fab && ['Cocktails','Ingredients','Batch'].includes(currentScreen)){
+    fab.style.display=teamContext==='personal'?'flex':'none';
+  }
+}
+
+// Event handler pour le toggle contexte
+document.getElementById('ctxToggle').addEventListener('click',e=>{
+  const btn=e.target.closest('.ctx-btn');
+  if(!btn) return;
+  teamContext=btn.dataset.ctx;
+  localStorage.setItem('mixtura_teamCtx',teamContext);
+  updateCtxToggle();
+  renderCurrentScreen();
+});
+
 async function fetchRemoteCatalog(){
   if(!sb||!sbUser) return;
   try{
@@ -861,69 +1337,309 @@ async function fetchRemoteCatalog(){
     console.error('fetchRemoteCatalog',e);
   }
 }
-function openLoginModal(mode='login'){
+function openLoginModal(){
   const m=document.getElementById('modal');
   document.getElementById('modalTitle').textContent='Connexion';
-  const renderLoginForm=(md)=>{
-    const isLogin=md==='login';
+
+  // Étape 1 : saisie de l'email
+  const renderStep1 = () => {
     document.getElementById('modalContent').innerHTML=`
-      <button type="button" id="btnGoogle" style="width:100%;display:flex;align-items:center;justify-content:center;gap:10px;padding:12px;border-radius:var(--radius-sm);border:1px solid rgba(200,169,110,.3);background:var(--navy-700);color:var(--text-1);font-size:14px;font-weight:600;cursor:pointer;margin-bottom:16px">
-        <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
-        Continuer avec Google
-      </button>
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
-        <div style="flex:1;height:1px;background:rgba(200,169,110,.15)"></div>
-        <span style="color:var(--text-3);font-size:12px">ou</span>
-        <div style="flex:1;height:1px;background:rgba(200,169,110,.15)"></div>
-      </div>
-      <div class="field"><label>Email</label><input id="loginEmail" type="email" placeholder="vous@example.com" autofocus></div>
-      <div class="field"><label>Mot de passe</label><input id="loginPwd" type="password" placeholder="••••••••"></div>
-      ${!isLogin?`<div class="field"><label>Confirmer le mot de passe</label><input id="loginPwd2" type="password" placeholder="••••••••"></div>`:''}
-      <div class="form-actions" style="flex-direction:column;gap:8px">
-        <button class="btn btn-primary btn-block" id="btnLoginAction">${isLogin?'Se connecter':'Créer le compte'}</button>
-        <button type="button" class="btn btn-ghost btn-block btn-sm" id="btnToggleMode" style="font-size:13px;color:var(--text-2)">
-          ${isLogin?'Pas encore de compte ? <b>Inscription</b>':'Déjà un compte ? <b>Se connecter</b>'}
+      <p style="font-size:13px;color:var(--text-3);margin-bottom:16px;line-height:1.5">
+        Entre ton email — tu recevras un <b style="color:var(--gold)">code à 6 chiffres</b> valable 10 minutes.<br>
+        Pas de mot de passe, pas de redirect.
+      </p>
+      <div class="field"><label>Email</label><input id="loginEmail" type="email" placeholder="vous@example.com" autocomplete="email" autofocus inputmode="email"></div>
+      <div class="form-actions" style="flex-direction:column;gap:10px">
+        <button class="btn btn-primary btn-block" id="btnSendOtp">📧 Envoyer le code</button>
+        <div style="display:flex;align-items:center;gap:10px;margin:2px 0">
+          <div style="flex:1;height:1px;background:rgba(200,169,110,.12)"></div>
+          <span style="color:var(--text-3);font-size:11px;white-space:nowrap">ou connexion classique</span>
+          <div style="flex:1;height:1px;background:rgba(200,169,110,.12)"></div>
+        </div>
+        <button class="btn btn-ghost btn-block btn-sm" id="btnShowPassword" style="font-size:12px;color:var(--text-3)">🔑 Email + mot de passe</button>
+        <button class="btn btn-ghost btn-block btn-sm" id="btnShowGoogle" style="font-size:12px;color:var(--text-3);display:flex;align-items:center;justify-content:center;gap:8px">
+          <svg width="14" height="14" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+          Google (navigateur recommandé)
         </button>
       </div>`;
-    document.getElementById('btnGoogle').addEventListener('click', async()=>{
-      const{error}=await sb.auth.signInWithOAuth({provider:'google',options:{redirectTo:window.location.origin+window.location.pathname,queryParams:{prompt:'select_account'}}});
-      if(error) toast('Erreur Google: '+error.message);
+
+    const emailInput = document.getElementById('loginEmail');
+
+    document.getElementById('btnSendOtp').addEventListener('click', async () => {
+      const email = emailInput.value.trim();
+      if(!email){ toast('Email requis'); return; }
+      const btn = document.getElementById('btnSendOtp');
+      btn.disabled = true; btn.textContent = 'Envoi…';
+      const {error} = await sb.auth.signInWithOtp({email, options:{shouldCreateUser:true}});
+      if(error){ toast('❌ '+error.message); btn.disabled=false; btn.textContent='📧 Envoyer le code'; return; }
+      renderStep2(email);
     });
-    document.getElementById('btnToggleMode').addEventListener('click',()=>renderLoginForm(isLogin?'signup':'login'));
-    document.getElementById('btnLoginAction').addEventListener('click', async()=>{
-      const email=document.getElementById('loginEmail').value.trim();
-      const pwd=document.getElementById('loginPwd').value;
-      if(!email||!pwd){toast('Email et mot de passe requis');return;}
-      if(isLogin){
-        const{error}=await sb.auth.signInWithPassword({email,password:pwd});
-        if(error){
-          if(error.message.includes('Invalid login')||error.message.includes('invalid')){
-            toast('Email ou mot de passe incorrect');
-          } else { toast('Erreur: '+error.message); }
-          return;
-        }
-        closeModal();
-      } else {
-        const pwd2=document.getElementById('loginPwd2').value;
-        if(pwd!==pwd2){toast('Les mots de passe ne correspondent pas');return;}
-        if(pwd.length<6){toast('Mot de passe trop court (min. 6 caractères)');return;}
-        const{data,error}=await sb.auth.signUp({email,password:pwd});
-        if(error){toast('Erreur: '+error.message);return;}
-        if(data?.session){
-          // Email confirmation disabled — user is immediately logged in
-          closeModal();
-          toast('✅ Compte créé et connecté !');
-        } else {
-          closeModal();
-          toast('📧 Compte créé ! Confirmez votre email pour activer la synchronisation.', 5000);
-        }
-      }
+
+    emailInput.addEventListener('keydown', e => { if(e.key==='Enter') document.getElementById('btnSendOtp')?.click(); });
+
+    document.getElementById('btnShowPassword').addEventListener('click', () => renderStepPassword());
+    document.getElementById('btnShowGoogle').addEventListener('click', async () => {
+      const {data, error} = await sb.auth.signInWithOAuth({provider:'google', options:{
+        redirectTo: window.location.origin+window.location.pathname,
+        queryParams:{prompt:'select_account'}
+      }});
+      if(error) toast('❌ '+error.message);
     });
   };
-  renderLoginForm(mode);
+
+  // Étape 2 : saisie du code OTP
+  const renderStep2 = (email) => {
+    document.getElementById('modalContent').innerHTML=`
+      <p style="font-size:13px;color:var(--text-2);margin-bottom:4px">Code envoyé à :</p>
+      <p style="font-size:14px;font-weight:700;color:var(--gold);margin-bottom:16px">${escapeHtml(email)}</p>
+      <p style="font-size:12px;color:var(--text-3);margin-bottom:14px">Vérifie ta boîte mail (et les spams). Le code expire dans 10 min.</p>
+      <div class="field">
+        <label>Code à 6 chiffres</label>
+        <input id="loginOtp" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="123456"
+          autocomplete="one-time-code" autofocus
+          style="font-size:28px;font-weight:800;letter-spacing:.35em;text-align:center">
+      </div>
+      <div class="form-actions" style="flex-direction:column;gap:8px">
+        <button class="btn btn-primary btn-block" id="btnVerifyOtp">✅ Vérifier le code</button>
+        <button class="btn btn-ghost btn-block btn-sm" id="btnResendOtp" style="font-size:12px;color:var(--text-3)">Renvoyer le code</button>
+        <button class="btn btn-ghost btn-block btn-sm" id="btnBackOtp" style="font-size:12px;color:var(--text-3)">← Changer d'email</button>
+      </div>`;
+
+    const otpInput = document.getElementById('loginOtp');
+
+    document.getElementById('btnVerifyOtp').addEventListener('click', async () => {
+      const token = otpInput.value.trim().replace(/\s/g,'');
+      if(token.length!==6){ toast('Code à 6 chiffres requis'); return; }
+      const btn = document.getElementById('btnVerifyOtp');
+      btn.disabled=true; btn.textContent='Vérification…';
+      const {error} = await sb.auth.verifyOtp({email, token, type:'email'});
+      if(error){ toast('❌ Code incorrect ou expiré'); btn.disabled=false; btn.textContent='✅ Vérifier le code'; return; }
+      closeModal();
+      toast('✅ Connecté !');
+    });
+
+    otpInput.addEventListener('keydown', e => { if(e.key==='Enter') document.getElementById('btnVerifyOtp')?.click(); });
+    otpInput.addEventListener('input', () => { if(otpInput.value.length===6) document.getElementById('btnVerifyOtp')?.click(); });
+
+    document.getElementById('btnResendOtp').addEventListener('click', async () => {
+      const {error} = await sb.auth.signInWithOtp({email, options:{shouldCreateUser:true}});
+      if(!error) toast('📧 Code renvoyé !'); else toast('❌ '+error.message);
+    });
+    document.getElementById('btnBackOtp').addEventListener('click', () => renderStep1());
+  };
+
+  // Option classique : email + mot de passe
+  const renderStepPassword = (mode='login') => {
+    const isLogin = mode==='login';
+    document.getElementById('modalContent').innerHTML=`
+      <div class="field"><label>Email</label><input id="loginEmail" type="email" placeholder="vous@example.com" autofocus autocomplete="email"></div>
+      <div class="field"><label>Mot de passe</label><input id="loginPwd" type="password" placeholder="••••••••" autocomplete="${isLogin?'current-password':'new-password'}"></div>
+      ${!isLogin?`<div class="field"><label>Confirmer</label><input id="loginPwd2" type="password" placeholder="••••••••"></div>`:''}
+      <div class="form-actions" style="flex-direction:column;gap:8px">
+        <button class="btn btn-primary btn-block" id="btnLoginAction">${isLogin?'Se connecter':'Créer le compte'}</button>
+        ${isLogin?`<button class="btn btn-ghost btn-block btn-sm" id="btnForgot" style="font-size:12px;color:var(--text-3)">Mot de passe oublié ?</button>`:''}
+        <button class="btn btn-ghost btn-block btn-sm" id="btnToggleMode" style="font-size:12px;color:var(--text-3)">
+          ${isLogin?'Pas de compte ? Inscription':'Déjà un compte ? Connexion'}
+        </button>
+        <button class="btn btn-ghost btn-block btn-sm" id="btnBackPwd" style="font-size:12px;color:var(--text-3)">← Code par email</button>
+      </div>`;
+
+    document.getElementById('btnLoginAction').addEventListener('click', async () => {
+      const email = document.getElementById('loginEmail').value.trim();
+      const pwd = document.getElementById('loginPwd').value;
+      if(!email||!pwd){ toast('Email et mot de passe requis'); return; }
+      if(isLogin){
+        const {error} = await sb.auth.signInWithPassword({email, password:pwd});
+        if(error){ toast('❌ Email ou mot de passe incorrect'); return; }
+        closeModal();
+      } else {
+        const pwd2 = document.getElementById('loginPwd2').value;
+        if(pwd!==pwd2){ toast('Les mots de passe ne correspondent pas'); return; }
+        if(pwd.length<6){ toast('Mot de passe trop court (min. 6 car.)'); return; }
+        const {data, error} = await sb.auth.signUp({email, password:pwd});
+        if(error){ toast('❌ '+error.message); return; }
+        if(data?.session){ closeModal(); toast('✅ Compte créé !'); }
+        else { closeModal(); toast('📧 Vérifie ton email pour confirmer le compte.', 4000); }
+      }
+    });
+
+    document.getElementById('btnForgot')?.addEventListener('click', async () => {
+      const email = document.getElementById('loginEmail').value.trim();
+      if(!email){ toast('Entre ton email d\'abord'); return; }
+      const {error} = await sb.auth.resetPasswordForEmail(email, {redirectTo: window.location.origin+window.location.pathname});
+      if(!error) toast('📧 Lien de réinitialisation envoyé !', 4000);
+      else toast('❌ '+error.message);
+    });
+
+    document.getElementById('btnToggleMode').addEventListener('click', () => renderStepPassword(isLogin?'signup':'login'));
+    document.getElementById('btnBackPwd').addEventListener('click', () => renderStep1());
+  };
+
+  renderStep1();
   m.classList.add('show');
 }
-const BUILD = '2026-04-28';
+
+function openChangePasswordModal(){
+  const m=document.getElementById('modal');
+  document.getElementById('modalTitle').textContent='Nouveau mot de passe';
+  document.getElementById('modalContent').innerHTML=`
+    <div class="field"><label>Nouveau mot de passe</label><input id="newPwd" type="password" placeholder="••••••••" autofocus></div>
+    <div class="field"><label>Confirmer</label><input id="newPwd2" type="password" placeholder="••••••••"></div>
+    <div class="form-actions">
+      <button class="btn btn-primary btn-block" id="btnSetPwd">Enregistrer</button>
+    </div>`;
+  document.getElementById('btnSetPwd').addEventListener('click', async () => {
+    const pwd = document.getElementById('newPwd').value;
+    const pwd2 = document.getElementById('newPwd2').value;
+    if(pwd.length<6){ toast('Mot de passe trop court'); return; }
+    if(pwd!==pwd2){ toast('Les mots de passe ne correspondent pas'); return; }
+    const {error} = await sb.auth.updateUser({password: pwd});
+    if(error){ toast('❌ '+error.message); return; }
+    closeModal();
+    toast('✅ Mot de passe mis à jour !');
+  });
+  m.classList.add('show');
+}
+const BUILD = '2026-05-15a';
+
+/* ═══════════════════════════════════════
+   TUTORIEL — contenu du guide complet
+═══════════════════════════════════════ */
+const TUTORIAL_HTML = `
+
+<div style="margin-bottom:20px">
+  <div style="color:var(--gold);font-weight:800;font-size:16px;margin-bottom:10px;display:flex;align-items:center;gap:8px">🍸 Cocktails — Créer & gérer tes recettes</div>
+  <div style="display:flex;flex-direction:column;gap:6px">
+    <div class="tuto-step"><span class="tuto-action">✚ FAB</span> Créer un cocktail : nom, verre, famille, méthode, garniture, ingrédients</div>
+    <div class="tuto-step"><span class="tuto-action">📖</span> Ouvrir la Vue Livre (recette complète + notes + dégustation)</div>
+    <div class="tuto-step"><span class="tuto-action">📤</span> Partager avec l'équipe → choisir Copie (snapshot) ou Lié (auto-sync)</div>
+    <div class="tuto-step"><span class="tuto-action">✏️ / 🗑</span> Modifier ou supprimer le cocktail</div>
+    <div class="tuto-step"><span class="tuto-action">Filtre haut</span> Toutes les cartes, IBA, ou tes cartes personnalisées</div>
+    <div class="tuto-step"><span class="tuto-action">Appui long</span> Sélection multiple → supprimer ou exporter en lot</div>
+    <div class="tuto-step"><span class="tuto-action">📤 sur la carte</span> Partager tous les cocktails d'une carte d'un coup avec l'équipe</div>
+    <div style="background:rgba(200,169,110,.07);border-left:3px solid var(--gold);padding:8px 10px;border-radius:0 6px 6px 0;margin-top:4px;font-size:12px">
+      💡 <b>Food cost</b> : renseigne le prix et la taille de bouteille des ingrédients → Mixtura calcule automatiquement le coût et la marge de chaque recette.
+    </div>
+  </div>
+</div>
+
+<div style="margin-bottom:20px">
+  <div style="color:var(--gold);font-weight:800;font-size:16px;margin-bottom:10px;display:flex;align-items:center;gap:8px">✨ Vue Livre — Notes & dégustation</div>
+  <div style="display:flex;flex-direction:column;gap:6px">
+    <div class="tuto-step"><span class="tuto-action">Onglet Recette</span> Ingrédients, quantités, étapes, verre, famille, alcool, garniture</div>
+    <div class="tuto-step"><span class="tuto-action">Onglet Notes</span> Active les cases : Profil sensoriel · Notes aromatiques · Photo · Croquis</div>
+    <div class="tuto-step"><span class="tuto-action">📊 Profil</span> Curseurs interactifs : Puissance / Amertume / Sauer (0–10)</div>
+    <div class="tuto-step"><span class="tuto-action">🌿 Arômes</span> Zone de texte libre : arômes, bouche, finale, accords mets</div>
+    <div class="tuto-step"><span class="tuto-action">📷 Photo</span> Caméra ou galerie, compressée et stockée dans le cloud</div>
+    <div class="tuto-step"><span class="tuto-action">✏️ Croquis</span> Dessin à la main sur un canvas (effacer avec 🗑️)</div>
+    <div class="tuto-step"><span class="tuto-action">💾</span> Sauvegarde manuelle ou automatique à la fermeture</div>
+    <div class="tuto-step"><span class="tuto-action">Swipe ←→</span> Naviguer entre les onglets avec un glissement</div>
+  </div>
+</div>
+
+<div style="margin-bottom:20px">
+  <div style="color:var(--gold);font-weight:800;font-size:16px;margin-bottom:10px;display:flex;align-items:center;gap:8px">🧪 Ingrédients — Stock & maison</div>
+  <div style="display:flex;flex-direction:column;gap:6px">
+    <div class="tuto-step"><span class="tuto-action">✚ FAB</span> Créer un ingrédient : deux types possibles</div>
+    <div class="tuto-step"><span class="tuto-action">Type Acheté</span> Nom, catégorie, prix bouteille, taille (cl/ml/L) → coût/cl calculé auto</div>
+    <div class="tuto-step"><span class="tuto-action">Type Maison</span> Sirop, infusion, liqueur... Décris la recette + rendement (principal + sous-produits)</div>
+    <div class="tuto-step"><span class="tuto-action">Stock</span> Quantité actuelle et minimum (alerte rouge 🔴 si stock trop bas)</div>
+    <div class="tuto-step"><span class="tuto-action">Filtre chips</span> Spiritueux / Liqueur / Sirop / Jus-Sucre / Bitters / Garniture / Maison / Autre</div>
+    <div class="tuto-step"><span class="tuto-action">📤</span> Partager un ingrédient maison avec l'équipe</div>
+  </div>
+</div>
+
+<div style="margin-bottom:20px">
+  <div style="color:var(--gold);font-weight:800;font-size:16px;margin-bottom:10px;display:flex;align-items:center;gap:8px">📋 Batch — Préparations en volume</div>
+  <div style="display:flex;flex-direction:column;gap:6px">
+    <div class="tuto-step"><span class="tuto-action">✚ FAB</span> Nouveau batch : nom, date, ajouter cocktails et/ou ingrédients</div>
+    <div class="tuto-step"><span class="tuto-action">Cocktail</span> Indique le nombre de services → toutes les matières premières sont calculées</div>
+    <div class="tuto-step"><span class="tuto-action">Ingrédient</span> Ajoute une quantité directe (ex: 5L de sirop de sucre à préparer)</div>
+    <div class="tuto-step"><span class="tuto-action">Résumé</span> Vue agrégée de tous les ingrédients nécessaires avec les quantités totales</div>
+    <div class="tuto-step"><span class="tuto-action">Maison</span> Si un ingrédient est de type Maison, sa recette est détaillée dans le batch</div>
+    <div class="tuto-step"><span class="tuto-action">📤</span> Partager le batch avec l'équipe</div>
+  </div>
+</div>
+
+<div style="margin-bottom:20px">
+  <div style="color:var(--gold);font-weight:800;font-size:16px;margin-bottom:10px;display:flex;align-items:center;gap:8px">👥 Équipe — Partage & collaboration</div>
+  <div style="display:flex;flex-direction:column;gap:6px">
+    <div class="tuto-step"><span class="tuto-action">Paramètres</span> Créer une équipe (nom → code 6 lettres généré) ou Rejoindre (entrer le code)</div>
+    <div class="tuto-step"><span class="tuto-action">Toggle 👤↔👥</span> Basculer entre mode Personnel et mode Équipe en haut de chaque écran</div>
+    <div class="tuto-step"><span class="tuto-action">Mode Équipe</span> Affiche uniquement les items partagés par les membres</div>
+    <div class="tuto-step"><span class="tuto-action">Partager 📤</span> Deux modes : <b>Copie</b> (snapshot figé) ou <b>Lié</b> (se met à jour quand tu modifies)</div>
+    <div class="tuto-step"><span class="tuto-action">Cliquer un item</span> Ouvre le Livre en 3 onglets : Recette · ✨ Notes · 💬 Équipe</div>
+    <div class="tuto-step"><span class="tuto-action">💬 Équipe</span> Lis et ajoute des commentaires partagés avec toute l'équipe</div>
+    <div class="tuto-step"><span class="tuto-action">📥 Importer</span> Copier un item partagé dans ta collection personnelle</div>
+    <div class="tuto-step"><span class="tuto-action">Rôles</span> Admin (tout gérer) · Manager (partager+commenter) · Barman (lecture+commentaires)</div>
+    <div class="tuto-step"><span class="tuto-action">Inviter</span> Depuis les paramètres équipe → lien d'invitation avec rôle choisi</div>
+  </div>
+</div>
+
+<div style="margin-bottom:20px">
+  <div style="color:var(--gold);font-weight:800;font-size:16px;margin-bottom:10px;display:flex;align-items:center;gap:8px">📖 Catalogue IBA</div>
+  <div style="display:flex;flex-direction:column;gap:6px">
+    <div class="tuto-step"><span class="tuto-action">Filtre IBA</span> 201 cocktails de référence : Contemporains, Classiques, Nouvelles Ères</div>
+    <div class="tuto-step"><span class="tuto-action">＋</span> Ajouter un cocktail IBA à ta collection (tu peux ensuite le modifier)</div>
+    <div class="tuto-step"><span class="tuto-action">📖</span> Ouvrir la Vue Livre : ajouter tes notes de dégustation sur un cocktail IBA</div>
+    <div style="background:rgba(200,169,110,.07);border-left:3px solid var(--gold);padding:8px 10px;border-radius:0 6px 6px 0;margin-top:4px;font-size:12px">
+      💡 Connecte-toi pour accéder aux 201 recettes. Sans connexion, seul le catalogue de base est disponible.
+    </div>
+  </div>
+</div>
+
+<div style="margin-bottom:20px">
+  <div style="color:var(--gold);font-weight:800;font-size:16px;margin-bottom:10px;display:flex;align-items:center;gap:8px">⏱️ Minuteur</div>
+  <div style="display:flex;flex-direction:column;gap:6px">
+    <div class="tuto-step"><span class="tuto-action">Bouton ⏱️</span> Fixe en bas à gauche de l'écran</div>
+    <div class="tuto-step"><span class="tuto-action">Commentaire</span> Décris ce que tu surveilles : "Infusion gin 24h", "Sirop caramel", "Marinage"…</div>
+    <div class="tuto-step"><span class="tuto-action">Durée mm:ss</span> Indique la durée → ▶ Go pour démarrer</div>
+    <div class="tuto-step"><span class="tuto-action">Chips</span> Compte à rebours flottant au-dessus de la nav — visible sur tous les écrans</div>
+    <div class="tuto-step"><span class="tuto-action">Expiration</span> Bip sonore + notification push (même écran verrouillé ou app en arrière-plan)</div>
+    <div class="tuto-step"><span class="tuto-action">Multi-timers</span> Plusieurs minuteurs simultanés, tous persistés après rechargement</div>
+  </div>
+</div>
+
+<div style="margin-bottom:20px">
+  <div style="color:var(--gold);font-weight:800;font-size:16px;margin-bottom:10px;display:flex;align-items:center;gap:8px">🔐 Connexion & Synchronisation</div>
+  <div style="display:flex;flex-direction:column;gap:6px">
+    <div class="tuto-step"><span class="tuto-action">Code OTP ✉️</span> Entre ton email → reçois un code 6 chiffres → saisis-le → connecté ! (recommandé PWA)</div>
+    <div class="tuto-step"><span class="tuto-action">Mot de passe 🔑</span> Email + mot de passe classique, avec option "Mot de passe oublié"</div>
+    <div class="tuto-step"><span class="tuto-action">Google</span> Connexion rapide via navigateur</div>
+    <div class="tuto-step"><span class="tuto-action">Synchro auto</span> Toutes tes données (cocktails, ingrédients, notes, photos) sont sauvées dans le cloud</div>
+    <div class="tuto-step"><span class="tuto-action">Hors-ligne</span> L'app fonctionne sans réseau avec les dernières données synchronisées</div>
+  </div>
+</div>
+
+<div style="margin-bottom:20px">
+  <div style="color:var(--gold);font-weight:800;font-size:16px;margin-bottom:10px;display:flex;align-items:center;gap:8px">⚙️ Paramètres</div>
+  <div style="display:flex;flex-direction:column;gap:6px">
+    <div class="tuto-step"><span class="tuto-action">Coordonnées</span> Prénom, nom, email, téléphone (pour les exports PDF à venir)</div>
+    <div class="tuto-step"><span class="tuto-action">Bar / Restaurant</span> Nom de l'établissement, adresse (apparaît dans les exports)</div>
+    <div class="tuto-step"><span class="tuto-action">Export JSON</span> Sauvegarde ingrédients seuls, ou tout (cocktails + ingrédients + batches)</div>
+    <div class="tuto-step"><span class="tuto-action">Export Excel</span> Fichier .xlsx structuré : cocktails + food cost + ingrédients</div>
+    <div class="tuto-step"><span class="tuto-action">Import</span> Restaure depuis un fichier JSON ou Excel MIXTURA</div>
+    <div class="tuto-step"><span class="tuto-action">Unités perso</span> Définis tes propres unités (ex: 1 goutte = 0.05 ml, 1 dash = 0.6 ml)</div>
+    <div class="tuto-step"><span class="tuto-action">Thème</span> Mode sombre 🌙 ou clair ☀️</div>
+    <div class="tuto-step"><span class="tuto-action">Langue</span> Français 🇫🇷 ou English 🇬🇧</div>
+    <div class="tuto-step"><span class="tuto-action">Reset</span> Efface toutes les données locales (les données cloud restent intactes)</div>
+    <div class="tuto-step"><span class="tuto-action">Update</span> Force le rechargement de la dernière version de l'app</div>
+  </div>
+</div>
+
+<div style="background:rgba(200,169,110,.07);border:1px solid rgba(200,169,110,.2);border-radius:10px;padding:14px;font-size:13px">
+  <div style="color:var(--gold);font-weight:700;margin-bottom:10px">💡 Astuces</div>
+  <div style="display:flex;flex-direction:column;gap:5px">
+    <div>📱 <b>Installer l'app</b> : dans ton navigateur → "Ajouter à l'écran d'accueil" → fonctionne comme une vraie app native</div>
+    <div>👆 <b>Appui long</b> sur un cocktail ou ingrédient → sélection multiple → supprimer ou exporter en lot</div>
+    <div>👈👉 <b>Swipe</b> gauche/droite dans la Vue Livre pour changer d'onglet</div>
+    <div>💰 <b>Food cost</b> calculé uniquement si le prix bouteille et la taille sont renseignés dans l'ingrédient</div>
+    <div>🔗 <b>Partage Lié</b> : quand tu modifies un cocktail, le partage équipe se met à jour automatiquement</div>
+    <div>☁️ <b>Données photos</b> : les photos du Livre sont stockées dans Supabase Storage (lien permanent)</div>
+  </div>
+</div>
+`;
+
 document.getElementById('buildDate').textContent = 'build ' + BUILD;
 document.getElementById('homeBuild').textContent = BUILD;
 
@@ -969,7 +1685,23 @@ const I18N = {
     'saved':'Enregistré','imported':'Importé','exported':'Exporté','deleted':'Supprimé',
     'reset.confirm':'Effacer toutes les données ?','Home':'Accueil',
     'fab.newIng':'Nouvel ingrédient','fab.scan':'Scanner facture',
-    'incomplete':'À compléter','incomplete.tooltip':'Cet ingrédient est utilisé dans une recette mais pas encore renseigné'
+    'incomplete':'À compléter','incomplete.tooltip':'Cet ingrédient est utilisé dans une recette mais pas encore renseigné',
+    'team':'Équipe','team.create':"Créer une équipe",'team.join':"Rejoindre une équipe",
+    'team.joinCode':"Rejoindre avec un code",'team.name':"Nom de l'équipe",'team.code':"Code d'invitation",
+    'team.codeCopy':"Copier le code",'team.invite':"Inviter",'team.inviteEmail':"Inviter par email",
+    'team.leave':"Quitter l'équipe",'team.share':"Partager avec l'équipe",'team.unshare':"Retirer du partage",
+    'team.notes':"Notes équipe",'team.addNote':"Ajouter une note...",'team.submitNote':"Ajouter",
+    'team.role.admin':'👑 Admin','team.role.manager':'⭐ Manager','team.role.user':'🍹 Barman',
+    'team.context.personal':'Perso','team.context.team':'Équipe',
+    'team.shareMode.copy':'📷 Copie','team.shareMode.linked':'🔗 Lié',
+    'team.empty':'Aucun contenu partagé dans l\'équipe','team.myShares':'Mes partages',
+    'team.allShares':'Partagés par l\'équipe','team.sharedBy':'par','team.updatedLinked':'Mettre à jour',
+    'team.noTeam':"Pas encore dans une équipe",'team.noTeamSub':"Crée ou rejoins une équipe pour collaborer",
+    'team.notLogged':"Connectez-vous pour utiliser les fonctionnalités équipe",
+    'team.shareChoose':"Comment partager ?",
+    'team.shareModeCopyDesc':"Copie indépendante — les modifs futures ne seront pas répercutées",
+    'team.shareModeLinkedDesc':"Lien vivant — tu peux synchroniser ta version à tout moment",
+    'team.confirmUnshare':"Retirer ce partage ?",'team.confirmLeave':"Quitter l'équipe ?"
   },
   en:{
     'tagline':'Cocktail Manager',
@@ -1011,7 +1743,23 @@ const I18N = {
     'saved':'Saved','imported':'Imported','exported':'Exported','deleted':'Deleted',
     'reset.confirm':'Erase all data?','Home':'Home',
     'fab.newIng':'New ingredient','fab.scan':'Scan invoice',
-    'incomplete':'To complete','incomplete.tooltip':'This ingredient is used in a recipe but not yet filled in'
+    'incomplete':'To complete','incomplete.tooltip':'This ingredient is used in a recipe but not yet filled in',
+    'team':'Team','team.create':"Create a team",'team.join':"Join a team",
+    'team.joinCode':"Join with a code",'team.name':"Team name",'team.code':"Invite code",
+    'team.codeCopy':"Copy code",'team.invite':"Invite",'team.inviteEmail':"Invite by email",
+    'team.leave':"Leave team",'team.share':"Share with team",'team.unshare':"Remove share",
+    'team.notes':"Team notes",'team.addNote':"Add a note...",'team.submitNote':"Add",
+    'team.role.admin':'👑 Admin','team.role.manager':'⭐ Manager','team.role.user':'🍹 Bartender',
+    'team.context.personal':'Personal','team.context.team':'Team',
+    'team.shareMode.copy':'📷 Copy','team.shareMode.linked':'🔗 Linked',
+    'team.empty':'No shared content in this team','team.myShares':'My shares',
+    'team.allShares':'Shared by team','team.sharedBy':'by','team.updatedLinked':'Sync update',
+    'team.noTeam':"Not in a team yet",'team.noTeamSub':"Create or join a team to collaborate",
+    'team.notLogged':"Sign in to use team features",
+    'team.shareChoose':"How to share?",
+    'team.shareModeCopyDesc':"Independent copy — future edits won't be reflected",
+    'team.shareModeLinkedDesc':"Live link — you can push updates to the team at any time",
+    'team.confirmUnshare':"Remove this share?",'team.confirmLeave':"Leave the team?"
   }
 };
 function t(k){return (I18N[state.lang]||I18N.fr)[k]||k}
@@ -1037,6 +1785,11 @@ const DEFAULT_STATE = {
 };
 
 let state = load();
+
+/* ── Variables globales équipe ── */
+let teamData = null;        // {id, name, code, role, members:[...]} ou null
+let teamSharedItems = [];   // [{id, team_id, shared_by, sharer_name, item_type, item_id, share_mode, data, created_at, updated_at}]
+let teamContext = localStorage.getItem('mixtura_teamCtx') || 'personal'; // 'personal'|'team'
 
 function load(){
   try {
@@ -1080,7 +1833,7 @@ function go(screen){
   document.getElementById('btnBack').classList.toggle('show', screen!=='Home');
   const key = screen==='Home'?'Home':screen.toLowerCase();
   document.getElementById('screenTitle').textContent = screen==='Home' ? 'MIXTURA' : t(key);
-  document.getElementById('fab').style.display = ['Cocktails','Ingredients','Batch'].includes(screen) ? 'flex':'none';
+  document.getElementById('fab').style.display = (['Cocktails','Ingredients','Batch'].includes(screen) && teamContext==='personal') ? 'flex':'none';
   // Sync active state on all nav buttons
   const goKey = {Cocktails:'cocktails',Ingredients:'ingredients',Batch:'batch',Settings:'settings'}[screen]||'';
   document.querySelectorAll('[data-go]').forEach(b=>{
@@ -1958,9 +2711,9 @@ const CATALOG = [
    ingredients:[{name:'Angostura bitters',qty:4.5,unit:'cl'},{name:'Sirop d\'orgeat',qty:2.25,unit:'cl'},{name:'Rye whisky',qty:0.75,unit:'cl'},{name:'Jus de citron',qty:2.25,unit:'cl'}],
    steps:'Shaker avec glace. Double-strain. Rare — le bitter est l\'ingrédient principal.'},
 ];
-CATALOG.slice(0,6).forEach(c=>c.livre='Tuto');
+// Tuto livre supprimé — tous les cocktails du catalogue sont dans IBA
 CATALOG.slice(6).forEach(c=>c.livre='IBA');
-const BUILTIN_BOOKS=[{id:'Tuto',name:'Tuto',icon:'📚'},{id:'IBA',name:'IBA',icon:'🏆'}];
+const BUILTIN_BOOKS=[{id:'IBA',name:'IBA',icon:'🏆'}];
 const GLASS_MAP={
   'Cocktail Glass':'coupe','Lowball':'old-fashioned','Highball':'highball',
   'Martini Glass':'martini','Martini glass':'martini','Martin Glass':'martini',
@@ -2051,11 +2804,10 @@ function openEditLivreMenu(bookName){
 function buildBookOptions(current){
   const opts=[
     `<option value="">— Sans livre —</option>`,
-    `<option value="Tuto"${current==='Tuto'?' selected':''}>📚 Tuto</option>`,
     `<option value="IBA"${current==='IBA'?' selected':''}>🏆 IBA</option>`
   ];
   const extra=[...state.books];
-  if(current&&current!=='Tuto'&&current!=='IBA'&&!extra.includes(current)) extra.push(current);
+  if(current&&current!=='IBA'&&!extra.includes(current)) extra.push(current);
   extra.forEach(b=>opts.push(`<option value="${escapeHtml(b)}"${current===b?' selected':''}>${escapeHtml(b)}</option>`));
   opts.push(`<option value="__new__">＋ Créer un livre...</option>`);
   return opts.join('');
@@ -2101,11 +2853,23 @@ function renderRecent(){
 }
 
 function renderCocktails(){
+  const container = document.getElementById('cocktailList');
+
+  // Contexte équipe : masquer recent + livrebar, afficher contenu équipe
+  if(teamContext==='team'){
+    const recentEl=document.getElementById('recentSection');
+    const livreEl=document.getElementById('livrebar-wrap');
+    if(recentEl) recentEl.innerHTML='';
+    if(livreEl) livreEl.innerHTML='';
+    renderTeamContent('recipe', container);
+    return;
+  }
+
   renderRecent();
   renderLivreBar();
+
   const plan = getPlan();
   const planCfg = PLANS[plan];
-  const container = document.getElementById('cocktailList');
   container.innerHTML = '';
 
   const q = filters.cocktail.search.toLowerCase().trim();
@@ -2130,7 +2894,7 @@ function renderCocktails(){
     const bk=BUILTIN_BOOKS.find(b=>b.id===livreId);
     const label=bk?bk.icon+' '+bk.name:livreId;
     const stateKey='cat_'+livreId+'_open';
-    const demoHint=livreId==='Tuto'&&plan==='demo'?`· ${getCatalog().length-6} autres à la connexion`:null;
+    const demoHint=null;
     renderCatalogGroup(container,label,items,stateKey,demoHint);
   });
 
@@ -2203,10 +2967,13 @@ function renderCocktails(){
     menuNames.forEach(menu=>{
       const group = document.createElement('div');
       group.className='menu-group open';
-      group.innerHTML=`<div class="menu-group-head"><div class="menu-group-name">${escapeHtml(menu)}</div><div class="menu-group-count">${byMenu[menu].length}</div><div class="menu-group-chevron">${ICON.chevron}</div></div><div class="menu-group-body"><div class="list"></div></div>`;
+      group.innerHTML=`<div class="menu-group-head"><div class="menu-group-name">${escapeHtml(menu)}</div><div class="menu-group-count">${byMenu[menu].length}</div>${sbUser&&teamData?`<button class="item-act" data-act="sharemenu" title="Partager toute la carte" style="font-size:14px;flex-shrink:0">📤</button>`:''}  <div class="menu-group-chevron">${ICON.chevron}</div></div><div class="menu-group-body"><div class="list"></div></div>`;
       const listEl = group.querySelector('.list');
       byMenu[menu].forEach(c=>listEl.appendChild(renderCocktailItem(c)));
-      group.querySelector('.menu-group-head').addEventListener('click',()=>group.classList.toggle('open'));
+      group.querySelector('.menu-group-head').addEventListener('click',e=>{
+        if(e.target.closest('[data-act="sharemenu"]')){ openShareMenuModal(menu, byMenu[menu]); return; }
+        group.classList.toggle('open');
+      });
       container.appendChild(group);
     });
     if(byMenu.__none__){
@@ -2232,13 +2999,15 @@ function renderCocktailItem(c, isCatalog=false){
       <button class="item-act" data-act="livre" title="Vue livre" style="font-size:15px">📖</button>
       ${isCatalog
         ? `<button class="item-act" data-act="add" title="Ajouter à mes cocktails" style="color:var(--gold)">＋</button>`
-        : `<button class="item-act" data-act="edit" aria-label="${t('edit')}">${ICON.edit}</button>
+        : `${sbUser&&teamData?`<button class="item-act" data-act="share" title="${t('team.share')}" style="font-size:14px">📤</button>`:''}
+           <button class="item-act" data-act="edit" aria-label="${t('edit')}">${ICON.edit}</button>
            <button class="item-act del" data-act="del" aria-label="${t('delete')}">${ICON.del}</button>`
       }
     </div>`;
   el.addEventListener('click', e=>{
     const act = e.target.closest('[data-act]')?.dataset.act;
     if(act==='livre'){ openLivreView(c, isCatalog); return; }
+    if(act==='share'){ openShareModal('recipe', c); return; }
     if(act==='edit'){ openCocktailForm(c); return; }
     if(act==='del'){ if(confirm(t('confirm.delete'))){ state.cocktails=state.cocktails.filter(x=>x.id!==c.id); save(); renderCocktails(); toast(t('deleted')); } return; }
     if(act==='add'){ addCatalogCocktail(c); return; }
@@ -2504,6 +3273,14 @@ const UNITS = [
 ];
 
 function renderIngredients(){
+  // Contexte équipe : masquer les filtres perso
+  if(teamContext==='team'){
+    document.getElementById('filterIngCategory').innerHTML='';
+    document.getElementById('filterIngType').innerHTML='';
+    renderTeamContent('ingredient', document.getElementById('ingredientList'));
+    return;
+  }
+
   const cats = uniq(state.ingredients.map(i=>i.category));
   renderChips('filterIngCategory','ingredient','category',[{v:'all',l:t('all')+' · '+t('category')}, ...cats.map(v=>({v,l:v}))]);
   renderChips('filterIngType','ingredient','type',[{v:'all',l:t('all')},{v:'bought',l:t('bought')},{v:'homemade',l:t('homemade')}]);
@@ -2544,11 +3321,13 @@ function renderIngredientItem(i){
       <div class="item-meta">${escapeHtml(i.category||'')} · ${stockTxt}</div>
     </div>
     <div class="item-actions">
+      ${sbUser&&teamData?`<button class="item-act" data-act="share" title="${t('team.share')}" style="font-size:14px">📤</button>`:''}
       <button class="item-act" data-act="edit">${ICON.edit}</button>
       <button class="item-act del" data-act="del">${ICON.del}</button>
     </div>`;
   el.addEventListener('click', e=>{
     const act = e.target.closest('[data-act]')?.dataset.act;
+    if(act==='share'){ openShareModal('ingredient', i); return; }
     if(act==='edit'){ openIngredientForm(i); return; }
     if(act==='del'){ if(confirm(t('confirm.delete'))){ state.ingredients=state.ingredients.filter(x=>x.id!==i.id); save(); renderIngredients(); toast(t('deleted')); } return; }
     if(selection.size>0){ toggleSel(i.id); } else { openIngredientDetail(i); }
@@ -2615,7 +3394,7 @@ function openIngredientForm(i){
       <div class="section-title">📋 Description du processus</div>
       <div class="field"><textarea id="gSteps" placeholder="Étapes de préparation, infusion, temps de repos…">${escapeHtml(i.steps||'')}</textarea></div>
       <div class="section-title" style="margin-top:16px">📥 Ingrédients d'entrée</div>
-      <div style="font-size:12px;color:var(--text-3);margin:6px 0 8px">Utilise <strong style="color:var(--gold)">%</strong> pour les doses relatives (ex: lait de clarification). Les nouveaux noms seront créés automatiquement.</div>
+      <div style="font-size:12px;color:var(--text-3);margin:6px 0 8px">Utilise <strong style="color:var(--gold)">%</strong> pour les doses relatives. Les nouveaux noms seront créés automatiquement.</div>
       <div id="recRows"></div>
       <button type="button" class="btn btn-ghost btn-sm" id="btnAddRec" style="margin-top:6px">+ Ingrédient</button>
       <div class="section-title" style="margin-top:18px">📤 Produits obtenus</div>
@@ -2662,7 +3441,7 @@ function openIngredientForm(i){
       <button class="btn btn-primary btn-block" id="btnSaveI">${t('save')}</button>
     </div>`;
 
-  /* ── Autocomplete ingrédients (dropdown positionné en fixed) ── */
+  /* ── Autocomplete ingrédients ── */
   function makeIngAc(input, onSelect){
     const dd=document.createElement('div');
     dd.className='ac-dd';
@@ -2813,6 +3592,7 @@ function openIngredientForm(i){
     }
     outputWarnEl.style.cssText=`display:block;background:${bg};border:1px solid ${bc};border-radius:8px;padding:10px 12px;font-size:12px;color:${col};line-height:1.6`;
     outputWarnEl.innerHTML=`${icon} <b>${msg}</b><br><span style="font-size:11px;opacity:.9">Entrées : <b>${inLabel}</b> · Sorties : ${outStr}${lossStr} → <b>${pct.toFixed(0)}%</b> comptabilisé</span>`;
+
   }
   checkOutputCoherence();
 
@@ -3218,9 +3998,15 @@ function openCalculator(){
 }
 
 function renderBatches(){
+  const c = document.getElementById('batchList');
+  // Contexte équipe
+  if(teamContext==='team'){
+    renderTeamContent('batch', c);
+    return;
+  }
   const q = (document.getElementById('batchSearch').value||'').toLowerCase();
   const list = state.batches.filter(b=>!q || b.name.toLowerCase().includes(q));
-  const c = document.getElementById('batchList'); c.innerHTML='';
+  c.innerHTML='';
   if(list.length===0){
     c.innerHTML = `<div class="empty">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M8 2v4M16 2v4M3 10h18"/></svg>
@@ -3237,11 +4023,13 @@ function renderBatches(){
         <div class="item-meta">${(b.items||[]).length} items · ${b.date||''}</div>
       </div>
       <div class="item-actions">
+        ${sbUser&&teamData?`<button class="item-act" data-act="share" title="${t('team.share')}" style="font-size:14px">📤</button>`:''}
         <button class="item-act" data-act="edit">${ICON.edit}</button>
         <button class="item-act del" data-act="del">${ICON.del}</button>
       </div>`;
     el.addEventListener('click', e=>{
       const act = e.target.closest('[data-act]')?.dataset.act;
+      if(act==='share'){ openShareModal('batch', b); return; }
       if(act==='edit'){ openBatchForm(b); return; }
       if(act==='del'){ state.batches=state.batches.filter(x=>x.id!==b.id); save(); renderBatches(); toast(t('deleted')); return; }
       openBatchDetail(b);
@@ -3249,6 +4037,398 @@ function renderBatches(){
     listEl.appendChild(el);
   });
   c.appendChild(listEl);
+}
+
+/* ══════════════════════════════════════
+   ÉQUIPE — rendu du contenu partagé
+══════════════════════════════════════ */
+function renderTeamContent(itemType, container){
+  container.innerHTML='';
+
+  if(!sbUser){
+    container.innerHTML=`<div class="empty"><p>${t('team.notLogged')}</p></div>`;
+    return;
+  }
+  if(!teamData){
+    container.innerHTML=`<div class="empty"><p>${t('team.noTeam')}<br><small style="color:var(--text-3)">${t('team.noTeamSub')}</small></p><button class="btn btn-ghost btn-sm" style="margin-top:12px" onclick="go('Settings')">${t('team.create')} / ${t('team.join')}</button></div>`;
+    return;
+  }
+
+  const items=teamSharedItems.filter(x=>x.item_type===itemType);
+  const myItems=items.filter(x=>x.shared_by===sbUser.id);
+  const othersItems=items.filter(x=>x.shared_by!==sbUser.id);
+
+  const typeEmoji={recipe:'🍸',ingredient:'🧪',batch:'📋'};
+  const emoji=typeEmoji[itemType]||'📄';
+
+  function makeTeamItemCard(si){
+    const el=document.createElement('div');
+    el.className='team-item-card';
+    const itemName=si.data?.name||'?';
+    const notesCount=(si._notesCount||0);
+    const updatedAt=si.updated_at?new Date(si.updated_at).toLocaleDateString('fr-FR'):'';
+    el.innerHTML=`
+      <div style="font-size:22px;flex-shrink:0">${emoji}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:15px;font-weight:700;color:var(--text-1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+          ${escapeHtml(itemName)}${teamShareModeBadge(si.share_mode)}
+        </div>
+        <div class="team-item-badge-row">
+          <span style="font-size:11px;color:var(--text-3)">par ${escapeHtml(si.sharer_name||'?')}</span>
+          ${teamRoleBadge(teamData.members.find(m=>m.user_id===si.shared_by)?.role||'user')}
+          ${updatedAt?`<span style="font-size:10px;color:var(--text-3)">${updatedAt}</span>`:''}
+          ${notesCount?`<span style="font-size:11px;color:var(--gold);font-weight:700">💬 ${notesCount}</span>`:''}
+        </div>
+      </div>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="color:var(--text-3);flex-shrink:0"><polyline points="9 18 15 12 9 6"/></svg>`;
+    el.addEventListener('click', ()=> openTeamLivre(si, itemType));
+    return el;
+  }
+
+  // Section "Partagés par l'équipe"
+  const headOthers=document.createElement('div');
+  headOthers.className='team-section-head';
+  headOthers.innerHTML=`<span>📚 ${t('team.allShares')}</span><span style="font-size:12px;color:var(--text-3)">${othersItems.length}</span>`;
+  container.appendChild(headOthers);
+
+  if(!othersItems.length){
+    const empty=document.createElement('div');
+    empty.style.cssText='font-size:12px;color:var(--text-3);padding:12px 0 16px;text-align:center';
+    empty.textContent=t('team.empty');
+    container.appendChild(empty);
+  } else {
+    const listOthers=document.createElement('div'); listOthers.className='list';
+    othersItems.forEach(si=>listOthers.appendChild(makeTeamItemCard(si)));
+    container.appendChild(listOthers);
+  }
+
+  // Section "Mes partages"
+  const headMine=document.createElement('div');
+  headMine.className='team-section-head';
+  headMine.style.marginTop='16px';
+  headMine.innerHTML=`<span>📤 ${t('team.myShares')}</span><span style="font-size:12px;color:var(--text-3)">${myItems.length}</span>`;
+  container.appendChild(headMine);
+
+  if(!myItems.length){
+    const empty=document.createElement('div');
+    empty.style.cssText='font-size:12px;color:var(--text-3);padding:12px 0 8px;text-align:center';
+    empty.textContent=t('team.empty');
+    container.appendChild(empty);
+  } else {
+    const listMine=document.createElement('div'); listMine.className='list';
+    myItems.forEach(si=>listMine.appendChild(makeTeamItemCard(si)));
+    container.appendChild(listMine);
+  }
+}
+
+/* ── Modale de choix du mode de partage ── */
+function openShareModal(itemType, item){
+  if(!sbUser||!teamData){ toast('⚠️ Connecte-toi et rejoins une équipe d\'abord'); return; }
+  const already=teamSharedItems.filter(x=>x.item_type===itemType&&x.item_id===item.id&&x.shared_by===sbUser.id);
+  const m=document.getElementById('modal');
+  document.getElementById('modalTitle').textContent=t('team.share')+' · '+escapeHtml(item.name);
+  document.getElementById('modalContent').innerHTML=`
+    <div style="padding:4px 0 12px;color:var(--text-2);font-size:13px">${t('team.shareChoose')}</div>
+    ${already.length?`<div style="background:rgba(200,169,110,.08);border:1px solid rgba(200,169,110,.2);border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:14px;font-size:12px;color:var(--text-2)">
+      ℹ️ Déjà partagé (${already.map(x=>t('team.shareMode.'+x.share_mode)).join(', ')})
+    </div>`:''}
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <button class="btn btn-ghost" id="btnShareCopy" style="text-align:left;padding:12px 14px">
+        <div style="font-weight:700;margin-bottom:3px">${t('team.shareMode.copy')}</div>
+        <div style="font-size:12px;color:var(--text-3)">${t('team.shareModeCopyDesc')}</div>
+      </button>
+      <button class="btn btn-ghost" id="btnShareLinked" style="text-align:left;padding:12px 14px">
+        <div style="font-weight:700;margin-bottom:3px">${t('team.shareMode.linked')}</div>
+        <div style="font-size:12px;color:var(--text-3)">${t('team.shareModeLinkedDesc')}</div>
+      </button>
+    </div>`;
+  document.getElementById('btnShareCopy').onclick=()=>{ teamShareItem(itemType,item,'copy'); m.classList.remove('show'); };
+  document.getElementById('btnShareLinked').onclick=()=>{ teamShareItem(itemType,item,'linked'); m.classList.remove('show'); };
+  m.classList.add('show');
+}
+
+/* ── Partager toute une carte/menu ── */
+function openShareMenuModal(menuName, cocktails){
+  if(!sbUser||!teamData){ toast('⚠️ Connecte-toi et rejoins une équipe d\'abord'); return; }
+  const m=document.getElementById('modal');
+  document.getElementById('modalTitle').textContent=`📤 Partager la carte "${menuName}"`;
+  document.getElementById('modalContent').innerHTML=`
+    <div style="font-size:13px;color:var(--text-2);margin-bottom:14px">${cocktails.length} cocktail${cocktails.length!==1?'s':''} seront partagés avec l'équipe.</div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <button class="btn btn-ghost" id="btnShareMenuCopy" style="text-align:left;padding:12px 14px">
+        <div style="font-weight:700;margin-bottom:3px">${t('team.shareMode.copy')}</div>
+        <div style="font-size:12px;color:var(--text-3)">${t('team.shareModeCopyDesc')}</div>
+      </button>
+      <button class="btn btn-ghost" id="btnShareMenuLinked" style="text-align:left;padding:12px 14px">
+        <div style="font-weight:700;margin-bottom:3px">${t('team.shareMode.linked')}</div>
+        <div style="font-size:12px;color:var(--text-3)">${t('team.shareModeLinkedDesc')}</div>
+      </button>
+    </div>`;
+  document.getElementById('btnShareMenuCopy').onclick=()=>{ shareMenu(cocktails,'copy'); m.classList.remove('show'); };
+  document.getElementById('btnShareMenuLinked').onclick=()=>{ shareMenu(cocktails,'linked'); m.classList.remove('show'); };
+  m.classList.add('show');
+}
+
+async function shareMenu(cocktails, mode){
+  if(!sb||!sbUser||!teamData) return;
+  const dn=sbUser.user_metadata?.full_name||sbUser.user_metadata?.name||sbUser.email?.split('@')[0]||'';
+  try{
+    const payloads=cocktails.map(c=>({
+      team_id:teamData.id, shared_by:sbUser.id, sharer_name:dn,
+      item_type:'recipe', item_id:mode==='linked'?c.id:null,
+      share_mode:mode, data:structuredClone(c)
+    }));
+    const {error}=await sb.from('team_shared_items').insert(payloads);
+    if(error) throw error;
+    await teamFetchItems();
+    toast(`✅ ${cocktails.length} cocktail${cocktails.length!==1?'s':''} partagés avec l'équipe !`);
+    renderCurrentScreen();
+  }catch(e){ console.error('shareMenu',e); toast('❌ '+(e.message||'Erreur')); }
+}
+
+/* ── Notes équipe sur un item partagé ── */
+async function openTeamNotes(sharedItem){
+  const m=document.getElementById('modal');
+  document.getElementById('modalTitle').textContent=t('team.notes')+' · '+escapeHtml(sharedItem.data?.name||'');
+  document.getElementById('modalContent').innerHTML=`<div style="text-align:center;padding:16px;color:var(--text-3)">Chargement…</div>`;
+  m.classList.add('show');
+  const notes=await teamFetchNotes(sharedItem.id);
+  const notesHtml=notes.length
+    ? notes.map(n=>`
+        <div class="team-note">
+          <div class="team-note-header">
+            <span class="team-note-author">${escapeHtml(n.author_name||'?')}</span>
+            <span class="team-note-date">${new Date(n.created_at).toLocaleDateString('fr-FR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}</span>
+          </div>
+          <div class="team-note-content">${escapeHtml(n.content)}</div>
+        </div>`).join('')
+    : `<div style="text-align:center;color:var(--text-3);font-size:13px;padding:16px 0">Aucune note pour l'instant</div>`;
+  document.getElementById('modalContent').innerHTML=`
+    <div class="team-notes-list">${notesHtml}</div>
+    <div class="team-note-add">
+      <textarea id="noteInput" placeholder="${t('team.addNote')}"></textarea>
+      <button class="btn btn-primary btn-sm" id="btnAddNote" style="align-self:flex-end;white-space:nowrap">${t('team.submitNote')}</button>
+    </div>`;
+  document.getElementById('btnAddNote').onclick=async()=>{
+    const content=document.getElementById('noteInput').value;
+    const ok=await teamAddNote(sharedItem.id, content);
+    if(ok){ document.getElementById('noteInput').value=''; openTeamNotes(sharedItem); }
+    else toast('❌ Erreur lors de l\'ajout');
+  };
+}
+
+/* ── Livre équipe : ouvre le livre modal (3 onglets) pour un item partagé ── */
+async function openTeamLivre(si, itemType){
+  const data = si.data||{};
+  _livreC = data;
+  _livreIsCat = false;
+  _livreModified = false;
+
+  // bookData : pour les recettes, on utilise le bookData embarqué dans le partage
+  const bd = structuredClone(data.bookData||{});
+  if(!bd.activeCases) bd.activeCases=[];
+  if(bd.intensity===undefined) bd.intensity=null;
+  if(bd.bitterness===undefined) bd.bitterness=null;
+  if(bd.sour===undefined) bd.sour=null;
+  _livreBD = bd;
+
+  document.getElementById('livreTitre').textContent = data.name||'?';
+
+  // Page 0 : contenu selon le type
+  if(itemType==='recipe') _renderLivreRecipe();
+  else if(itemType==='ingredient') _renderLivreTeamIngredient(data);
+  else if(itemType==='batch') _renderLivreTeamBatch(data);
+
+  // Page 1 : notes du barman (bookData)
+  if(itemType==='recipe'){
+    document.getElementById('btnLivrePg1').style.display='';
+    document.getElementById('btnLivrePg1').textContent='✨ Notes';
+    _renderLivreNotes();
+  } else {
+    document.getElementById('btnLivrePg1').style.display='none';
+  }
+
+  // Page 2 : commentaires équipe
+  document.getElementById('btnLivrePg2').style.display='';
+  document.getElementById('livrePg2').style.display='';
+  document.getElementById('livrePg2').innerHTML=`<div style="text-align:center;padding:32px;color:var(--text-3)">Chargement…</div>`;
+
+  // Masquer le FAB save (géré par la page 1 normale)
+  document.getElementById('btnLivreSave').style.display = 'none';
+
+  const bar = document.getElementById('livreTeamBar');
+  const compose = document.getElementById('livreTeamCompose');
+
+  // Ouvrir le modal
+  document.getElementById('livreModal').classList.add('show');
+  document.body.style.overflow = 'hidden';
+
+  // Charger les commentaires équipe
+  await _renderLivreTeamNotes(si);
+
+  const maxPg = itemType==='recipe' ? 2 : 1;
+
+  function showTeamPg(n){
+    n = Math.max(0, Math.min(n, maxPg));
+    _livrePg = n;
+    document.getElementById('livrePg0').style.transform = `translateX(${-n*100}%)`;
+    document.getElementById('livrePg1').style.transform = `translateX(${(1-n)*100}%)`;
+    document.getElementById('livrePg2').style.transform = `translateX(${(2-n)*100}%)`;
+    document.getElementById('btnLivrePg0').classList.toggle('active', n===0);
+    document.getElementById('btnLivrePg1').classList.toggle('active', n===1);
+    document.getElementById('btnLivrePg2').classList.toggle('active', n===2);
+    // Barre d'actions sur page 0 et page 2 (sauf si compose actif)
+    if(n===2){ bar.classList.remove('show'); compose.classList.add('show'); }
+    else { compose.classList.remove('show'); bar.classList.add('show'); }
+    // bouton save perso uniquement page 1
+    document.getElementById('btnLivreSave').style.display = (n===1 && itemType==='recipe') ? 'flex' : 'none';
+  }
+
+  document.getElementById('btnLivrePg0').onclick = () => showTeamPg(0);
+  document.getElementById('btnLivrePg1').onclick = () => showTeamPg(1);
+  document.getElementById('btnLivrePg2').onclick = () => showTeamPg(2);
+
+  // Démarrer sur page 0
+  showTeamPg(0);
+
+  // Swipe (3 pages)
+  const pages = document.getElementById('livrePages');
+  let _tx = 0;
+  const onTouchStart = e => { _tx = e.touches[0].clientX; };
+  const onTouchEnd = e => {
+    const dx = e.changedTouches[0].clientX - _tx;
+    if(Math.abs(dx)>50) showTeamPg(_livrePg + (dx<0?1:-1));
+  };
+  pages.addEventListener('touchstart', onTouchStart, {passive:true});
+  pages.addEventListener('touchend', onTouchEnd, {passive:true});
+
+  // Bouton fermer
+  document.getElementById('btnLivreClose').onclick = () => {
+    if(_livreModified) _saveLivreBookData();
+    document.getElementById('livreModal').classList.remove('show');
+    document.body.style.overflow = '';
+    bar.classList.remove('show');
+    compose.classList.remove('show');
+    document.getElementById('btnLivrePg2').style.display='none';
+    document.getElementById('livrePg2').style.display='none';
+    if(itemType!=='recipe') document.getElementById('btnLivrePg1').style.display='';
+    pages.removeEventListener('touchstart', onTouchStart);
+    pages.removeEventListener('touchend', onTouchEnd);
+  };
+
+  // Envoi d'un commentaire
+  document.getElementById('btnLivreTeamSendNote').onclick = async () => {
+    const ta = document.getElementById('livreTeamNoteInput');
+    const content = ta.value.trim();
+    if(!content) return;
+    const ok = await teamAddNote(si.id, content);
+    if(ok){ ta.value=''; await _renderLivreTeamNotes(si); }
+    else toast('❌ Erreur lors de l\'envoi');
+  };
+
+  // Boutons d'action
+  const isMine = si.shared_by === sbUser?.id;
+  document.getElementById('btnLivreTeamImport').style.display = (isMine||itemType==='batch') ? 'none' : '';
+  document.getElementById('btnLivreTeamImport').onclick = () => {
+    const copy = structuredClone(data);
+    copy.id = uid();
+    if(itemType==='recipe'){
+      if(state.cocktails.find(c=>c.name===copy.name)){ toast('⚠️ Un cocktail avec ce nom existe déjà'); return; }
+      state.cocktails.push(copy); save();
+      toast('✅ Cocktail importé dans ta collection !');
+    } else if(itemType==='ingredient'){
+      if(state.ingredients.find(i=>i.name===copy.name)){ toast('⚠️ Ingrédient déjà dans ta liste'); return; }
+      state.ingredients.push(copy); save();
+      toast('✅ Ingrédient importé !');
+    }
+    if(sb && sbUser) sbPush();
+  };
+
+  document.getElementById('btnLivreTeamEdit').style.display = isMine ? '' : 'none';
+  document.getElementById('btnLivreTeamEdit').onclick = () => {
+    document.getElementById('btnLivreClose').onclick();
+    if(itemType==='recipe') openCocktailForm(structuredClone(data));
+    else if(itemType==='ingredient') openIngForm(structuredClone(data));
+    else if(itemType==='batch') openBatchForm(structuredClone(data));
+  };
+
+  document.getElementById('btnLivreTeamDelete').textContent = isMine ? '🗑 Retirer' : '🚫 Masquer';
+  document.getElementById('btnLivreTeamDelete').onclick = async () => {
+    document.getElementById('btnLivreClose').onclick();
+    await teamUnshareItem(si.id);
+  };
+}
+
+/* ── Rendu page 0 pour un ingrédient partagé ── */
+function _renderLivreTeamIngredient(data){
+  const catLabel = {spirits:'Spiritueux',liqueur:'Liqueur',wine:'Vin/Bière',juice:'Jus/Sucre',
+    syrup:'Sirop',bitters:'Bitters',garnish:'Garniture',homemade:'Fait maison',misc:'Autre'}[data.category||'misc']||data.category||'';
+  const typeLabel = {bought:'Acheté',homemade:'Fait maison',default:''}[data.type||'bought']||'';
+  document.getElementById('livrePg0').innerHTML=`
+    <div class="livre-recipe-name">${escapeHtml(data.name||'?')}</div>
+    <div class="livre-recipe-meta">${[catLabel, typeLabel].filter(Boolean).join(' · ')}</div>
+    <div style="border-top:1px solid rgba(200,169,110,.1);margin:16px 0"></div>
+    ${data.stock!==undefined?`
+      <div class="livre-ing-row"><span class="livre-ing-name">Stock actuel</span><span class="livre-ing-qty" style="color:var(--gold)">${data.stock||0} ${escapeHtml(data.unit||'')}</span></div>
+      ${data.minStock?`<div class="livre-ing-row"><span class="livre-ing-name">Stock minimum</span><span class="livre-ing-qty">${data.minStock} ${escapeHtml(data.unit||'')}</span></div>`:''}
+      ${data.bottleSize?`<div class="livre-ing-row"><span class="livre-ing-name">Taille bouteille</span><span class="livre-ing-qty">${data.bottleSize} ${escapeHtml(data.unit||'')}</span></div>`:''}
+      ${data.bottlePrice?`<div class="livre-ing-row"><span class="livre-ing-name">Prix bouteille</span><span class="livre-ing-qty">${data.bottlePrice}€</span></div>`:''}
+    `:''}
+    ${data.type==='homemade'&&(data.recipe||[]).length?`
+      <div class="section-title" style="margin-top:12px">Recette maison</div>
+      ${data.recipe.map(i=>`<div class="livre-ing-row"><span class="livre-ing-name">${escapeHtml(i.name)}</span><span class="livre-ing-qty">${i.qty||''} ${escapeHtml(i.unit||'')}</span></div>`).join('')}
+      ${data.steps?`<div class="section-title">Étapes</div><div class="livre-steps">${escapeHtml(data.steps)}</div>`:''}
+    `:''}
+  `;
+}
+
+/* ── Rendu page 0 pour un batch partagé ── */
+function _renderLivreTeamBatch(data){
+  const items = data.items||[];
+  const rows = items.map(it=>{
+    // Résoudre le nom depuis les items partagés ou état local
+    let name='?', emoji='📄';
+    const inShared = teamSharedItems.find(x=>x.data?.id===it.refId || x.item_id===it.refId);
+    if(inShared){ name=inShared.data?.name||'?'; emoji=it.kind==='cocktail'?'🍸':'🧪'; }
+    else if(it.kind==='cocktail'){
+      const c=state.cocktails.find(x=>x.id===it.refId);
+      if(c){ name=c.name; emoji='🍸'; }
+    } else {
+      const i=state.ingredients.find(x=>x.id===it.refId);
+      if(i){ name=i.name; emoji='🧪'; }
+    }
+    return `<div class="livre-ing-row">
+      <span class="livre-ing-name">${emoji} ${escapeHtml(name)}</span>
+      <span class="livre-ing-qty" style="color:var(--gold)">${it.qty||''} ${it.kind==='cocktail'?'service':'cl'}</span>
+    </div>`;
+  }).join('');
+  document.getElementById('livrePg0').innerHTML=`
+    <div class="livre-recipe-name">${escapeHtml(data.name||'?')}</div>
+    <div class="livre-recipe-meta">${data.date||''} · ${items.length} item${items.length!==1?'s':''}</div>
+    <div style="border-top:1px solid rgba(200,169,110,.1);margin:16px 0"></div>
+    <div class="section-title" style="margin-top:0">Contenu du batch</div>
+    ${rows||'<div style="color:var(--text-3);font-size:13px">Batch vide</div>'}
+  `;
+}
+
+/* ── Rendu page 2 : commentaires équipe ── */
+async function _renderLivreTeamNotes(si){
+  const pg = document.getElementById('livrePg2');
+  if(!pg) return;
+  const notes = await teamFetchNotes(si.id);
+  if(!notes.length){
+    pg.innerHTML=`<div style="text-align:center;color:var(--text-3);font-size:13px;padding:32px 0">Aucun commentaire pour l'instant.<br><span style="font-size:11px">Sois le premier à commenter !</span></div>`;
+    return;
+  }
+  pg.innerHTML = notes.map(n=>`
+    <div class="team-note">
+      <div class="team-note-header">
+        <span class="team-note-author">${escapeHtml(n.author_name||'?')}</span>
+        <span class="team-note-date">${new Date(n.created_at).toLocaleDateString('fr-FR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}</span>
+      </div>
+      <div class="team-note-content">${escapeHtml(n.content)}</div>
+    </div>`).join('');
+  pg.scrollTop = pg.scrollHeight;
 }
 
 function openBatchForm(b){
@@ -3586,6 +4766,175 @@ function renderSettings(){
   document.querySelectorAll('.lang-toggle button[data-lang]').forEach(b=>b.classList.toggle('active', b.dataset.lang===state.lang));
   document.querySelectorAll('#themeToggle button').forEach(b=>b.classList.toggle('active', b.dataset.theme===(state.theme||'dark')));
   renderCustomUnits();
+  renderTeamSettings();
+}
+
+function renderTeamSettings(){
+  const el=document.getElementById('teamSectionContent');
+  if(!el) return;
+
+  if(!sbUser){
+    el.innerHTML=`<div style="color:var(--text-3);font-size:13px;padding:6px 0">${t('team.notLogged')}</div>`;
+    return;
+  }
+
+  if(!teamData){
+    // Pas dans une équipe
+    el.innerHTML=`
+      <div style="color:var(--text-3);font-size:12px;margin-bottom:12px">${t('team.noTeamSub')}</div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div>
+          <div class="setting-label">${t('team.create')}</div>
+          <div style="display:flex;gap:8px;margin-top:6px">
+            <input id="teamCreateName" type="text" placeholder="${t('team.name')}" style="flex:1">
+            <button class="btn btn-primary btn-sm" id="btnTeamCreate">${t('team.create')}</button>
+          </div>
+        </div>
+        <div style="border-top:1px solid rgba(200,169,110,.1);padding-top:10px">
+          <div class="setting-label">${t('team.join')}</div>
+          <div style="display:flex;gap:8px;margin-top:6px">
+            <input id="teamJoinCode" type="text" placeholder="XXXXXX" maxlength="6" style="flex:1;text-transform:uppercase;letter-spacing:.15em;font-weight:700">
+            <button class="btn btn-ghost btn-sm" id="btnTeamJoin">${t('team.joinCode')}</button>
+          </div>
+        </div>
+      </div>`;
+    document.getElementById('btnTeamCreate').onclick=async()=>{
+      const name=(document.getElementById('teamCreateName').value||'').trim();
+      if(!name){toast('⚠️ Entre un nom');return;}
+      const ok=await teamCreate(name);
+      if(ok) renderTeamSettings();
+    };
+    document.getElementById('btnTeamJoin').onclick=async()=>{
+      const code=(document.getElementById('teamJoinCode').value||'').trim();
+      if(!code){toast('⚠️ Entre le code');return;}
+      const ok=await teamJoin(code);
+      if(ok) renderTeamSettings();
+    };
+    return;
+  }
+
+  // Dans une équipe
+  const myRole=teamData.role;
+  const canManage=myRole==='admin'||myRole==='manager';
+  const isAdmin=myRole==='admin';
+
+  const membersHtml=teamData.members.map(m=>{
+    const initials=(m.display_name||m.email||'?').charAt(0).toUpperCase();
+    const roleOptions=isAdmin
+      ? `<select class="team-role-sel" data-mid="${m.id}" style="font-size:11px;padding:2px 4px;background:var(--navy-700);border:1px solid rgba(200,169,110,.2);border-radius:4px;color:var(--text-1)">
+           <option value="admin" ${m.role==='admin'?'selected':''}>👑 Admin</option>
+           <option value="manager" ${m.role==='manager'?'selected':''}>⭐ Manager</option>
+           <option value="user" ${m.role==='user'?'selected':''}>🍹 Barman</option>
+         </select>`
+      : (canManage && m.role==='user'
+          ? `<select class="team-role-sel" data-mid="${m.id}" style="font-size:11px;padding:2px 4px;background:var(--navy-700);border:1px solid rgba(200,169,110,.2);border-radius:4px;color:var(--text-1)">
+               <option value="manager" ${m.role==='manager'?'selected':''}>⭐ Manager</option>
+               <option value="user" ${m.role==='user'?'selected':''}>🍹 Barman</option>
+             </select>`
+          : teamRoleBadge(m.role));
+    const isMe=m.user_id===sbUser.id;
+    const canRemove=(isAdmin||canManage)&&!isMe&&(isAdmin||(m.role==='user'));
+    return `<div class="team-member-row" data-mid="${m.id}">
+      <div class="team-member-avatar">${escapeHtml(initials)}</div>
+      <div class="team-member-info">
+        <div class="team-member-name">${escapeHtml(m.display_name||m.email||'?')}${isMe?' <span style="font-size:10px;color:var(--text-3)">(moi)</span>':''}</div>
+        <div class="team-member-email">${escapeHtml(m.email||'')}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px">${roleOptions}${canRemove?`<button class="btn btn-danger btn-sm team-remove-btn" data-mid="${m.id}" style="padding:2px 8px;font-size:11px">✕</button>`:''}</div>
+    </div>`;
+  }).join('');
+
+  const inviteHtml=canManage?`
+    <div style="border-top:1px solid rgba(200,169,110,.1);margin-top:10px;padding-top:10px">
+      <div class="setting-label">${t('team.inviteEmail')}</div>
+      <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">
+        <input id="inviteEmail" type="email" placeholder="email@bar.com" style="flex:1;min-width:140px">
+        <select id="inviteRole" style="font-size:12px;background:var(--navy-700);border:1px solid rgba(200,169,110,.2);border-radius:var(--radius-sm);padding:6px 8px;color:var(--text-1)">
+          ${isAdmin?'<option value="admin">👑 Admin</option>':''}
+          <option value="manager">⭐ Manager</option>
+          <option value="user" selected>🍹 Barman</option>
+        </select>
+        <button class="btn btn-ghost btn-sm" id="btnInvite">${t('team.invite')}</button>
+      </div>
+    </div>`:'';
+
+  el.innerHTML=`
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+      <div>
+        <div style="font-size:15px;font-weight:700;color:var(--text-1)">${escapeHtml(teamData.name)}</div>
+        <div style="font-size:11px;color:var(--text-3);margin-top:2px">${teamData.members.length} membre${teamData.members.length>1?'s':''} · ${teamRoleBadge(myRole)}</div>
+      </div>
+      <button class="btn btn-danger btn-sm" id="btnTeamLeave" style="font-size:11px">${t('team.leave')}</button>
+    </div>
+    <div class="setting-label" style="margin:12px 0 6px">${t('team.code')}</div>
+    <div class="team-code-box" id="teamCodeBox" title="Cliquer pour copier">
+      <div><div class="team-code-val">${escapeHtml(teamData.code)}</div><div class="team-code-hint">${t('team.codeCopy')}</div></div>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+    </div>
+    <div class="setting-label" style="margin:12px 0 6px">Membres</div>
+    <div id="teamMembersList">${membersHtml}</div>
+    ${inviteHtml}
+    <div id="teamPendingInvites"></div>`;
+
+  document.getElementById('teamCodeBox').onclick=()=>{
+    navigator.clipboard?.writeText(teamData.code).then(()=>toast('📋 Code copié !')).catch(()=>toast('Code : '+teamData.code,3000));
+  };
+  document.getElementById('btnTeamLeave').onclick=()=>teamLeave().then(()=>renderSettings());
+
+  el.querySelectorAll('.team-role-sel').forEach(sel=>{
+    sel.onchange=()=>teamUpdateRole(sel.dataset.mid, sel.value);
+  });
+  el.querySelectorAll('.team-remove-btn').forEach(btn=>{
+    btn.onclick=()=>teamRemoveMember(btn.dataset.mid);
+  });
+
+  if(canManage){
+    document.getElementById('btnInvite').onclick=async()=>{
+      const email=(document.getElementById('inviteEmail').value||'').trim();
+      const role=document.getElementById('inviteRole').value;
+      if(!email){toast('⚠️ Entre un email');return;}
+      await teamInviteByEmail(email,role);
+      document.getElementById('inviteEmail').value='';
+      loadPendingInvites();
+    };
+  }
+
+  // Charger les invitations en attente en arrière-plan
+  async function loadPendingInvites(){
+    const div=document.getElementById('teamPendingInvites');
+    if(!div||!sb||!sbUser||!teamData) return;
+    const {data,error}=await sb.from('team_invitations')
+      .select('id,email,role,created_at,expires_at,accepted')
+      .eq('team_id',teamData.id)
+      .eq('accepted',false)
+      .gt('expires_at',new Date().toISOString())
+      .order('created_at',{ascending:false});
+    if(error||!data?.length){ div.innerHTML=''; return; }
+    const roleLblMap={'admin':'👑 Admin','manager':'⭐ Manager','user':'🍹 Barman'};
+    const rows=data.map(inv=>{
+      const exp=new Date(inv.expires_at);
+      const daysLeft=Math.ceil((exp-new Date())/(1000*60*60*24));
+      return `<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.04)">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:12px;color:var(--text-1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(inv.email)}</div>
+          <div style="font-size:10px;color:var(--text-3)">${escapeHtml(roleLblMap[inv.role]||inv.role)} · expire dans ${daysLeft}j</div>
+        </div>
+        ${canManage?`<button class="btn btn-danger btn-sm pending-cancel-btn" data-iid="${inv.id}" style="font-size:10px;padding:2px 6px">✕</button>`:''}
+      </div>`;
+    }).join('');
+    div.innerHTML=`<div style="border-top:1px solid rgba(200,169,110,.1);margin-top:10px;padding-top:10px">
+      <div class="setting-label">📨 Invitations en attente (${data.length})</div>
+      <div style="margin-top:6px">${rows}</div>
+    </div>`;
+    div.querySelectorAll('.pending-cancel-btn').forEach(btn=>{
+      btn.onclick=async()=>{
+        const {error}=await sb.from('team_invitations').delete().eq('id',btn.dataset.iid);
+        if(error){ toast('❌ Erreur'); return; }
+        toast('🗑 Invitation annulée'); loadPendingInvites();
+      };
+    });
+  }
+  loadPendingInvites();
 }
 ['settFirst','settLast','settEmail','settPhone','settVenue','settAddress','settCity','settCountry'].forEach(id=>{
   document.getElementById(id).addEventListener('input', e=>{
@@ -3612,26 +4961,30 @@ document.getElementById('themeToggle').addEventListener('click', e=>{
 // Appliquer le thème au chargement
 applyTheme(state.theme||'dark');
 document.getElementById('btnLogin').addEventListener('click', async()=>{
-  if(!sb){toast('⚠️ Remplace SUPABASE_KEY dans le code pour activer la synchro');return;}
+  if(!sb){ toast('⚠️ Chargement Supabase en cours, réessaie dans un instant'); return; }
   const btn = document.getElementById('btnLogin');
   if(btn.dataset.action==='logout' || sbUser){
-    // Tenter la déconnexion côté serveur (best-effort)
-    try{ await sb.auth.signOut(); }catch(e){ console.warn('signOut:', e.message); }
-    // Forcer la suppression des tokens Supabase dans le localStorage
-    Object.keys(localStorage).forEach(k=>{
-      if(k.startsWith('sb-') || k.includes('supabase') || k.includes('auth-token')) localStorage.removeItem(k);
-    });
-    sbUser = null;
-    // Vider les données du compte du stockage local
-    state.ingredients = [];
-    state.cocktails = [];
+    // 1. Stopper le timer de sync EN PREMIER
+    clearTimeout(sbSyncTimer); sbSyncTimer = null;
+    sbUser = null; // sbPush vérifie sbUser → plus aucun push possible maintenant
+    // 2. Déco locale immédiate (scope:'local' = pas de réseau, ne bloque jamais)
+    try{ await sb.auth.signOut({scope:'local'}); }catch(_){}
+    // 3. Nettoyage exhaustif de tous les tokens auth Supabase
+    const storageKeysToDelete = Object.keys(localStorage).filter(k=>
+      k.startsWith('sb-') || k.startsWith('supabase') || k.includes('auth-token') || k.includes('supabase.auth')
+    );
+    storageKeysToDelete.forEach(k=>localStorage.removeItem(k));
+    // Même chose en sessionStorage si utilisé
+    try{ Object.keys(sessionStorage).filter(k=>
+      k.startsWith('sb-')||k.includes('supabase')||k.includes('auth-token')
+    ).forEach(k=>sessionStorage.removeItem(k)); }catch(_){}
+    // 4. Vider les données locales
+    state.cocktails = []; state.ingredients = []; state.catalogNotes = {};
+    teamData = null; teamSharedItems = [];
+    if(teamContext==='team'){ teamContext='personal'; localStorage.setItem('mixtura_teamCtx','personal'); }
     save();
-    renderCocktails();
-    renderIngredients();
-    renderBatches();
-    renderSettings();
-    updateAuthUI();
     toast('👋 Déconnecté');
+    setTimeout(()=>location.reload(), 600);
   } else openLoginModal();
 });
 document.getElementById('btnPromo').addEventListener('click', ()=>{
@@ -3675,6 +5028,7 @@ document.getElementById('btnClearCache').addEventListener('click', async()=>{
     setTimeout(()=>location.reload(true), 500);
   }
 });
+document.getElementById('btnOpenTutorial').addEventListener('click', ()=>openTutorialModal());
 document.getElementById('btnExportIng').addEventListener('click', ()=>download('mixtura-ingredients.json', state.ingredients));
 document.getElementById('btnExportAll').addEventListener('click', ()=>download('mixtura-all.json', state));
 document.getElementById('btnImportIng').addEventListener('click', ()=>document.getElementById('fileImportIng').click());
@@ -3860,62 +5214,12 @@ document.getElementById('modalClose').addEventListener('click', closeModal);
 document.getElementById('modal').addEventListener('click', e=>{ if(e.target.id==='modal') closeModal(); });
 
 /* ── Guide d'utilisation ── */
-document.getElementById('btnHelp').addEventListener('click', ()=>{
-  const m = document.getElementById('modal');
-  document.getElementById('modalTitle').textContent = '📖 Guide d\'utilisation';
-  document.getElementById('modalContent').innerHTML = `
-    <div style="line-height:1.7;color:var(--text-2);font-size:14px">
-
-      <div style="margin-bottom:18px">
-        <div style="color:var(--gold);font-weight:700;font-size:15px;margin-bottom:6px">🍸 Cocktails</div>
-        <p>Crée et gère tes recettes de cocktails. Pour chaque recette tu peux :</p>
-        <ul style="margin:6px 0 0 16px;display:flex;flex-direction:column;gap:4px">
-          <li>Ajouter les ingrédients avec les quantités</li>
-          <li>Calculer le <strong style="color:var(--cream)">food cost</strong> automatiquement</li>
-          <li>Définir un prix de vente et voir la marge</li>
-          <li>Filtrer par catégorie ou chercher par nom</li>
-          <li>Appuyer longuement pour sélectionner plusieurs recettes</li>
-        </ul>
-      </div>
-
-      <div style="margin-bottom:18px">
-        <div style="color:var(--gold);font-weight:700;font-size:15px;margin-bottom:6px">🧪 Ingrédients</div>
-        <p>Gère ton stock d'ingrédients. Deux types :</p>
-        <ul style="margin:6px 0 0 16px;display:flex;flex-direction:column;gap:4px">
-          <li><strong style="color:var(--cream)">Acheté</strong> — bouteille, produit du marché. Tu renseignes prix et taille de bouteille → coût au cl calculé automatiquement</li>
-          <li><strong style="color:var(--cream)">Maison</strong> — sirop, infusion, liqueur… Tu décris la recette et les produits obtenus (principal + sous-produits)</li>
-        </ul>
-        <p style="margin-top:6px">Filtre par catégorie avec les chips en haut (Spirit, Liqueur, Sirop…)</p>
-      </div>
-
-      <div style="margin-bottom:18px">
-        <div style="color:var(--gold);font-weight:700;font-size:15px;margin-bottom:6px">📦 Batch</div>
-        <p>Planifie des <strong style="color:var(--cream)">préparations en grande quantité</strong> pour un événement ou un service.</p>
-        <ul style="margin:6px 0 0 16px;display:flex;flex-direction:column;gap:4px">
-          <li>Choisir un cocktail ou un ingrédient maison à préparer</li>
-          <li>Indiquer le nombre de portions souhaitées</li>
-          <li>L'app calcule toutes les quantités à acheter</li>
-          <li>Marquer les étapes comme faites au fur et à mesure</li>
-        </ul>
-      </div>
-
-      <div style="margin-bottom:18px">
-        <div style="color:var(--gold);font-weight:700;font-size:15px;margin-bottom:6px">⚙️ Paramètres</div>
-        <ul style="margin:6px 0 0 16px;display:flex;flex-direction:column;gap:4px">
-          <li><strong style="color:var(--cream)">Connexion Google</strong> — synchronise tes données sur tous tes appareils via le cloud</li>
-          <li><strong style="color:var(--cream)">Export / Import</strong> — sauvegarde tes données en JSON ou Excel</li>
-          <li><strong style="color:var(--cream)">Langue</strong> — Français / English</li>
-          <li><strong style="color:var(--cream)">Réinitialiser</strong> — remet l'app à zéro (les données cloud restent intactes)</li>
-        </ul>
-      </div>
-
-      <div style="background:rgba(200,169,110,.07);border:1px solid rgba(200,169,110,.2);border-radius:10px;padding:12px;font-size:13px">
-        💡 <strong style="color:var(--gold)">Astuce</strong> — Appuie longuement sur un élément dans une liste pour activer la sélection multiple et supprimer ou exporter plusieurs éléments à la fois.
-      </div>
-    </div>
-  `;
+function openTutorialModal(){
+  const m=document.getElementById('modal');
+  document.getElementById('modalTitle').textContent='📚 Guide complet Mixtura';
+  document.getElementById('modalContent').innerHTML=`<div style="line-height:1.65;color:var(--text-2);font-size:13px">${TUTORIAL_HTML}</div>`;
   m.classList.add('show');
-});
+}
 
 /* FAB */
 const fabEl = document.getElementById('fab');
@@ -3996,6 +5300,19 @@ syncAllMissing();
 (function(){
   const raw = location.hash.slice(1);
   if(raw.includes('access_token') || raw.includes('error_description') || location.search.includes('code=')) return;
+  // Détection invitation équipe #team-invite=TOKEN
+  if(raw.startsWith('team-invite=')){
+    const token=raw.slice('team-invite='.length);
+    if(token){
+      // Attendre que Supabase soit prêt (auth state)
+      const checkAndAccept=()=>{
+        if(sbUser){ teamAcceptInvite(token).then(()=>go('Settings')); }
+        else{ go('Home'); toast('🔗 Connecte-toi pour accepter l\'invitation',4000); }
+      };
+      setTimeout(checkAndAccept, 1200);
+      return;
+    }
+  }
   const startScreen = SCREENS.includes(raw) ? raw : 'Home';
   go(startScreen);
 })();
@@ -4302,6 +5619,263 @@ function showUpdateBanner(){
   d.innerHTML='<span>🔄 Mise à jour disponible</span><button onclick="location.reload()" style="background:var(--gold);color:#000;border:none;padding:6px 16px;border-radius:8px;cursor:pointer;font-weight:700;font-size:13px">Actualiser</button><button onclick="this.parentNode.remove()" style="background:none;border:none;color:var(--clr-text-muted);cursor:pointer;font-size:18px;padding:0 4px">×</button>';
   document.body.appendChild(d);
 }
+
+/* ═══════════════════════════════════════
+   MINUTEURS
+═══════════════════════════════════════ */
+(function(){
+  const LS_TIMERS = 'mixtura_timers';
+  let timers = [];
+  let _tick = null;
+  let drawerOpen = false;
+
+  function fmtSecs(s){
+    if(s<=0) return '00:00';
+    const m=Math.floor(s/60), ss=s%60;
+    return String(m).padStart(2,'0')+':'+String(ss).padStart(2,'0');
+  }
+
+  function saveTimers(){ localStorage.setItem(LS_TIMERS, JSON.stringify(timers)); }
+
+  function loadTimers(){
+    try{ timers=JSON.parse(localStorage.getItem(LS_TIMERS)||'[]'); }catch(_){ timers=[]; }
+    // Supprimer les timers terminés depuis > 30s et déjà notifiés
+    timers=timers.filter(t=>!t.notified || (t.endAt - Date.now()) > -30000);
+  }
+
+  // ── Supabase sync helpers ──
+  async function sbUpsertTimer(t){
+    if(!window.sb||!window.sbUser) return;
+    try{
+      await window.sb.from('user_timers').upsert({
+        id: t.id,
+        user_id: window.sbUser.id,
+        label: t.label||null,
+        end_at: new Date(t.endAt).toISOString(),
+        notified: t.notified||false
+      },{onConflict:'id'});
+    }catch(_){}
+  }
+
+  async function sbDeleteTimer(id){
+    if(!window.sb||!window.sbUser) return;
+    try{ await window.sb.from('user_timers').delete().eq('id',id).eq('user_id',window.sbUser.id); }catch(_){}
+  }
+
+  async function syncFromCloud(){
+    if(!window.sb||!window.sbUser) return;
+    try{
+      const {data}=await window.sb.from('user_timers').select('*').eq('user_id',window.sbUser.id);
+      if(!data||!data.length) return;
+      const now=Date.now();
+      data.forEach(row=>{
+        const endAt=new Date(row.end_at).getTime();
+        if(row.notified && (endAt - now) < -30000) return; // skip stale finished
+        const existing=timers.find(t=>t.id===row.id);
+        if(!existing){
+          timers.push({id:row.id, label:row.label||'', endAt, notified:row.notified||false});
+        }
+      });
+      // Remove local timers not in cloud that belong to this user (were deleted elsewhere)
+      // We identify cloud IDs to keep
+      const cloudIds=new Set(data.map(r=>r.id));
+      // Only remove timers that were already synced (existed before this session)
+      // Keep any timer added in this session (those will be upserted)
+      timers=timers.filter(t=>!t._local||cloudIds.has(t.id));
+      saveTimers();
+    }catch(_){}
+  }
+
+  // Exposed for auth hook
+  window._timerSyncFromCloud = async function(){
+    await syncFromCloud();
+    if(timers.length){ startTick(); renderChips(); updateToggleBadge(); }
+    renderActiveList();
+  };
+  window._timerClearCloud = function(){
+    // On logout keep timers local only, nothing to clear
+  };
+
+  function beep(){
+    try{
+      const ctx=new (window.AudioContext||window.webkitAudioContext)();
+      [0,0.2,0.4].forEach(delay=>{
+        const osc=ctx.createOscillator(), gain=ctx.createGain();
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.frequency.value=880; osc.type='sine';
+        gain.gain.setValueAtTime(0.4, ctx.currentTime+delay);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime+delay+0.25);
+        osc.start(ctx.currentTime+delay);
+        osc.stop(ctx.currentTime+delay+0.25);
+      });
+    }catch(_){}
+  }
+
+  async function fireNotification(t){
+    beep();
+    toast('⏱️ '+(t.label||'Minuteur')+' — terminé !', 5000);
+    if(Notification.permission==='granted'){
+      try{
+        const reg=await navigator.serviceWorker.ready;
+        reg.showNotification('⏱️ Minuteur terminé !',{
+          body: t.label||'Le temps est écoulé',
+          icon:'./icons/icon-192.png',
+          badge:'./icons/icon-192.png',
+          vibrate:[300,100,300,100,300],
+          tag:'timer-'+t.id,
+          requireInteraction:true
+        });
+      }catch(_){
+        new Notification('⏱️ Minuteur terminé !',{body:t.label||'',icon:'./icons/icon-192.png'});
+      }
+    }
+  }
+
+  function tick(){
+    const now=Date.now();
+    let dirty=false;
+    timers.forEach(t=>{
+      if(!t.notified && now>=t.endAt){
+        t.notified=true; dirty=true;
+        fireNotification(t);
+        sbUpsertTimer(t);
+      }
+    });
+    if(dirty) saveTimers();
+    renderChips();
+    renderActiveList();
+  }
+
+  function startTick(){
+    if(_tick) return;
+    _tick=setInterval(tick, 500);
+  }
+  function stopTick(){
+    if(!timers.filter(t=>!t.notified).length){ clearInterval(_tick); _tick=null; }
+  }
+
+  function addTimer(label, seconds){
+    if(seconds<=0){ toast('⚠️ Durée invalide'); return; }
+    const id=Date.now();
+    const t={id, label:label.trim(), endAt:Date.now()+seconds*1000, notified:false};
+    timers.push(t);
+    saveTimers();
+    sbUpsertTimer(t);
+    startTick();
+    renderChips();
+    renderActiveList();
+    updateToggleBadge();
+    toast('⏱️ Minuteur démarré : '+fmtSecs(seconds));
+  }
+
+  function removeTimer(id){
+    timers=timers.filter(t=>t.id!==id);
+    saveTimers();
+    sbDeleteTimer(id);
+    stopTick();
+    renderChips();
+    renderActiveList();
+    updateToggleBadge();
+  }
+
+  function renderChips(){
+    const el=document.getElementById('timerChips');
+    if(!el) return;
+    const now=Date.now();
+    const running=timers.filter(t=>!t.notified);
+    el.innerHTML=running.map(t=>{
+      const rem=Math.max(0,Math.ceil((t.endAt-now)/1000));
+      return `<div class="timer-chip" data-tid="${t.id}">
+        <span>⏱️</span>
+        <span class="timer-chip-time">${fmtSecs(rem)}</span>
+        ${t.label?`<span class="timer-chip-label">${escapeHtml(t.label)}</span>`:''}
+      </div>`;
+    }).join('');
+    el.querySelectorAll('.timer-chip').forEach(chip=>{
+      chip.addEventListener('click',()=>{ openTimerDrawer(); });
+    });
+  }
+
+  function renderActiveList(){
+    const el=document.getElementById('timerActiveList');
+    if(!el) return;
+    if(!timers.length){ el.innerHTML=`<div style="text-align:center;color:var(--text-3);font-size:12px;padding:12px 0">Aucun minuteur actif</div>`; return; }
+    const now=Date.now();
+    el.innerHTML=timers.map(t=>{
+      const rem=Math.max(0,Math.ceil((t.endAt-now)/1000));
+      const done=t.notified||rem===0;
+      return `<div class="timer-row${done?' done':''}">
+        <div class="timer-row-time">${done?'✅':fmtSecs(rem)}</div>
+        <div class="timer-row-label">${escapeHtml(t.label||'Minuteur')}</div>
+        <button class="btn btn-ghost btn-sm" data-del="${t.id}" style="padding:4px 10px;flex-shrink:0">✕</button>
+      </div>`;
+    }).join('');
+    el.querySelectorAll('[data-del]').forEach(btn=>{
+      btn.addEventListener('click',()=>removeTimer(Number(btn.dataset.del)));
+    });
+  }
+
+  function updateToggleBadge(){
+    const btn=document.getElementById('btnTimerToggle');
+    if(!btn) return;
+    const running=timers.filter(t=>!t.notified).length;
+    btn.classList.toggle('has-timers', running>0);
+    btn.title=running>0?`${running} minuteur${running>1?'s':''} actif${running>1?'s':''}`:'Minuteurs';
+  }
+
+  function openTimerDrawer(){
+    const d=document.getElementById('timerDrawer');
+    if(!d) return;
+    drawerOpen=true;
+    d.classList.add('open');
+    renderActiveList();
+  }
+
+  function closeTimerDrawer(){
+    const d=document.getElementById('timerDrawer');
+    if(d){ d.classList.remove('open'); drawerOpen=false; }
+  }
+
+  async function requestNotifPermission(){
+    if(Notification.permission==='default'){
+      await Notification.requestPermission();
+    }
+  }
+
+  // Init on DOM ready
+  window.addEventListener('DOMContentLoaded',()=>{
+    loadTimers();
+    if(timers.length){ startTick(); renderChips(); updateToggleBadge(); }
+
+    const btn=document.getElementById('btnTimerToggle');
+    const drawer=document.getElementById('timerDrawer');
+    const handle=document.getElementById('timerDrawerHandle');
+
+    btn?.addEventListener('click',()=>{ drawerOpen?closeTimerDrawer():openTimerDrawer(); });
+    handle?.addEventListener('click',closeTimerDrawer);
+
+    // Fermer si clic hors du drawer
+    document.addEventListener('click',e=>{
+      if(drawerOpen && !e.target.closest('#timerDrawer') && !e.target.closest('#btnTimerToggle')){
+        closeTimerDrawer();
+      }
+    });
+
+    document.getElementById('btnStartTimer')?.addEventListener('click',async()=>{
+      await requestNotifPermission();
+      const label=document.getElementById('timerLabel').value;
+      const min=parseInt(document.getElementById('timerMin').value)||0;
+      const sec=parseInt(document.getElementById('timerSec').value)||0;
+      addTimer(label, min*60+sec);
+      document.getElementById('timerLabel').value='';
+    });
+
+    // Valider label avec Entrée
+    document.getElementById('timerLabel')?.addEventListener('keydown',e=>{
+      if(e.key==='Enter') document.getElementById('btnStartTimer')?.click();
+    });
+  });
+})();
 
 if('serviceWorker' in navigator){
   window.addEventListener('load', async()=>{
