@@ -35,21 +35,22 @@ export function useIngredients(userId: string, initial: Ingredient[]) {
         .from('ingredients')
         .update({ data: merged })
         .eq('id', id)
+        .eq('user_id', userId)
         .select()
         .single()
       setSaving(false)
       if (error) throw error
       setIngredients(prev => prev.map(i => i.id === id ? (updated as Ingredient) : i))
     },
-    [supabase, ingredients]
+    [supabase, ingredients, userId]
   )
 
   const remove = useCallback(
     async (id: string) => {
-      await supabase.from('ingredients').delete().eq('id', id)
+      await supabase.from('ingredients').delete().eq('id', id).eq('user_id', userId)
       setIngredients(prev => prev.filter(i => i.id !== id))
     },
-    [supabase]
+    [supabase, userId]
   )
 
   return { ingredients, saving, create, update, remove }

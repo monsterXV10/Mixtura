@@ -12,6 +12,7 @@ export default async function RecipesPage() {
   const { data: recipes } = await supabase
     .from('recipes')
     .select('*')
+    .eq('user_id', user.id)
     .order('updated_at', { ascending: false })
 
   return <RecipesClient initialRecipes={(recipes ?? []) as Recipe[]} userId={user.id} />

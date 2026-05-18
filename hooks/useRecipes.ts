@@ -46,21 +46,22 @@ export function useRecipes(userId: string, initial: Recipe[]) {
         .from('recipes')
         .update(patch)
         .eq('id', id)
+        .eq('user_id', userId)
         .select()
         .single()
       setSaving(false)
       if (error) throw error
       setRecipes(prev => prev.map(r => (r.id === id ? (updated as Recipe) : r)))
     },
-    [supabase, recipes]
+    [supabase, recipes, userId]
   )
 
   const remove = useCallback(
     async (id: string) => {
-      await supabase.from('recipes').delete().eq('id', id)
+      await supabase.from('recipes').delete().eq('id', id).eq('user_id', userId)
       setRecipes(prev => prev.filter(r => r.id !== id))
     },
-    [supabase]
+    [supabase, userId]
   )
 
   return { recipes, saving, create, update, remove }
