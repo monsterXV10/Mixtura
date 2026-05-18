@@ -67,12 +67,14 @@ export default function CatalogClient({
     })
   }, [recipes, query, glassFilter, familyFilter])
 
+  const [importedIngCount, setImportedIngCount] = useState(0)
+
   async function handleImport(recipe: CatalogRecipe) {
     if (!userId) return
     setImporting(true)
     const supabase = getSupabaseBrowserClient()
 
-    // Normalise les unités IBA vers les unités de l'app
+    // Normalise les unités IBA → app
     const unitMap: Record<string, string> = {
       dashes: 'trait', dash: 'trait', drops: 'goutte', drop: 'goutte',
       pieces: 'pièce', piece: 'pièce', barspoon: 'pièce',
@@ -84,11 +86,11 @@ export default function CatalogClient({
         unit: unitMap[ing.unit?.toLowerCase()] ?? ing.unit ?? 'cl',
       }))
 
-    // method est string dans le catalogue, string[] dans l'app
     const methodArr = recipe.method
       ? (Array.isArray(recipe.method) ? recipe.method : [recipe.method])
       : undefined
 
+    // 1. Sauvegarde la recette
     await supabase.from('recipes').insert({
       user_id: userId,
       type: 'cocktail',
@@ -107,9 +109,68 @@ export default function CatalogClient({
         ...(methodArr       && { method:  methodArr }),
       },
     })
+
+    // 2. Auto-import des ingrédients manquants dans le stock
+    const ingNames = (recipe.ingredients ?? []).map(i => i.name).filter(Boolean)
+    if (ingNames.length > 0) {
+      const { data: existing } = await supabase
+        .from('ingredients')
+        .select('data')
+        .eq('user_id', userId)
+
+      const existingSet = new Set(
+        (existing ?? []).map((r: { data: { name: string } }) => r.data?.name?.toLowerCase())
+      )
+      const missing = ingNames.filter(n => !existingSet.has(n.toLowerCase()))
+
+      if (missing.length > 0) {
+        // Récupère les infos du catalogue de référence
+        const { data: refs } = await supabase
+          .from('catalog_ingredients')
+          .select('name, category, default_format, default_unit, typical_price')
+          .in('name', missing)
+
+        const refMap = new Map(
+          (refs ?? []).map((r: { name: string; category: string; default_format: string; default_unit: string; typical_price: number | null }) =>
+            [r.name.toLowerCase(), r]
+          )
+        )
+
+        const catToType = (cat: string): 'spirit'|'liqueur'|'wine'|'beer'|'juice'|'syrup'|'fresh'|'dry'|'other' => {
+          if (cat === 'spirit' || cat === 'eau de vie') return 'spirit'
+          if (cat === 'liqueur') return 'liqueur'
+          if (cat === 'vin') return 'wine'
+          if (cat === 'sirop') return 'syrup'
+          if (cat === 'fruit' || cat === 'légume') return 'fresh'
+          if (cat === 'épicerie') return 'dry'
+          return 'other'
+        }
+
+        const rows = missing.map(name => {
+          const ref = refMap.get(name.toLowerCase())
+          return {
+            user_id: userId,
+            data: {
+              id: crypto.randomUUID(),
+              name,
+              category: ref?.category ?? '',
+              type: ref ? catToType(ref.category) : 'other',
+              price: ref?.typical_price ?? 0,
+              format: Number(ref?.default_format ?? 70),
+              unit: ref?.default_unit ?? 'cl',
+              stock: 0,
+            },
+          }
+        })
+
+        await supabase.from('ingredients').insert(rows)
+        setImportedIngCount(missing.length)
+      }
+    }
+
     setImporting(false)
     setImportDone(true)
-    setTimeout(() => setImportDone(false), 2500)
+    setTimeout(() => { setImportDone(false); setImportedIngCount(0) }, 4000)
   }
 
   /* ── Vue détail ── */
@@ -137,7 +198,9 @@ export default function CatalogClient({
               className="px-3 py-1.5 rounded-[var(--radius-sm)] text-xs font-semibold flex-shrink-0 disabled:opacity-60"
               style={{ background: importDone ? '#1a3a1a' : 'var(--gold)', color: importDone ? '#4ade80' : '#0A0E1A' }}
             >
-              {importing ? '…' : importDone ? '✓ Importée' : '+ Importer'}
+              {importing ? '…' : importDone
+                ? `✓ Importée${importedIngCount > 0 ? ` · ${importedIngCount} ingr. ajouté${importedIngCount > 1 ? 's' : ''}` : ''}`
+                : '+ Importer'}
             </button>
           )}
         </header>
