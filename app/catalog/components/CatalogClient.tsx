@@ -22,6 +22,11 @@ function shortGlass(g: string | null) {
   return GLASS_SHORT[g] ?? g
 }
 
+const CATALOG_SOURCES = [
+  { id: 'iba', label: 'IBA', icon: '🍸', available: true },
+  { id: 'custom', label: 'Mes catalogues', icon: '+', available: false },
+]
+
 export default function CatalogClient({
   recipes,
   userId,
@@ -33,45 +38,73 @@ export default function CatalogClient({
   const [selected, setSelected] = useState<CatalogRecipe | null>(null)
   const [importing, setImporting] = useState(false)
   const [importDone, setImportDone] = useState(false)
+  const [activeSource, setActiveSource] = useState('iba')
 
   const glasses = useMemo(() => {
     const s = new Set(recipes.map(r => r.glass).filter(Boolean) as string[])
     return [...s].sort()
   }, [recipes])
 
+  const families = useMemo(() => {
+    const s = new Set(recipes.map(r => r.family).filter(Boolean) as string[])
+    return [...s].sort()
+  }, [recipes])
+
   const [glassFilter, setGlassFilter] = useState<string | null>(null)
+  const [familyFilter, setFamilyFilter] = useState<string | null>(null)
+  const [filterTab, setFilterTab] = useState<'glass' | 'family'>('glass')
 
   const filtered = useMemo(() => {
     const q = query.toLowerCase()
     return recipes.filter(r => {
-      const matchQ = !q || r.name.toLowerCase().includes(q) ||
+      const matchQ = !q ||
+        r.name.toLowerCase().includes(q) ||
         (r.alcohol ?? '').toLowerCase().includes(q) ||
         (r.family ?? '').toLowerCase().includes(q)
       const matchG = !glassFilter || r.glass === glassFilter
-      return matchQ && matchG
+      const matchF = !familyFilter || r.family === familyFilter
+      return matchQ && matchG && matchF
     })
-  }, [recipes, query, glassFilter])
+  }, [recipes, query, glassFilter, familyFilter])
 
   async function handleImport(recipe: CatalogRecipe) {
     if (!userId) return
     setImporting(true)
     const supabase = getSupabaseBrowserClient()
+
+    // Normalise les unités IBA vers les unités de l'app
+    const unitMap: Record<string, string> = {
+      dashes: 'trait', dash: 'trait', drops: 'goutte', drop: 'goutte',
+      pieces: 'pièce', piece: 'pièce', barspoon: 'pièce',
+    }
+    const normalizeIngredients = (ings: CatalogRecipe['ingredients']) =>
+      ings.map(ing => ({
+        name: ing.name,
+        qty: ing.qty,
+        unit: unitMap[ing.unit?.toLowerCase()] ?? ing.unit ?? 'cl',
+      }))
+
+    // method est string dans le catalogue, string[] dans l'app
+    const methodArr = recipe.method
+      ? (Array.isArray(recipe.method) ? recipe.method : [recipe.method])
+      : undefined
+
     await supabase.from('recipes').insert({
       user_id: userId,
       type: 'cocktail',
       data: {
         id: crypto.randomUUID(),
         name: recipe.name,
-        ingredients: recipe.ingredients ?? [],
+        ingredients: normalizeIngredients(recipe.ingredients ?? []),
         steps: recipe.steps ?? '',
       },
       metadata: {
         type: 'cocktail',
-        glass: recipe.glass ?? '',
-        family: recipe.family ?? '',
-        alcohol: recipe.alcohol ?? '',
-        garnish: recipe.garnish ?? '',
-        method: recipe.method ?? '',
+        ...(recipe.glass    && { glass:   recipe.glass }),
+        ...(recipe.family   && { family:  recipe.family }),
+        ...(recipe.alcohol  && { alcohol: recipe.alcohol }),
+        ...(recipe.garnish  && { garnish: recipe.garnish }),
+        ...(methodArr       && { method:  methodArr }),
       },
     })
     setImporting(false)
@@ -79,11 +112,10 @@ export default function CatalogClient({
     setTimeout(() => setImportDone(false), 2500)
   }
 
-  /* ── Detail view ── */
+  /* ── Vue détail ── */
   if (selected) {
     return (
       <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
-        {/* Header */}
         <header
           className="sticky top-0 z-10 flex items-center gap-3 px-4 h-14"
           style={{ background: 'var(--surface)', borderBottom: '1px solid var(--border)' }}
@@ -111,7 +143,6 @@ export default function CatalogClient({
         </header>
 
         <div className="p-4 pb-12 space-y-5 max-w-2xl mx-auto">
-          {/* Fiche */}
           <div className="rounded-[var(--radius)] p-5 space-y-3"
             style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
             <div className="flex items-start justify-between">
@@ -127,13 +158,12 @@ export default function CatalogClient({
               {selected.glass && <Meta icon="🥃" label="Verre" value={selected.glass} />}
               {selected.family && <Meta icon="🏷" label="Famille" value={selected.family} />}
               {selected.alcohol && <Meta icon="🍾" label="Alcool" value={selected.alcohol} />}
-              {selected.method && <Meta icon="🔧" label="Méthode" value={selected.method} />}
+              {selected.method && <Meta icon="🔧" label="Méthode" value={String(selected.method)} />}
               {selected.ice && <Meta icon="🧊" label="Glace" value={selected.ice} />}
               {selected.garnish && <Meta icon="🌿" label="Garniture" value={selected.garnish} />}
             </div>
           </div>
 
-          {/* Ingrédients */}
           {selected.ingredients?.length > 0 && (
             <div>
               <p className="text-xs font-semibold uppercase tracking-wider mb-2"
@@ -159,7 +189,6 @@ export default function CatalogClient({
             </div>
           )}
 
-          {/* Méthode */}
           {selected.steps && (
             <div>
               <p className="text-xs font-semibold uppercase tracking-wider mb-2"
@@ -193,16 +222,17 @@ export default function CatalogClient({
     )
   }
 
-  /* ── Liste ── */
+  /* ── Vue liste ── */
   return (
     <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
       <header
-        className="sticky top-0 z-10 px-4 py-3"
+        className="sticky top-0 z-10 px-4 py-3 space-y-3"
         style={{ background: 'var(--surface)', borderBottom: '1px solid var(--border)' }}
       >
-        <div className="flex items-center justify-between mb-3">
+        {/* Titre + actions */}
+        <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            {userId ? (
+            {userId && (
               <Link
                 href="/"
                 className="w-8 h-8 flex items-center justify-center rounded-[var(--radius-sm)]"
@@ -210,11 +240,10 @@ export default function CatalogClient({
               >
                 ←
               </Link>
-            ) : null}
-            <div>
-              <span className="text-lg font-bold tracking-widest" style={{ color: 'var(--gold)' }}>MIXTURA</span>
-              <span className="ml-2 text-sm" style={{ color: 'var(--text-dim)' }}>· Catalogue IBA ({recipes.length})</span>
-            </div>
+            )}
+            <span className="text-lg font-bold tracking-widest" style={{ color: 'var(--gold)' }}>
+              CATALOGUE
+            </span>
           </div>
           {!userId && (
             <Link
@@ -227,43 +256,97 @@ export default function CatalogClient({
           )}
         </div>
 
+        {/* Barre de recherche */}
         <input
           type="search"
-          placeholder="Rechercher un cocktail, un alcool..."
+          placeholder="Rechercher un cocktail, un alcool, une famille..."
           value={query}
           onChange={e => setQuery(e.target.value)}
           className="field-input"
         />
 
-        {/* Filtres verre */}
-        <div className="flex gap-2 mt-2 overflow-x-auto pb-1 scrollbar-none">
-          <button
-            onClick={() => setGlassFilter(null)}
-            className="flex-shrink-0 px-3 py-1 rounded-full text-xs font-medium"
-            style={{
-              background: glassFilter === null ? 'var(--gold)' : 'var(--surface2)',
-              color: glassFilter === null ? '#0A0E1A' : 'var(--text-dim)',
-            }}
-          >
-            Tous
-          </button>
-          {glasses.map(g => (
+        {/* Onglets source */}
+        <div className="flex gap-2">
+          {CATALOG_SOURCES.map(src => (
             <button
-              key={g}
-              onClick={() => setGlassFilter(glassFilter === g ? null : g)}
-              className="flex-shrink-0 px-3 py-1 rounded-full text-xs font-medium"
+              key={src.id}
+              onClick={() => src.available && setActiveSource(src.id)}
+              disabled={!src.available}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-[var(--radius-sm)] text-xs font-semibold transition-all"
               style={{
-                background: glassFilter === g ? 'var(--gold)' : 'var(--surface2)',
-                color: glassFilter === g ? '#0A0E1A' : 'var(--text-dim)',
+                background: activeSource === src.id ? 'var(--gold)' : 'var(--surface2)',
+                color: activeSource === src.id ? '#0A0E1A' : src.available ? 'var(--text-dim)' : 'var(--border)',
+                border: src.available ? 'none' : '1px dashed var(--border)',
+                cursor: src.available ? 'pointer' : 'not-allowed',
+                opacity: src.available ? 1 : 0.5,
               }}
             >
-              {shortGlass(g)}
+              <span>{src.icon}</span>
+              <span>{src.label}</span>
+              {src.id === 'iba' && activeSource === 'iba' && (
+                <span className="ml-1 opacity-70">({recipes.length})</span>
+              )}
+              {!src.available && (
+                <span className="ml-1 text-[9px] uppercase tracking-wide opacity-60">bientôt</span>
+              )}
             </button>
           ))}
+        </div>
+
+        {/* Filtres : onglets Verre / Famille */}
+        <div>
+          <div className="flex gap-2 mb-2">
+            {(['glass', 'family'] as const).map(tab => (
+              <button
+                key={tab}
+                onClick={() => setFilterTab(tab)}
+                className="text-xs font-medium px-2 py-0.5 rounded"
+                style={{
+                  color: filterTab === tab ? 'var(--gold)' : 'var(--text-dim)',
+                  borderBottom: filterTab === tab ? '1px solid var(--gold)' : '1px solid transparent',
+                }}
+              >
+                {tab === 'glass' ? '🥃 Verre' : '🏷 Famille'}
+                {tab === 'glass' && glassFilter && ' ·'}
+                {tab === 'family' && familyFilter && ' ·'}
+              </button>
+            ))}
+            {(glassFilter || familyFilter) && (
+              <button
+                onClick={() => { setGlassFilter(null); setFamilyFilter(null) }}
+                className="text-xs ml-auto"
+                style={{ color: 'var(--text-dim)' }}
+              >
+                Effacer ×
+              </button>
+            )}
+          </div>
+          <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
+            {filterTab === 'glass' && (
+              <>
+                <Chip label="Tous" active={!glassFilter} onClick={() => setGlassFilter(null)} />
+                {glasses.map(g => (
+                  <Chip key={g} label={shortGlass(g) ?? g} active={glassFilter === g} onClick={() => setGlassFilter(glassFilter === g ? null : g)} />
+                ))}
+              </>
+            )}
+            {filterTab === 'family' && (
+              <>
+                <Chip label="Toutes" active={!familyFilter} onClick={() => setFamilyFilter(null)} />
+                {families.map(f => (
+                  <Chip key={f} label={f} active={familyFilter === f} onClick={() => setFamilyFilter(familyFilter === f ? null : f)} />
+                ))}
+              </>
+            )}
+          </div>
         </div>
       </header>
 
       <main className="p-4 pb-8">
+        <p className="text-xs mb-3" style={{ color: 'var(--text-dim)' }}>
+          {filtered.length} recette{filtered.length !== 1 ? 's' : ''}
+          {(glassFilter || familyFilter || query) ? ' trouvée' + (filtered.length !== 1 ? 's' : '') : ''}
+        </p>
         {filtered.length === 0 ? (
           <p className="text-center py-12 text-sm" style={{ color: 'var(--text-dim)' }}>
             Aucun résultat pour &laquo; {query} &raquo;
@@ -297,13 +380,13 @@ export default function CatalogClient({
                       {shortGlass(r.glass)}
                     </span>
                   )}
+                  {r.family && (
+                    <span className="text-[10px]" style={{ color: 'var(--text-dim)' }}>{r.family}</span>
+                  )}
                   {r.ingredients?.length > 0 && (
                     <span className="text-[10px]" style={{ color: 'var(--text-dim)' }}>
                       {r.ingredients.length} ingr.
                     </span>
-                  )}
-                  {r.method && (
-                    <span className="text-[10px]" style={{ color: 'var(--text-dim)' }}>{r.method}</span>
                   )}
                 </div>
               </button>
@@ -333,6 +416,21 @@ export default function CatalogClient({
       )}
       {!userId && <div className="h-28" />}
     </div>
+  )
+}
+
+function Chip({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className="flex-shrink-0 px-3 py-1 rounded-full text-xs font-medium"
+      style={{
+        background: active ? 'var(--gold)' : 'var(--surface2)',
+        color: active ? '#0A0E1A' : 'var(--text-dim)',
+      }}
+    >
+      {label}
+    </button>
   )
 }
 

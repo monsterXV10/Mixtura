@@ -15,6 +15,8 @@ const TYPES: { value: RecipeType; label: string; icon: string }[] = [
 const COCKTAIL_FAMILIES = ['Sour', 'Fizz', 'Highball', 'Sling', 'Flip', 'Collins', 'Old Fashioned', 'Martini', 'Negroni', 'Tropical', 'Hot', 'Autre']
 const GLASS_OPTIONS = ['Cocktail / Martini', 'Coupe', 'Rocks / Old Fashioned', 'Highball', 'Collins', 'Nick & Nora', 'Flûte', 'Verre à vin', 'Tiki Mug', 'Shot', 'Mug', 'Tumbler']
 const MENU_OPTIONS = ['Carte principale', 'Carte saison', 'Carte été', 'Carte hiver', 'Brunch', 'Happy Hour', 'Signature', 'Classiques', 'Sans alcool', 'Hors carte']
+const METHOD_OPTIONS = ['Shake', 'Stir', 'Build', 'Blend', 'Throw', 'Muddle']
+const ING_UNITS = ['cl', 'ml', 'oz', 'g', 'kg', 'trait', 'goutte', 'pièce', 'barspoon']
 const GRIND_OPTIONS: CoffeeMetadata['grind'][] = ['fine', 'medium-fine', 'medium', 'coarse']
 const GRIND_LABELS: Record<string, string> = { fine: 'Fine', 'medium-fine': 'Médium-fine', medium: 'Médium', coarse: 'Grosse' }
 const DIFFICULTY: CuisineMetadata['difficulty'][] = ['easy', 'medium', 'hard']
@@ -45,8 +47,18 @@ export default function RecipeForm({ userId, initial, ingredientNames = [] }: Pr
   const ingInputRefs = useRef<(HTMLInputElement | null)[]>([])
 
   const initMeta = initial?.metadata ?? defaultMetadata(type)
+  function normalizeCocktailMeta(m: CocktailMetadata): CocktailMetadata {
+    // method peut être string (import legacy) ou string[] — on normalise en string[]
+    const raw = m as CocktailMetadata & { method?: string | string[] }
+    return {
+      ...m,
+      method: Array.isArray(raw.method)
+        ? raw.method
+        : raw.method ? [raw.method] : undefined,
+    }
+  }
   const [cocktailMeta, setCocktailMeta] = useState<CocktailMetadata>(
-    isCocktailMetadata(initMeta) ? initMeta : { type: 'cocktail' }
+    isCocktailMetadata(initMeta) ? normalizeCocktailMeta(initMeta) : { type: 'cocktail' }
   )
   const initGlass = isCocktailMetadata(initMeta) ? (initMeta.glass ?? '') : ''
   const [glassCustom, setGlassCustom] = useState(!GLASS_OPTIONS.includes(initGlass) && initGlass !== '')
@@ -197,7 +209,7 @@ export default function RecipeForm({ userId, initial, ingredientNames = [] }: Pr
                   className="field-input"
                   style={{ width: '4rem', flexShrink: 0, paddingLeft: '6px', paddingRight: '2px' }}
                 >
-                  {['cl', 'ml', 'oz', 'g', 'kg', 'trait', 'goutte', 'pièce'].map(u => (
+                  {ING_UNITS.map(u => (
                     <option key={u} value={u}>{u}</option>
                   ))}
                 </select>
@@ -319,6 +331,17 @@ export default function RecipeForm({ userId, initial, ingredientNames = [] }: Pr
                     </button>
                   </div>
                 )}
+              </div>
+              <div>
+                <label className="block text-xs mb-1.5" style={{ color: 'var(--text-dim)' }}>Méthode</label>
+                <select
+                  value={cocktailMeta.method?.[0] ?? ''}
+                  onChange={e => setCocktailMeta(m => ({ ...m, method: e.target.value ? [e.target.value] : undefined }))}
+                  className="field-input"
+                >
+                  <option value="">—</option>
+                  {METHOD_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
+                </select>
               </div>
               <div>
                 <label className="block text-xs mb-1.5" style={{ color: 'var(--text-dim)' }}>Garniture</label>
