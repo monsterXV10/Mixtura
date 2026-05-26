@@ -3,7 +3,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { TopBar } from '@/components/layout/TopBar';
 import Link from 'next/link';
-import { Plus, Search, BookOpen, Package, Download, Check } from 'lucide-react';
+import { Plus, Search, BookOpen, Package, Download, Check, Pencil } from 'lucide-react';
 
 interface RecipeRow {
   id: string;
@@ -233,26 +233,37 @@ export default function RecipesClient({ initialRecipes, userId }: Props) {
                   const typeLabel = TYPE_LABELS[recipe.type] ?? recipe.type;
                   const typeColor = TYPE_COLORS[recipe.type] ?? 'text-[var(--text-dim)] bg-[var(--surface2)]';
                   return (
-                    <Link
+                    <div
                       key={recipe.id}
-                      href={`/recipes/${recipe.id}/edit`}
-                      className="card hover:border-[var(--gold-dim)] transition-colors active:scale-[0.98] block"
+                      className="card hover:border-[var(--gold-dim)] transition-colors relative"
                     >
-                      <div className="flex items-start justify-between gap-2 mb-2">
-                        <h3 className="font-semibold text-[var(--text)] text-sm leading-tight">
-                          {recipe.data.name}
-                        </h3>
-                        <span className={`shrink-0 text-xs px-2 py-0.5 rounded-full font-medium ${typeColor}`}>
-                          {typeLabel}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-3 text-xs text-[var(--text-dim)]">
-                        {methodStr && (
-                          <span className="truncate max-w-[120px]">{methodStr}</span>
-                        )}
-                        <span>{recipe.data.ingredients.length} ingrédient{recipe.data.ingredients.length !== 1 ? 's' : ''}</span>
-                      </div>
-                    </Link>
+                      <Link
+                        href={`/recipes/${recipe.id}`}
+                        className="block active:scale-[0.98] transition-transform"
+                      >
+                        <div className="flex items-start justify-between gap-2 mb-2 pr-8">
+                          <h3 className="font-semibold text-[var(--text)] text-sm leading-tight">
+                            {recipe.data.name}
+                          </h3>
+                          <span className={`shrink-0 text-xs px-2 py-0.5 rounded-full font-medium ${typeColor}`}>
+                            {typeLabel}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-3 text-xs text-[var(--text-dim)]">
+                          {methodStr && (
+                            <span className="truncate max-w-[120px]">{methodStr}</span>
+                          )}
+                          <span>{recipe.data.ingredients.length} ingrédient{recipe.data.ingredients.length !== 1 ? 's' : ''}</span>
+                        </div>
+                      </Link>
+                      <Link
+                        href={`/recipes/${recipe.id}/edit`}
+                        className="absolute top-3 right-3 p-1.5 text-[var(--text-dim)] hover:text-[var(--gold)] transition-colors"
+                        aria-label="Modifier"
+                      >
+                        <Pencil size={14} />
+                      </Link>
+                    </div>
                   );
                 })}
               </div>
