@@ -1,23 +1,17 @@
-import { TopBar } from '@/components/layout/TopBar';
-import { Plus } from 'lucide-react';
+import { createClient } from '@/lib/supabase/server';
+import { redirect } from 'next/navigation';
+import IngredientsClient from './IngredientsClient';
 
-export default function IngredientsPage() {
-  return (
-    <>
-      <TopBar
-        title="Stocks"
-        actions={
-          <button className="btn-primary px-3 py-1.5 text-sm gap-1">
-            <Plus size={15} />
-            Ajouter
-          </button>
-        }
-      />
-      <main className="px-4 py-5">
-        <p className="text-[var(--text-dim)] text-sm text-center mt-10">
-          Aucun ingrédient pour l&apos;instant.
-        </p>
-      </main>
-    </>
-  );
+export default async function IngredientsPage() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect('/login');
+
+  const { data: ingredients } = await supabase
+    .from('ingredients')
+    .select('*')
+    .eq('user_id', user.id)
+    .order('updated_at', { ascending: false });
+
+  return <IngredientsClient initialIngredients={ingredients ?? []} userId={user.id} />;
 }

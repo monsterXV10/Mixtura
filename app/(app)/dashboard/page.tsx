@@ -7,14 +7,17 @@ import Link from 'next/link';
 export default async function DashboardPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect('/login');
 
-  // Demo mode: check sessionStorage via client component
-  // For now redirect to login if no user
-  if (!user) {
-    redirect('/login');
-  }
+  const name = user.user_metadata?.name || user.user_metadata?.full_name || user.email?.split('@')[0] || 'Barman';
 
-  const name = user.user_metadata?.name || user.email?.split('@')[0] || 'Barman';
+  const [recipesRes, ingredientsRes] = await Promise.all([
+    supabase.from('recipes').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
+    supabase.from('ingredients').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
+  ]);
+
+  const recipeCount = recipesRes.count ?? 0;
+  const ingredientCount = ingredientsRes.count ?? 0;
 
   const MODULES = [
     {
@@ -102,7 +105,7 @@ export default async function DashboardPage() {
           ))}
         </div>
 
-        {/* Stats placeholder */}
+        {/* Stats */}
         <div className="card">
           <div className="flex items-center gap-2 mb-3">
             <TrendingUp size={16} className="text-[var(--gold)]" />
@@ -110,11 +113,11 @@ export default async function DashboardPage() {
           </div>
           <div className="grid grid-cols-3 gap-3 text-center">
             <div>
-              <p className="text-2xl font-bold text-[var(--gold)]">0</p>
+              <p className="text-2xl font-bold text-[var(--gold)]">{recipeCount}</p>
               <p className="text-xs text-[var(--text-dim)]">Recettes</p>
             </div>
             <div>
-              <p className="text-2xl font-bold text-[var(--gold)]">0</p>
+              <p className="text-2xl font-bold text-[var(--gold)]">{ingredientCount}</p>
               <p className="text-xs text-[var(--text-dim)]">Ingrédients</p>
             </div>
             <div>
