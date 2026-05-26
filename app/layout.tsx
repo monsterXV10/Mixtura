@@ -1,41 +1,42 @@
-import type { Metadata, Viewport } from 'next'
-import { AuthProvider } from '@/contexts/AuthContext'
-import AuthGuard from '@/app/components/AuthGuard'
-import './globals.css'
+import type { Metadata, Viewport } from 'next';
+import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'MIXTURA — Cocktail Library & Calculator',
-  description: 'Outil professionnel pour mixologues : calcul food cost, gestion de recettes et équipe',
+  title: 'Mixtura',
+  description: 'Gestion intelligente pour votre bar',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
-    title: 'MIXTURA',
+    title: 'Mixtura',
   },
-}
+};
 
 export const viewport: Viewport = {
+  themeColor: '#0A0E1A',
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
-  themeColor: '#0A0E1A',
-}
+};
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="fr" suppressHydrationWarning>
-      <body>
-        <AuthProvider>
-          <AuthGuard>
-            {children}
-          </AuthGuard>
-        </AuthProvider>
-      </body>
+      <head>
+        <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              try {
+                var t = localStorage.getItem('mixtura-theme');
+                if (t === 'light') document.documentElement.classList.add('theme-light');
+              } catch(e) {}
+            `,
+          }}
+        />
+      </head>
+      <body>{children}</body>
     </html>
-  )
+  );
 }
