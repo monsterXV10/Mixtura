@@ -208,53 +208,35 @@ export default function RecipeForm({ initialData, userIngredients, userId }: Rec
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <label className="text-xs font-medium text-[var(--text-dim)] uppercase tracking-wide">Ingrédients</label>
-          <div className="flex items-center gap-3 text-xs text-[var(--text-dim)]">
-            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-400 inline-block" /> En stock</span>
-            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-400 inline-block" /> Fait maison</span>
+          <div className="flex items-center gap-2 text-xs text-[var(--text-dim)]">
+            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-400 inline-block" /> Stock</span>
+            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-400 inline-block" /> Maison</span>
             <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-orange-400 inline-block" /> Nouveau</span>
           </div>
         </div>
 
-        <div className="space-y-2">
+        <div className="space-y-3">
           {ingredients.map((row, index) => {
             const dot = dotColor(row);
             const showDrop = activeIndex === index && suggestions.length > 0;
 
             return (
-              <div key={index} className="relative">
-                <div className="flex gap-2 items-center">
-                  <input
-                    type="number"
-                    min="0"
-                    step="any"
-                    value={row.qty === 0 ? '' : row.qty}
-                    onChange={(e) => updateRow(index, 'qty', parseFloat(e.target.value) || 0)}
-                    placeholder="Qté"
-                    className="field-input w-20 shrink-0"
-                  />
-
+              <div key={index} className="card p-3 space-y-2 relative">
+                {/* Row 1: Name + delete */}
+                <div className="flex items-center gap-2">
                   <div className="relative flex-1">
                     <input
                       type="text"
                       value={row.name}
                       onChange={(e) => handleNameChange(index, e.target.value)}
                       onFocus={() => row.name.trim() && handleNameChange(index, row.name)}
-                      placeholder="Ingrédient"
+                      placeholder="Nom de l'ingrédient"
                       className="field-input pr-7 w-full"
                     />
                     {row.name.trim() && dot && (
                       <span className={`absolute right-2.5 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full ${dot}`} />
                     )}
                   </div>
-
-                  <select
-                    value={row.unit}
-                    onChange={(e) => updateRow(index, 'unit', e.target.value)}
-                    className="field-input w-24 shrink-0"
-                  >
-                    {UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
-                  </select>
-
                   <button
                     type="button"
                     onClick={() => setIngredients((prev) => prev.filter((_, i) => i !== index))}
@@ -264,11 +246,35 @@ export default function RecipeForm({ initialData, userIngredients, userId }: Rec
                   </button>
                 </div>
 
+                {/* Row 2: Qty + Unit */}
+                <div className="flex gap-2">
+                  <div className="flex-1">
+                    <label className="text-xs text-[var(--text-dim)] mb-1 block">Quantité</label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="any"
+                      value={row.qty === 0 ? '' : row.qty}
+                      onChange={(e) => updateRow(index, 'qty', parseFloat(e.target.value) || 0)}
+                      placeholder="0"
+                      className="field-input w-full"
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <label className="text-xs text-[var(--text-dim)] mb-1 block">Unité</label>
+                    <select
+                      value={row.unit}
+                      onChange={(e) => updateRow(index, 'unit', e.target.value)}
+                      className="field-input w-full"
+                    >
+                      {UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Autocomplete dropdown */}
                 {showDrop && (
-                  <div
-                    ref={dropdownRef}
-                    className="absolute left-[88px] right-[120px] top-full mt-1 z-50 card p-1 shadow-lg"
-                  >
+                  <div ref={dropdownRef} className="absolute left-3 right-12 top-14 z-50 card p-1 shadow-lg">
                     {suggestions.map((opt) => (
                       <button
                         key={opt.id}
@@ -278,9 +284,7 @@ export default function RecipeForm({ initialData, userIngredients, userId }: Rec
                       >
                         <span className={`w-2 h-2 rounded-full shrink-0 ${opt.homemade ? 'bg-blue-400' : 'bg-emerald-400'}`} />
                         {opt.name}
-                        {opt.homemade && (
-                          <FlaskConical size={12} className="ml-auto text-blue-400 shrink-0" />
-                        )}
+                        {opt.homemade && <FlaskConical size={12} className="ml-auto text-blue-400 shrink-0" />}
                       </button>
                     ))}
                   </div>
@@ -293,7 +297,7 @@ export default function RecipeForm({ initialData, userIngredients, userId }: Rec
         <button
           type="button"
           onClick={() => setIngredients((prev) => [...prev, { ...EMPTY_ROW }])}
-          className="btn-ghost w-full py-2 text-sm flex items-center justify-center gap-1.5"
+          className="btn-ghost w-full py-2.5 text-sm flex items-center justify-center gap-1.5"
         >
           <Plus size={15} />
           Ajouter un ingrédient
