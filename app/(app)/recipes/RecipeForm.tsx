@@ -1,27 +1,35 @@
 'use client';
 import { useState, useRef, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { Plus, Trash2, Loader2 } from 'lucide-react';
+import { Plus, Trash2, Loader2, FlaskConical } from 'lucide-react';
+
+export interface UserIngredientOption {
+  id: string;
+  name: string;
+  unit: string;
+  homemade?: boolean;
+}
+
+interface RecipeIngredientRow {
+  ingredientId?: string;
+  qty: number;
+  name: string;
+  unit: string;
+}
 
 interface RecipeFormProps {
   initialData?: {
     id: string;
     name: string;
     type: 'cocktail' | 'coffee' | 'cuisine';
-    ingredients: Array<{ qty: number; name: string; unit: string }>;
+    ingredients: RecipeIngredientRow[];
     steps: string;
     glass: string;
     method: string;
     garnish: string;
   };
-  userIngredients: Array<{ name: string; unit: string }>;
+  userIngredients: UserIngredientOption[];
   userId: string;
-}
-
-interface Ingredient {
-  qty: number;
-  name: string;
-  unit: string;
 }
 
 const UNITS = [
@@ -40,15 +48,13 @@ const METHODS = [
   'Muddle', 'Direct', 'Shake + Double Strain',
 ];
 
-const EMPTY_INGREDIENT: Ingredient = { qty: 0, name: '', unit: 'cl' };
+const EMPTY_ROW: RecipeIngredientRow = { qty: 0, name: '', unit: 'cl' };
 
 export default function RecipeForm({ initialData, userIngredients, userId }: RecipeFormProps) {
   const [name, setName] = useState(initialData?.name ?? '');
   const [type, setType] = useState<'cocktail' | 'coffee' | 'cuisine'>(initialData?.type ?? 'cocktail');
-  const [ingredients, setIngredients] = useState<Ingredient[]>(
-    initialData?.ingredients && initialData.ingredients.length > 0
-      ? initialData.ingredients
-      : [{ ...EMPTY_INGREDIENT }]
+  const [ingredients, setIngredients] = useState<RecipeIngredientRow[]>(
+    initialData?.ingredients?.length ? initialData.ingredients : [{ ...EMPTY_ROW }]
   );
   const [steps, setSteps] = useState(initialData?.steps ?? '');
   const [glass, setGlass] = useState(initialData?.glass ?? '');
@@ -57,81 +63,61 @@ export default function RecipeForm({ initialData, userIngredients, userId }: Rec
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
-  // Autocomplete state
-  const [suggestions, setSuggestions] = useState<string[]>([]);
-  const [activeIngredientIndex, setActiveIngredientIndex] = useState<number | null>(null);
-  const suggestionsRef = useRef<HTMLDivElement>(null);
+  const [suggestions, setSuggestions] = useState<UserIngredientOption[]>([]);
+  const [activeIndex, setActiveIndex] = useState<number | null>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Close suggestions on outside click
   useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (suggestionsRef.current && !suggestionsRef.current.contains(e.target as Node)) {
+    function onClickOutside(e: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
         setSuggestions([]);
-        setActiveIngredientIndex(null);
+        setActiveIndex(null);
       }
     }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('mousedown', onClickOutside);
+    return () => document.removeEventListener('mousedown', onClickOutside);
   }, []);
 
-  function handleIngredientNameChange(index: number, value: string) {
+  function handleNameChange(index: number, value: string) {
     setIngredients((prev) => {
       const updated = [...prev];
-      updated[index] = { ...updated[index], name: value };
+      // Clear the linked id if user is editing the name manually
+      updated[index] = { ...updated[index], name: value, ingredientId: undefined };
       return updated;
     });
 
-    if (value.trim().length === 0) {
+    if (!value.trim()) {
       setSuggestions([]);
-      setActiveIngredientIndex(null);
+      setActiveIndex(null);
       return;
     }
 
     const q = value.toLowerCase();
     const filtered = userIngredients
       .filter((ing) => ing.name.toLowerCase().includes(q))
-      .slice(0, 6)
-      .map((ing) => ing.name);
+      .slice(0, 8);
 
     setSuggestions(filtered);
-    setActiveIngredientIndex(index);
+    setActiveIndex(index);
   }
 
-  function handleSuggestionClick(ingredientIndex: number, suggestedName: string) {
-    const match = userIngredients.find(
-      (ing) => ing.name.toLowerCase() === suggestedName.toLowerCase()
-    );
+  function handleSuggestionPick(rowIndex: number, option: UserIngredientOption) {
     setIngredients((prev) => {
       const updated = [...prev];
-      updated[ingredientIndex] = {
-        ...updated[ingredientIndex],
-        name: suggestedName,
-        unit: match?.unit ?? updated[ingredientIndex].unit,
+      updated[rowIndex] = {
+        ...updated[rowIndex],
+        ingredientId: option.id,
+        name: option.name,
+        unit: option.unit,
       };
       return updated;
     });
     setSuggestions([]);
-    setActiveIngredientIndex(null);
+    setActiveIndex(null);
   }
 
-  function isExistingIngredient(ingredientName: string): boolean {
-    return userIngredients.some(
-      (ing) => ing.name.toLowerCase() === ingredientName.toLowerCase()
-    );
-  }
-
-  function addIngredient() {
-    setIngredients((prev) => [...prev, { ...EMPTY_INGREDIENT }]);
-  }
-
-  function removeIngredient(index: number) {
-    setIngredients((prev) => prev.filter((_, i) => i !== index));
-  }
-
-  function updateIngredient<K extends keyof Ingredient>(
-    index: number,
-    key: K,
-    value: Ingredient[K]
+  function updateRow<K extends keyof RecipeIngredientRow>(
+    index: number, key: K, value: RecipeIngredientRow[K]
   ) {
     setIngredients((prev) => {
       const updated = [...prev];
@@ -140,44 +126,42 @@ export default function RecipeForm({ initialData, userIngredients, userId }: Rec
     });
   }
 
-  const handleSubmit = async () => {
-    if (!name.trim()) {
-      setError('Le nom est requis.');
-      return;
+  function dotColor(row: RecipeIngredientRow): string {
+    if (!row.name.trim()) return '';
+    if (row.ingredientId) {
+      const opt = userIngredients.find((i) => i.id === row.ingredientId);
+      if (opt?.homemade) return 'bg-blue-400';
+      return 'bg-emerald-400';
     }
+    return 'bg-orange-400';
+  }
+
+  const handleSubmit = async () => {
+    if (!name.trim()) { setError('Le nom est requis.'); return; }
     setSaving(true);
     setError('');
 
     const supabase = createClient();
 
+    const ingredientRows = ingredients.filter((i) => i.name.trim());
+
     const payload = {
       user_id: userId,
       type,
       data: {
-        id: initialData?.id ?? crypto.randomUUID(),
         name: name.trim(),
         steps,
-        ingredients: ingredients.filter((i) => i.name.trim()),
+        ingredients: ingredientRows,
       },
       metadata: type === 'cocktail' ? { glass, method, garnish } : {},
       updated_at: new Date().toISOString(),
     };
 
-    let err: { message: string } | null = null;
+    const result = initialData
+      ? await supabase.from('recipes').update(payload).eq('id', initialData.id).eq('user_id', userId)
+      : await supabase.from('recipes').insert(payload);
 
-    if (initialData) {
-      const result = await supabase
-        .from('recipes')
-        .update(payload)
-        .eq('id', initialData.id)
-        .eq('user_id', userId);
-      err = result.error;
-    } else {
-      const result = await supabase.from('recipes').insert(payload);
-      err = result.error;
-    }
-
-    if (err) {
+    if (result.error) {
       setError('Erreur lors de la sauvegarde.');
       setSaving(false);
     } else {
@@ -189,43 +173,32 @@ export default function RecipeForm({ initialData, userIngredients, userId }: Rec
     <div className="space-y-5 max-w-xl mx-auto">
       {/* Name */}
       <div className="space-y-1.5">
-        <label className="text-xs font-medium text-[var(--text-dim)] uppercase tracking-wide">
-          Nom
-        </label>
+        <label className="text-xs font-medium text-[var(--text-dim)] uppercase tracking-wide">Nom</label>
         <input
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="Nom de la recette"
           className="field-input"
-          required
         />
       </div>
 
-      {/* Type selector */}
+      {/* Type */}
       <div className="space-y-1.5">
-        <label className="text-xs font-medium text-[var(--text-dim)] uppercase tracking-wide">
-          Type
-        </label>
+        <label className="text-xs font-medium text-[var(--text-dim)] uppercase tracking-wide">Type</label>
         <div className="flex gap-2">
-          {(
-            [
-              { value: 'cocktail', label: 'Cocktail' },
-              { value: 'coffee', label: 'Café' },
-              { value: 'cuisine', label: 'Cuisine' },
-            ] as const
-          ).map((opt) => (
+          {(['cocktail', 'coffee', 'cuisine'] as const).map((v) => (
             <button
-              key={opt.value}
+              key={v}
               type="button"
-              onClick={() => setType(opt.value)}
+              onClick={() => setType(v)}
               className={`flex-1 py-2 text-sm font-medium rounded-lg border transition-all ${
-                type === opt.value
+                type === v
                   ? 'bg-[var(--gold)] text-[#0A0E1A] border-[var(--gold)]'
                   : 'bg-transparent text-[var(--text-dim)] border-[var(--border)] hover:border-[var(--gold-dim)]'
               }`}
             >
-              {opt.label}
+              {v === 'cocktail' ? 'Cocktail' : v === 'coffee' ? 'Café' : 'Cuisine'}
             </button>
           ))}
         </div>
@@ -233,105 +206,83 @@ export default function RecipeForm({ initialData, userIngredients, userId }: Rec
 
       {/* Ingredients */}
       <div className="space-y-2">
-        <label className="text-xs font-medium text-[var(--text-dim)] uppercase tracking-wide">
-          Ingrédients
-        </label>
+        <div className="flex items-center justify-between">
+          <label className="text-xs font-medium text-[var(--text-dim)] uppercase tracking-wide">Ingrédients</label>
+          <div className="flex items-center gap-3 text-xs text-[var(--text-dim)]">
+            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-400 inline-block" /> En stock</span>
+            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-400 inline-block" /> Fait maison</span>
+            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-orange-400 inline-block" /> Nouveau</span>
+          </div>
+        </div>
+
         <div className="space-y-2">
-          {ingredients.map((ing, index) => {
-            const existing = ing.name.trim() ? isExistingIngredient(ing.name) : null;
-            const showSuggestions =
-              activeIngredientIndex === index && suggestions.length > 0;
+          {ingredients.map((row, index) => {
+            const dot = dotColor(row);
+            const showDrop = activeIndex === index && suggestions.length > 0;
 
             return (
               <div key={index} className="relative">
                 <div className="flex gap-2 items-center">
-                  {/* Qty */}
                   <input
                     type="number"
                     min="0"
                     step="any"
-                    value={ing.qty === 0 ? '' : ing.qty}
-                    onChange={(e) =>
-                      updateIngredient(index, 'qty', parseFloat(e.target.value) || 0)
-                    }
+                    value={row.qty === 0 ? '' : row.qty}
+                    onChange={(e) => updateRow(index, 'qty', parseFloat(e.target.value) || 0)}
                     placeholder="Qté"
                     className="field-input w-20 shrink-0"
                   />
 
-                  {/* Name with dot indicator */}
                   <div className="relative flex-1">
                     <input
                       type="text"
-                      value={ing.name}
-                      onChange={(e) => handleIngredientNameChange(index, e.target.value)}
-                      onFocus={() => {
-                        if (ing.name.trim()) {
-                          handleIngredientNameChange(index, ing.name);
-                        }
-                      }}
+                      value={row.name}
+                      onChange={(e) => handleNameChange(index, e.target.value)}
+                      onFocus={() => row.name.trim() && handleNameChange(index, row.name)}
                       placeholder="Ingrédient"
                       className="field-input pr-7 w-full"
                     />
-                    {ing.name.trim() && (
-                      <span
-                        className={`absolute right-2.5 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full ${
-                          existing ? 'bg-emerald-400' : 'bg-orange-400'
-                        }`}
-                      />
+                    {row.name.trim() && dot && (
+                      <span className={`absolute right-2.5 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full ${dot}`} />
                     )}
                   </div>
 
-                  {/* Unit */}
                   <select
-                    value={ing.unit}
-                    onChange={(e) => updateIngredient(index, 'unit', e.target.value)}
+                    value={row.unit}
+                    onChange={(e) => updateRow(index, 'unit', e.target.value)}
                     className="field-input w-24 shrink-0"
                   >
-                    {UNITS.map((u) => (
-                      <option key={u} value={u}>
-                        {u}
-                      </option>
-                    ))}
+                    {UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
                   </select>
 
-                  {/* Delete */}
                   <button
                     type="button"
-                    onClick={() => removeIngredient(index)}
+                    onClick={() => setIngredients((prev) => prev.filter((_, i) => i !== index))}
                     className="shrink-0 p-2 text-[var(--text-dim)] hover:text-red-400 transition-colors"
                   >
                     <Trash2 size={16} />
                   </button>
                 </div>
 
-                {/* Autocomplete dropdown */}
-                {showSuggestions && (
+                {showDrop && (
                   <div
-                    ref={suggestionsRef}
+                    ref={dropdownRef}
                     className="absolute left-[88px] right-[120px] top-full mt-1 z-50 card p-1 shadow-lg"
-                    style={{ border: '1px solid var(--border)' }}
                   >
-                    {suggestions.map((s) => {
-                      const isEx = isExistingIngredient(s);
-                      return (
-                        <button
-                          key={s}
-                          type="button"
-                          onMouseDown={(e) => {
-                            e.preventDefault();
-                            handleSuggestionClick(index, s);
-                          }}
-                          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-[var(--text)] hover:bg-[var(--surface2)] rounded-md transition-colors text-left"
-                        >
-                          <span
-                            className={`w-2 h-2 rounded-full shrink-0 ${
-                              isEx ? 'bg-emerald-400' : 'bg-orange-400'
-                            }`}
-                          />
-                          {s}
-                        </button>
-                      );
-                    })}
+                    {suggestions.map((opt) => (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onMouseDown={(e) => { e.preventDefault(); handleSuggestionPick(index, opt); }}
+                        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-[var(--text)] hover:bg-[var(--surface2)] rounded-md transition-colors text-left"
+                      >
+                        <span className={`w-2 h-2 rounded-full shrink-0 ${opt.homemade ? 'bg-blue-400' : 'bg-emerald-400'}`} />
+                        {opt.name}
+                        {opt.homemade && (
+                          <FlaskConical size={12} className="ml-auto text-blue-400 shrink-0" />
+                        )}
+                      </button>
+                    ))}
                   </div>
                 )}
               </div>
@@ -341,7 +292,7 @@ export default function RecipeForm({ initialData, userIngredients, userId }: Rec
 
         <button
           type="button"
-          onClick={addIngredient}
+          onClick={() => setIngredients((prev) => [...prev, { ...EMPTY_ROW }])}
           className="btn-ghost w-full py-2 text-sm flex items-center justify-center gap-1.5"
         >
           <Plus size={15} />
@@ -351,9 +302,7 @@ export default function RecipeForm({ initialData, userIngredients, userId }: Rec
 
       {/* Steps */}
       <div className="space-y-1.5">
-        <label className="text-xs font-medium text-[var(--text-dim)] uppercase tracking-wide">
-          Préparation
-        </label>
+        <label className="text-xs font-medium text-[var(--text-dim)] uppercase tracking-wide">Préparation</label>
         <textarea
           value={steps}
           onChange={(e) => setSteps(e.target.value)}
@@ -368,49 +317,24 @@ export default function RecipeForm({ initialData, userIngredients, userId }: Rec
         <div className="card space-y-4">
           <h3 className="text-sm font-semibold text-[var(--text)]">Détails cocktail</h3>
 
-          {/* Glass */}
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-[var(--text-dim)] uppercase tracking-wide">
-              Verre
-            </label>
-            <select
-              value={glass}
-              onChange={(e) => setGlass(e.target.value)}
-              className="field-input"
-            >
+            <label className="text-xs font-medium text-[var(--text-dim)] uppercase tracking-wide">Verre</label>
+            <select value={glass} onChange={(e) => setGlass(e.target.value)} className="field-input">
               <option value="">— Choisir un verre —</option>
-              {GLASSES.map((g) => (
-                <option key={g} value={g}>
-                  {g}
-                </option>
-              ))}
+              {GLASSES.map((g) => <option key={g} value={g}>{g}</option>)}
             </select>
           </div>
 
-          {/* Method */}
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-[var(--text-dim)] uppercase tracking-wide">
-              Méthode
-            </label>
-            <select
-              value={method}
-              onChange={(e) => setMethod(e.target.value)}
-              className="field-input"
-            >
+            <label className="text-xs font-medium text-[var(--text-dim)] uppercase tracking-wide">Méthode</label>
+            <select value={method} onChange={(e) => setMethod(e.target.value)} className="field-input">
               <option value="">— Choisir une méthode —</option>
-              {METHODS.map((m) => (
-                <option key={m} value={m}>
-                  {m}
-                </option>
-              ))}
+              {METHODS.map((m) => <option key={m} value={m}>{m}</option>)}
             </select>
           </div>
 
-          {/* Garnish */}
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-[var(--text-dim)] uppercase tracking-wide">
-              Garniture
-            </label>
+            <label className="text-xs font-medium text-[var(--text-dim)] uppercase tracking-wide">Garniture</label>
             <input
               type="text"
               value={garnish}
@@ -422,26 +346,15 @@ export default function RecipeForm({ initialData, userIngredients, userId }: Rec
         </div>
       )}
 
-      {/* Error */}
-      {error && (
-        <p className="text-sm text-red-400 bg-red-400/10 rounded-lg px-3 py-2">{error}</p>
-      )}
+      {error && <p className="text-sm text-red-400 bg-red-400/10 rounded-lg px-3 py-2">{error}</p>}
 
-      {/* Submit */}
       <button
         type="button"
         onClick={handleSubmit}
         disabled={saving}
         className="btn-primary w-full py-3 flex items-center justify-center gap-2"
       >
-        {saving ? (
-          <>
-            <Loader2 size={16} className="animate-spin" />
-            Enregistrement…
-          </>
-        ) : (
-          'Enregistrer'
-        )}
+        {saving ? <><Loader2 size={16} className="animate-spin" />Enregistrement…</> : 'Enregistrer'}
       </button>
     </div>
   );

@@ -1,9 +1,9 @@
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import { TopBar } from '@/components/layout/TopBar';
-import RecipeForm from '../RecipeForm';
+import IngredientForm from '../IngredientForm';
 
-export default async function NewRecipePage() {
+export default async function NewIngredientPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login');
@@ -25,9 +25,9 @@ export default async function NewRecipePage() {
 
   return (
     <>
-      <TopBar title="Nouvelle recette" backHref="/recipes" />
+      <TopBar title="Nouvel ingrédient" backHref="/ingredients" />
       <main className="px-4 py-5 pb-safe">
-        <RecipeForm userId={user.id} userIngredients={userIngredients} />
+        <IngredientForm userId={user.id} userIngredients={userIngredients} />
       </main>
     </>
   );

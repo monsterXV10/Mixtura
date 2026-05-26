@@ -2,18 +2,18 @@
 import { useState, useMemo } from 'react';
 import { TopBar } from '@/components/layout/TopBar';
 import Link from 'next/link';
-import { Plus, Search, Package } from 'lucide-react';
+import { Plus, Search, Package, FlaskConical } from 'lucide-react';
 
 interface IngredientData {
-  id: string;
-  name: string;
-  type: string;
-  unit: string;
-  price: number;
-  stock: number;
-  format: number;
-  category: string;
+  name?: string;
+  type?: string;
+  unit?: string;
+  price?: number;
+  stock?: number;
+  format?: number;
   homemade?: boolean;
+  yield?: number;
+  yieldUnit?: string;
 }
 
 interface IngredientRow {
@@ -29,14 +29,9 @@ interface Props {
 }
 
 const CATEGORY_LABELS: Record<string, string> = {
-  spirit: 'Spiritueux',
-  liqueur: 'Liqueur',
-  wine: 'Vin',
-  syrup: 'Sirop',
-  juice: 'Jus',
-  fresh: 'Frais',
-  dry: 'Sec',
-  other: 'Autre',
+  spirit: 'Spiritueux', liqueur: 'Liqueur', wine: 'Vin',
+  syrup: 'Sirop', juice: 'Jus', fresh: 'Frais',
+  dry: 'Sec', homemade: 'Fait maison', other: 'Autre',
 };
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -47,6 +42,7 @@ const CATEGORY_COLORS: Record<string, string> = {
   juice: 'text-orange-400 bg-orange-400/10',
   fresh: 'text-emerald-400 bg-emerald-400/10',
   dry: 'text-yellow-400 bg-yellow-400/10',
+  homemade: 'text-blue-400 bg-blue-400/10',
   other: 'text-[var(--text-dim)] bg-[var(--surface2)]',
 };
 
@@ -57,19 +53,20 @@ const FILTER_TABS = [
   { key: 'wine', label: 'Vins' },
   { key: 'syrup', label: 'Sirops' },
   { key: 'fresh', label: 'Frais' },
+  { key: 'homemade', label: 'Maison' },
   { key: 'other', label: 'Autre' },
 ];
 
-function getStockStatus(stock: number, format: number): 'full' | 'low' | 'empty' {
+function getStockStatus(stock: number, format: number | undefined): 'full' | 'low' | 'empty' {
   if (stock <= 0) return 'empty';
-  if (format > 0 && stock / format < 0.2) return 'low';
+  if (format && format > 0 && stock / format < 0.2) return 'low';
   return 'full';
 }
 
-const STOCK_INDICATOR: Record<string, { dot: string; label: string }> = {
-  full: { dot: 'bg-emerald-400', label: 'En stock' },
-  low: { dot: 'bg-orange-400', label: 'Stock bas' },
-  empty: { dot: 'bg-red-400', label: 'Épuisé' },
+const STOCK_DOT: Record<string, string> = {
+  full: 'bg-emerald-400',
+  low: 'bg-orange-400',
+  empty: 'bg-red-400',
 };
 
 export default function IngredientsClient({ initialIngredients }: Props) {
@@ -81,18 +78,18 @@ export default function IngredientsClient({ initialIngredients }: Props) {
 
     if (categoryFilter !== 'all') {
       result = result.filter((ing) => {
-        const type = ing.data.type?.toLowerCase();
-        // "other" bucket catches everything not in a named category
+        if (categoryFilter === 'homemade') return ing.data.homemade === true;
         if (categoryFilter === 'other') {
-          return !['spirit', 'liqueur', 'wine', 'syrup', 'juice', 'fresh', 'dry'].includes(type);
+          const t = ing.data.type?.toLowerCase();
+          return !ing.data.homemade && !['spirit', 'liqueur', 'wine', 'syrup', 'juice', 'fresh', 'dry'].includes(t ?? '');
         }
-        return type === categoryFilter;
+        return ing.data.type?.toLowerCase() === categoryFilter && !ing.data.homemade;
       });
     }
 
     if (search.trim()) {
       const q = search.toLowerCase();
-      result = result.filter((ing) => ing.data.name.toLowerCase().includes(q));
+      result = result.filter((ing) => ing.data.name?.toLowerCase().includes(q));
     }
 
     return result;
@@ -111,7 +108,6 @@ export default function IngredientsClient({ initialIngredients }: Props) {
       />
 
       <main className="px-4 py-4 pb-safe space-y-4">
-        {/* Search */}
         <div className="relative">
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-dim)]" />
           <input
@@ -123,7 +119,6 @@ export default function IngredientsClient({ initialIngredients }: Props) {
           />
         </div>
 
-        {/* Category filter tabs */}
         <div className="flex gap-2 overflow-x-auto scrollbar-none pb-1 -mx-4 px-4">
           {FILTER_TABS.map((tab) => (
             <button
@@ -140,7 +135,6 @@ export default function IngredientsClient({ initialIngredients }: Props) {
           ))}
         </div>
 
-        {/* Ingredients grid */}
         {filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 gap-4 text-center">
             <Package size={40} className="text-[var(--text-dim)] opacity-40" />
@@ -159,62 +153,52 @@ export default function IngredientsClient({ initialIngredients }: Props) {
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {filtered.map((ing) => {
               const d = ing.data;
-              const status = getStockStatus(d.stock, d.format);
-              const indicator = STOCK_INDICATOR[status];
-              const categoryLabel = CATEGORY_LABELS[d.type?.toLowerCase()] ?? CATEGORY_LABELS['other'];
-              const categoryColor = CATEGORY_COLORS[d.type?.toLowerCase()] ?? CATEGORY_COLORS['other'];
+              const isHomemade = d.homemade === true;
+              const catKey = isHomemade ? 'homemade' : (d.type?.toLowerCase() ?? 'other');
+              const catLabel = CATEGORY_LABELS[catKey] ?? CATEGORY_LABELS['other'];
+              const catColor = CATEGORY_COLORS[catKey] ?? CATEGORY_COLORS['other'];
+              const stock = d.stock ?? 0;
+              const status = getStockStatus(stock, isHomemade ? undefined : d.format);
+              const stockDisplay = isHomemade ? `${stock} ${d.yieldUnit ?? d.unit}` : `${stock} ${d.unit ?? ''}`;
 
               return (
-                <div key={ing.id} className="card">
+                <Link key={ing.id} href={`/ingredients/${ing.id}`} className="card block hover:border-[var(--gold-dim)] transition-colors">
                   <div className="flex items-start justify-between gap-2 mb-2">
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-[var(--text)] text-sm truncate">
-                        {d.name}
-                      </h3>
-                      {d.homemade && (
-                        <span className="text-xs text-[var(--gold)]">Fait maison</span>
-                      )}
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      {isHomemade ? (
+                        <FlaskConical size={14} className="text-blue-400 shrink-0" />
+                      ) : null}
+                      <h3 className="font-semibold text-[var(--text)] text-sm truncate">{d.name}</h3>
                     </div>
-                    <span className={`shrink-0 text-xs px-2 py-0.5 rounded-full font-medium ${categoryColor}`}>
-                      {categoryLabel}
+                    <span className={`shrink-0 text-xs px-2 py-0.5 rounded-full font-medium ${catColor}`}>
+                      {catLabel}
                     </span>
                   </div>
 
                   <div className="flex items-center justify-between mt-3">
-                    {/* Stock indicator */}
                     <div className="flex items-center gap-1.5">
-                      <span className={`w-2 h-2 rounded-full ${indicator.dot}`} />
+                      <span className={`w-2 h-2 rounded-full ${STOCK_DOT[status]}`} />
                       <span className="text-xs text-[var(--text-dim)]">
-                        {d.stock > 0
-                          ? `${d.stock} ${d.unit}`
-                          : indicator.label}
+                        {stock > 0 ? stockDisplay : 'Épuisé'}
                       </span>
                     </div>
-
-                    {/* Price */}
-                    {d.price > 0 && (
-                      <span className="text-xs text-[var(--text-dim)]">
-                        {d.price.toFixed(2)} €
-                      </span>
+                    {!isHomemade && d.price && d.price > 0 && (
+                      <span className="text-xs text-[var(--text-dim)]">{d.price.toFixed(2)} €</span>
+                    )}
+                    {isHomemade && d.yield && (
+                      <span className="text-xs text-[var(--text-dim)]">Rdt {d.yield} {d.yieldUnit}</span>
                     )}
                   </div>
 
-                  {/* Stock bar */}
-                  {d.format > 0 && (
+                  {!isHomemade && d.format && d.format > 0 && (
                     <div className="mt-2 h-1 bg-[var(--surface2)] rounded-full overflow-hidden">
                       <div
-                        className={`h-full rounded-full transition-all ${
-                          status === 'full'
-                            ? 'bg-emerald-400'
-                            : status === 'low'
-                            ? 'bg-orange-400'
-                            : 'bg-red-400'
-                        }`}
-                        style={{ width: `${Math.min(100, (d.stock / d.format) * 100)}%` }}
+                        className={`h-full rounded-full ${STOCK_DOT[status]}`}
+                        style={{ width: `${Math.min(100, (stock / d.format) * 100)}%` }}
                       />
                     </div>
                   )}
-                </div>
+                </Link>
               );
             })}
           </div>
