@@ -143,7 +143,43 @@ export default function RecipeForm({ initialData, userIngredients, userId }: Rec
 
     const supabase = createClient();
 
-    const ingredientRows = ingredients.filter((i) => i.name.trim());
+    let ingredientRows = ingredients.filter((i) => i.name.trim());
+
+    // Auto-create ingredients that don't exist yet (orange dot = no ingredientId)
+    const toCreate = ingredientRows.filter((i) => !i.ingredientId);
+    if (toCreate.length > 0) {
+      const { data: created } = await supabase
+        .from('ingredients')
+        .insert(
+          toCreate.map((ing) => ({
+            user_id: userId,
+            data: {
+              name: ing.name.trim(),
+              type: 'other',
+              unit: ing.unit,
+              price: 0,
+              stock: 0,
+              format: 0,
+              homemade: false,
+            },
+            updated_at: new Date().toISOString(),
+          }))
+        )
+        .select('id, data');
+
+      if (created) {
+        const nameToId = new Map(
+          created.map((c) => [
+            ((c.data as { name?: string })?.name ?? '').toLowerCase(),
+            c.id as string,
+          ])
+        );
+        ingredientRows = ingredientRows.map((ing) => ({
+          ...ing,
+          ingredientId: ing.ingredientId ?? nameToId.get(ing.name.toLowerCase()),
+        }));
+      }
+    }
 
     const payload = {
       user_id: userId,

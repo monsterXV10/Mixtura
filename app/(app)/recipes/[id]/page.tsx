@@ -3,6 +3,7 @@ import { redirect, notFound } from 'next/navigation';
 import { TopBar } from '@/components/layout/TopBar';
 import Link from 'next/link';
 import { Pencil, GlassWater, Flame } from 'lucide-react';
+import { RecipeDeleteButton } from '../RecipeDeleteButton';
 
 export default async function RecipeDetailPage({
   params,
@@ -140,7 +141,7 @@ export default async function RecipeDetailPage({
           </div>
         )}
 
-        {/* Edit CTA */}
+        {/* Actions */}
         <Link
           href={`/recipes/${id}/edit`}
           className="btn-primary w-full py-3 flex items-center justify-center gap-2"
@@ -148,6 +149,7 @@ export default async function RecipeDetailPage({
           <Pencil size={16} />
           Modifier cette recette
         </Link>
+        <RecipeDeleteButton recipeId={id} userId={user.id} />
       </main>
     </>
   );
