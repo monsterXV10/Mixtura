@@ -124,6 +124,14 @@ export default function LoginPage() {
           <Link href="/demo" className="block text-sm text-[var(--text-dim)] hover:text-[var(--gold)]">
             Essayer la démo →
           </Link>
+          {process.env.NEXT_PUBLIC_TEST_LOGIN === 'true' && (
+            <a
+              href="/api/test-login"
+              className="block text-xs text-orange-400 border border-orange-400/20 rounded-lg py-2 hover:bg-orange-400/5 transition-colors"
+            >
+              🔧 Connexion test (monsterxv10)
+            </a>
+          )}
         </div>
       </div>
     </div>
