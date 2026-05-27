@@ -21,6 +21,7 @@ interface RecipeRow {
     method?: string | string[];
     garnish?: string;
     type?: string;
+    spiritFamily?: string;
   };
   updated_at: string;
 }
@@ -56,10 +57,30 @@ const TYPE_COLORS: Record<string, string> = {
   cuisine: 'text-emerald-400 bg-emerald-400/10',
 };
 
+const SPIRIT_FILTER_TABS = [
+  { key: 'all', label: 'Tous' },
+  { key: 'whisky', label: 'Whisky' },
+  { key: 'gin', label: 'Gin' },
+  { key: 'vodka', label: 'Vodka' },
+  { key: 'rhum', label: 'Rhum' },
+  { key: 'tequila', label: 'Tequila' },
+  { key: 'cognac', label: 'Cognac' },
+  { key: 'champagne', label: 'Champagne' },
+  { key: 'wine', label: 'Vin' },
+  { key: 'liqueur', label: 'Liqueur' },
+  { key: 'non-alc', label: 'Sans alcool' },
+  { key: 'other', label: 'Autre' },
+];
+
+const SPIRIT_LABELS: Record<string, string> = Object.fromEntries(
+  SPIRIT_FILTER_TABS.filter((t) => t.key !== 'all').map((t) => [t.key, t.label])
+);
+
 export default function RecipesClient({ initialRecipes, userId }: Props) {
   const [activeTab, setActiveTab] = useState<'mine' | 'catalog'>('mine');
   const [recipes, setRecipes] = useState<RecipeRow[]>(initialRecipes);
   const [mySearch, setMySearch] = useState('');
+  const [spiritFilter, setSpiritFilter] = useState('all');
 
   // Catalog state
   const [catalog, setCatalog] = useState<CatalogCocktail[]>([]);
@@ -76,10 +97,16 @@ export default function RecipesClient({ initialRecipes, userId }: Props) {
   }, [recipes]);
 
   const filteredRecipes = useMemo(() => {
-    if (!mySearch.trim()) return recipes;
-    const q = mySearch.toLowerCase();
-    return recipes.filter((r) => r.data.name.toLowerCase().includes(q));
-  }, [recipes, mySearch]);
+    let result = recipes;
+    if (spiritFilter !== 'all') {
+      result = result.filter((r) => r.metadata?.spiritFamily === spiritFilter);
+    }
+    if (mySearch.trim()) {
+      const q = mySearch.toLowerCase();
+      result = result.filter((r) => r.data.name.toLowerCase().includes(q));
+    }
+    return result;
+  }, [recipes, mySearch, spiritFilter]);
 
   const filteredCatalog = useMemo(() => {
     if (!catalogSearch.trim()) return catalog;
@@ -215,6 +242,23 @@ export default function RecipesClient({ initialRecipes, userId }: Props) {
               />
             </div>
 
+            {/* Spirit filter pills */}
+            <div className="flex gap-2 overflow-x-auto scrollbar-none pb-1 -mx-4 px-4">
+              {SPIRIT_FILTER_TABS.map((tab) => (
+                <button
+                  key={tab.key}
+                  onClick={() => setSpiritFilter(tab.key)}
+                  className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                    spiritFilter === tab.key
+                      ? 'bg-[var(--gold)] text-[#0A0E1A]'
+                      : 'bg-[var(--surface2)] text-[var(--text-dim)] border border-[var(--border)]'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
             {/* Recipe grid */}
             {filteredRecipes.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 gap-4 text-center">
@@ -245,6 +289,9 @@ export default function RecipesClient({ initialRecipes, userId }: Props) {
                   const methodStr = Array.isArray(method) ? method.join(', ') : method;
                   const typeLabel = TYPE_LABELS[recipe.type] ?? recipe.type;
                   const typeColor = TYPE_COLORS[recipe.type] ?? 'text-[var(--text-dim)] bg-[var(--surface2)]';
+                  const spiritLabel = recipe.metadata?.spiritFamily
+                    ? SPIRIT_LABELS[recipe.metadata.spiritFamily]
+                    : null;
                   return (
                     <div
                       key={recipe.id}
@@ -258,9 +305,16 @@ export default function RecipesClient({ initialRecipes, userId }: Props) {
                           <h3 className="font-semibold text-[var(--text)] text-sm leading-tight">
                             {recipe.data.name}
                           </h3>
-                          <span className={`shrink-0 text-xs px-2 py-0.5 rounded-full font-medium ${typeColor}`}>
-                            {typeLabel}
-                          </span>
+                          <div className="flex items-center gap-1 shrink-0">
+                            {spiritLabel && (
+                              <span className="text-xs px-2 py-0.5 rounded-full font-medium text-[var(--gold)] bg-[var(--gold)]/10">
+                                {spiritLabel}
+                              </span>
+                            )}
+                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${typeColor}`}>
+                              {typeLabel}
+                            </span>
+                          </div>
                         </div>
                         <div className="flex items-center gap-3 text-xs text-[var(--text-dim)]">
                           {methodStr && (

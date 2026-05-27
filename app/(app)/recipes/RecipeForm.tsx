@@ -14,6 +14,20 @@ interface RecipeIngredientRow {
   unit: string;
 }
 
+const SPIRIT_CATEGORIES = [
+  { key: 'whisky', label: 'Whisky' },
+  { key: 'gin', label: 'Gin' },
+  { key: 'vodka', label: 'Vodka' },
+  { key: 'rhum', label: 'Rhum' },
+  { key: 'tequila', label: 'Tequila' },
+  { key: 'cognac', label: 'Cognac' },
+  { key: 'champagne', label: 'Champagne' },
+  { key: 'wine', label: 'Vin' },
+  { key: 'liqueur', label: 'Liqueur' },
+  { key: 'non-alc', label: 'Sans alcool' },
+  { key: 'other', label: 'Autre' },
+];
+
 interface RecipeFormProps {
   initialData?: {
     id: string;
@@ -24,6 +38,7 @@ interface RecipeFormProps {
     glass: string;
     method: string;
     garnish: string;
+    spiritFamily: string;
   };
   userIngredients: UserIngredientOption[];
   userId: string;
@@ -57,6 +72,7 @@ export default function RecipeForm({ initialData, userIngredients, userId }: Rec
   const [glass, setGlass] = useState(initialData?.glass ?? '');
   const [method, setMethod] = useState(initialData?.method ?? '');
   const [garnish, setGarnish] = useState(initialData?.garnish ?? '');
+  const [spiritFamily, setSpiritFamily] = useState(initialData?.spiritFamily ?? '');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -154,7 +170,7 @@ export default function RecipeForm({ initialData, userIngredients, userId }: Rec
         steps,
         ingredients: ingredientRows,
       },
-      metadata: type === 'cocktail' ? { glass, method, garnish } : {},
+      metadata: type === 'cocktail' ? { glass, method, garnish, spiritFamily: spiritFamily || undefined } : {},
       updated_at: new Date().toISOString(),
     };
 
@@ -355,6 +371,26 @@ export default function RecipeForm({ initialData, userIngredients, userId }: Rec
               placeholder="ex. Zeste de citron"
               className="field-input"
             />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-[var(--text-dim)] uppercase tracking-wide">Spiritueux principal</label>
+            <div className="flex flex-wrap gap-2">
+              {SPIRIT_CATEGORIES.map((s) => (
+                <button
+                  key={s.key}
+                  type="button"
+                  onClick={() => setSpiritFamily(spiritFamily === s.key ? '' : s.key)}
+                  className={`px-3 py-1.5 text-xs font-medium rounded-full border transition-all ${
+                    spiritFamily === s.key
+                      ? 'bg-[var(--gold)] text-[#0A0E1A] border-[var(--gold)]'
+                      : 'bg-transparent text-[var(--text-dim)] border-[var(--border)] hover:border-[var(--gold-dim)]'
+                  }`}
+                >
+                  {s.label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       )}

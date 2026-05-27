@@ -41,6 +41,7 @@ export default async function EditRecipePage({
     glass?: string;
     method?: string | string[];
     garnish?: string;
+    spiritFamily?: string;
   } | null;
 
   // Normalize legacy ingredients (no ingredientId) by matching name
@@ -60,6 +61,7 @@ export default async function EditRecipePage({
     glass: recipeMetadata?.glass ?? '',
     method,
     garnish: recipeMetadata?.garnish ?? '',
+    spiritFamily: recipeMetadata?.spiritFamily ?? '',
   };
 
   return (
