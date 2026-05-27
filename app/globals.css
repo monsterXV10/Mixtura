@@ -18,13 +18,26 @@
 .theme-light {
   --bg: #F5F0E8;
   --surface: #FFFFFF;
-  --surface2: #F0EBE0;
-  --border: rgba(155, 126, 79, 0.2);
+  --surface2: #EFE9DC;
+  --border: rgba(120, 95, 55, 0.32);
   --text: #1A1208;
-  --text-dim: #6B5B3E;
-  --gold: #9B7E4F;
-  --gold-dim: #C8A96E;
+  --text-dim: #5C4D31;
+  --gold: #8A6E42;
+  --gold-dim: #B5945C;
 }
+
+/* Light mode: placeholders and accent colors (tuned for dark bg) need
+   darker shades to stay legible on light surfaces. Dark mode is untouched. */
+.theme-light .field-input::placeholder { opacity: 0.9; }
+.theme-light .text-red-400 { color: #dc2626; }
+.theme-light .text-blue-400 { color: #2563eb; }
+.theme-light .text-emerald-400 { color: #059669; }
+.theme-light .text-green-400 { color: #16a34a; }
+.theme-light .text-amber-400 { color: #b45309; }
+.theme-light .text-orange-400 { color: #ea580c; }
+.theme-light .text-yellow-400 { color: #a16207; }
+.theme-light .text-purple-400 { color: #9333ea; }
+.theme-light .text-sky-400 { color: #0284c7; }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
