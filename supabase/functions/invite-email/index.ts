@@ -65,7 +65,7 @@ Deno.serve(async (req: Request) => {
     const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
     if (!RESEND_API_KEY) return json({ error: 'RESEND_API_KEY not configured' }, 500);
 
-    const from = Deno.env.get('RESEND_FROM') ?? 'Mixtura <onboarding@resend.dev>';
+    const from = Deno.env.get('RESEND_FROM') ?? 'Mixtura <noreply@mixtura.buzz>';
     const inviterName =
       (user.user_metadata?.full_name as string) ?? user.email ?? 'Un collègue';
     const url = typeof joinUrl === 'string' ? joinUrl : '';
