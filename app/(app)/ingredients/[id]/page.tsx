@@ -4,6 +4,7 @@ import { TopBar } from '@/components/layout/TopBar';
 import Link from 'next/link';
 import { Edit2, FlaskConical, Package, ArrowLeft } from 'lucide-react';
 import TimerWidget from '../TimerWidget';
+import { ShareToTeamButton } from '@/components/shared/ShareToTeamButton';
 
 const CATEGORY_LABELS: Record<string, string> = {
   spirit: 'Spiritueux', liqueur: 'Liqueur', wine: 'Vin',
@@ -77,6 +78,19 @@ export default async function IngredientDetailPage({
     }
   }
 
+  // Teams the user belongs to (for sharing) + display name
+  const [{ data: memberships }, { data: myProfile }] = await Promise.all([
+    supabase.from('team_members').select('team_id').eq('user_id', user.id),
+    supabase.from('profiles').select('display_name').eq('id', user.id).single(),
+  ]);
+  const myTeamIds = (memberships ?? []).map((m) => m.team_id as string);
+  let myTeams: Array<{ id: string; name: string }> = [];
+  if (myTeamIds.length > 0) {
+    const { data: teamRows } = await supabase.from('teams').select('id, name').in('id', myTeamIds);
+    myTeams = (teamRows ?? []) as Array<{ id: string; name: string }>;
+  }
+  const sharerName = myProfile?.display_name ?? user.email?.split('@')[0] ?? 'Moi';
+
   const catKey = d.type ?? 'other';
   const catLabel = CATEGORY_LABELS[catKey] ?? CATEGORY_LABELS['other'];
   const catColor = CATEGORY_COLORS[catKey] ?? CATEGORY_COLORS['other'];
@@ -91,10 +105,20 @@ export default async function IngredientDetailPage({
         title={d.name ?? 'Ingrédient'}
         backHref="/ingredients"
         actions={
-          <Link href={`/ingredients/${id}/edit`} className="btn-ghost px-3 py-1.5 text-sm gap-1">
-            <Edit2 size={14} />
-            Modifier
-          </Link>
+          <div className="flex items-center gap-2">
+            <ShareToTeamButton
+              userId={user.id}
+              sharerName={sharerName}
+              teams={myTeams}
+              itemType="ingredient"
+              itemName={d.name ?? 'Ingrédient'}
+              payload={{ ingredientData: ingredient.data }}
+            />
+            <Link href={`/ingredients/${id}/edit`} className="btn-ghost px-3 py-1.5 text-sm gap-1">
+              <Edit2 size={14} />
+              Modifier
+            </Link>
+          </div>
         }
       />
 

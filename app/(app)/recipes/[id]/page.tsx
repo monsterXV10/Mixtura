@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Pencil, GlassWater, FlaskConical } from 'lucide-react';
 import { RecipeDeleteButton } from '../RecipeDeleteButton';
 import { RecipeTimer } from '../RecipeTimer';
+import { ShareToTeamButton } from '@/components/shared/ShareToTeamButton';
 
 const METHOD_TIMER_DEFAULTS: Record<string, number> = {
   'Shake': 10,
@@ -133,6 +134,19 @@ export default async function RecipeDetailPage({
     cuisine: 'text-emerald-400 bg-emerald-400/10',
   };
 
+  // Teams the user belongs to (for sharing) + display name
+  const [{ data: memberships }, { data: myProfile }] = await Promise.all([
+    supabase.from('team_members').select('team_id').eq('user_id', user.id),
+    supabase.from('profiles').select('display_name').eq('id', user.id).single(),
+  ]);
+  const myTeamIds = (memberships ?? []).map((m) => m.team_id as string);
+  let myTeams: Array<{ id: string; name: string }> = [];
+  if (myTeamIds.length > 0) {
+    const { data: teamRows } = await supabase.from('teams').select('id, name').in('id', myTeamIds);
+    myTeams = (teamRows ?? []) as Array<{ id: string; name: string }>;
+  }
+  const sharerName = myProfile?.display_name ?? user.email?.split('@')[0] ?? 'Moi';
+
   // Split steps into numbered lines; fall back to method-based default
   const manualStepLines = steps
     .split('\n')
@@ -152,13 +166,23 @@ export default async function RecipeDetailPage({
         title={name}
         backHref="/recipes"
         actions={
-          <Link
-            href={`/recipes/${id}/edit`}
-            className="btn-ghost px-3 py-1.5 text-sm flex items-center gap-1.5"
-          >
-            <Pencil size={14} />
-            Modifier
-          </Link>
+          <div className="flex items-center gap-2">
+            <ShareToTeamButton
+              userId={user.id}
+              sharerName={sharerName}
+              teams={myTeams}
+              itemType="recipe"
+              itemName={name}
+              payload={{ type: recipeType, recipeData: recipe.data, metadata: recipe.metadata ?? {} }}
+            />
+            <Link
+              href={`/recipes/${id}/edit`}
+              className="btn-ghost px-3 py-1.5 text-sm flex items-center gap-1.5"
+            >
+              <Pencil size={14} />
+              Modifier
+            </Link>
+          </div>
         }
       />
       <main className="px-4 py-5 pb-safe space-y-5">
