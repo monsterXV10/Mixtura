@@ -182,8 +182,24 @@ export default function TeamClient({
       token: randomToken(),
       invited_by: userId,
     });
-    if (e) setError("Impossible d'envoyer l'invitation.");
-    else setInviteEmail('');
+    if (e) {
+      setError("Impossible d'enregistrer l'invitation.");
+      setBusy(null);
+      return;
+    }
+    // Try to send a real email (no-op if email service isn't configured).
+    try {
+      const joinUrl = `${window.location.origin}/settings/team?join=${activeTeam.code}`;
+      const { error: fnErr } = await supabase.functions.invoke('invite-email', {
+        body: { teamId: activeTeam.id, inviteeEmail: email, joinUrl },
+      });
+      if (fnErr) {
+        setError("Invitation créée. Email non envoyé — partagez le code à la place.");
+      }
+    } catch {
+      setError("Invitation créée. Email non envoyé — partagez le code à la place.");
+    }
+    setInviteEmail('');
     setBusy(null);
     router.refresh();
   }
@@ -577,9 +593,10 @@ export default function TeamClient({
                   </button>
                 </div>
                 <p className="text-xs text-[var(--text-dim)] bg-[var(--surface2)] rounded-lg px-3 py-2">
-                  ⚠️ Aucun email n&apos;est envoyé. L&apos;invité voit l&apos;invitation en
-                  ouvrant Mixtura, ou rejoint directement avec le code{' '}
-                  <span className="font-mono font-semibold text-[var(--text)]">{activeTeam.code}</span>.
+                  Un email est envoyé à l&apos;invité. Il peut aussi rejoindre directement avec le
+                  code{' '}
+                  <span className="font-mono font-semibold text-[var(--text)]">{activeTeam.code}</span>{' '}
+                  ou via la bannière à sa connexion.
                 </p>
 
                 {teamInvites.length > 0 && (
