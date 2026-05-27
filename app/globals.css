@@ -26,17 +26,9 @@
   --gold-dim: #C8A96E;
 }
 
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
+* { box-sizing: border-box; margin: 0; padding: 0; }
 
-html,
-body {
-  height: 100%;
-  overscroll-behavior: none;
-}
+html, body { height: 100%; overscroll-behavior: none; }
 
 body {
   background-color: var(--bg);
@@ -45,7 +37,6 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* Input / select réutilisable */
 .field-input {
   width: 100%;
   padding: 10px 14px;
@@ -57,21 +48,57 @@ body {
   outline: none;
   transition: border-color 0.15s;
 }
-.field-input:focus {
-  border-color: var(--gold-dim);
+.field-input:focus { border-color: var(--gold-dim); }
+.field-input::placeholder { color: var(--text-dim); opacity: 0.6; }
+
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border-radius: var(--radius-sm);
+  background: var(--gold);
+  color: #0A0E1A;
+  font-weight: 600;
+  font-size: 0.875rem;
+  transition: opacity 0.15s;
+  cursor: pointer;
+  border: none;
 }
-.field-input::placeholder {
+.btn-primary:hover { opacity: 0.85; }
+.btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border-radius: var(--radius-sm);
+  background: transparent;
   color: var(--text-dim);
-  opacity: 0.6;
+  font-size: 0.875rem;
+  transition: color 0.15s;
+  cursor: pointer;
+  border: 1px solid var(--border);
+}
+.btn-ghost:hover { color: var(--text); border-color: var(--gold-dim); }
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
 }
 
-/* Scrollbar fine */
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 
-.scrollbar-none {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
+.scrollbar-none { -ms-overflow-style: none; scrollbar-width: none; }
 .scrollbar-none::-webkit-scrollbar { display: none; }
+
+/* Safe area padding for mobile */
+.pb-safe { padding-bottom: calc(4rem + env(safe-area-inset-bottom)); }
+.pt-safe { padding-top: env(safe-area-inset-top); }

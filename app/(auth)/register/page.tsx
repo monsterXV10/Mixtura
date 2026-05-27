@@ -16,29 +16,16 @@ function GoogleIcon() {
   );
 }
 
-export default function LoginPage() {
+export default function RegisterPage() {
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const router = useRouter();
   const supabase = createClient();
-
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError('');
-
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-
-    if (error) {
-      setError('Email ou mot de passe incorrect.');
-    } else {
-      router.push('/dashboard');
-    }
-    setLoading(false);
-  };
 
   const handleGoogle = async () => {
     setGoogleLoading(true);
@@ -47,6 +34,46 @@ export default function LoginPage() {
       options: { redirectTo: `${window.location.origin}/callback` },
     });
   };
+
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (password.length < 8) {
+      setError('Le mot de passe doit contenir au moins 8 caractères.');
+      return;
+    }
+    setLoading(true);
+    setError('');
+
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { data: { name } },
+    });
+
+    if (error) {
+      setError(error.message);
+    } else {
+      setSuccess(true);
+    }
+    setLoading(false);
+  };
+
+  if (success) {
+    return (
+      <div className="min-h-screen bg-[var(--bg)] flex flex-col items-center justify-center px-6">
+        <div className="w-full max-w-sm text-center">
+          <div className="text-4xl mb-4">✅</div>
+          <h2 className="text-xl font-bold text-[var(--text)] mb-2">Compte créé !</h2>
+          <p className="text-[var(--text-dim)] text-sm mb-6">
+            Vérifiez votre email pour confirmer votre compte.
+          </p>
+          <Link href="/login" className="btn-primary w-full py-3">
+            Aller à la connexion
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[var(--bg)] flex flex-col items-center justify-center px-6">
@@ -59,8 +86,8 @@ export default function LoginPage() {
           <div className="w-12 h-12 rounded-xl bg-[var(--gold)] flex items-center justify-center mx-auto mb-4">
             <span className="text-[#0A0E1A] font-bold text-xl">M</span>
           </div>
-          <h1 className="text-2xl font-bold text-[var(--text)]">Connexion</h1>
-          <p className="text-[var(--text-dim)] text-sm mt-1">Bon retour sur Mixtura</p>
+          <h1 className="text-2xl font-bold text-[var(--text)]">Créer un compte</h1>
+          <p className="text-[var(--text-dim)] text-sm mt-1">Gratuit, sans carte bancaire</p>
         </div>
 
         {/* Google OAuth */}
@@ -79,7 +106,18 @@ export default function LoginPage() {
           <div className="flex-1 h-px bg-[var(--border)]" />
         </div>
 
-        <form onSubmit={handleLogin} className="space-y-4">
+        <form onSubmit={handleRegister} className="space-y-4">
+          <div>
+            <label className="block text-sm text-[var(--text-dim)] mb-1.5">Prénom / Pseudo</label>
+            <input
+              type="text"
+              className="field-input"
+              placeholder="Alex"
+              value={name}
+              onChange={e => setName(e.target.value)}
+              required
+            />
+          </div>
           <div>
             <label className="block text-sm text-[var(--text-dim)] mb-1.5">Email</label>
             <input
@@ -96,7 +134,7 @@ export default function LoginPage() {
             <input
               type="password"
               className="field-input"
-              placeholder="••••••••"
+              placeholder="8 caractères minimum"
               value={password}
               onChange={e => setPassword(e.target.value)}
               required
@@ -110,29 +148,16 @@ export default function LoginPage() {
           )}
 
           <button type="submit" className="btn-primary w-full py-3" disabled={loading}>
-            {loading ? 'Connexion…' : 'Se connecter'}
+            {loading ? 'Création…' : 'Créer mon compte'}
           </button>
         </form>
 
-        <div className="mt-6 text-center space-y-3">
-          <p className="text-sm text-[var(--text-dim)]">
-            Pas encore de compte ?{' '}
-            <Link href="/register" className="text-[var(--gold)] hover:underline">
-              S&apos;inscrire
-            </Link>
-          </p>
-          <Link href="/demo" className="block text-sm text-[var(--text-dim)] hover:text-[var(--gold)]">
-            Essayer la démo →
+        <p className="mt-6 text-center text-sm text-[var(--text-dim)]">
+          Déjà un compte ?{' '}
+          <Link href="/login" className="text-[var(--gold)] hover:underline">
+            Se connecter
           </Link>
-          {process.env.NEXT_PUBLIC_TEST_LOGIN === 'true' && (
-            <a
-              href="/api/test-login"
-              className="block text-xs text-orange-400 border border-orange-400/20 rounded-lg py-2 hover:bg-orange-400/5 transition-colors"
-            >
-              🔧 Connexion test (monsterxv10)
-            </a>
-          )}
-        </div>
+        </p>
       </div>
     </div>
   );
