@@ -1,7 +1,10 @@
 'use client';
 import { useState, useMemo } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { Search, ChevronDown, Minus, Plus, FlaskConical, Package, CheckCircle2, Loader2 } from 'lucide-react';
+import {
+  Search, ChevronDown, Minus, Plus, FlaskConical, Package,
+  CheckCircle2, Loader2, X, ChevronRight,
+} from 'lucide-react';
 
 interface IngredientStock {
   id: string;
@@ -29,6 +32,23 @@ interface Recipe {
   method?: string;
 }
 
+interface BatchItem {
+  key: string; // unique per added item
+  recipe: Recipe;
+  portions: number;
+}
+
+interface ConsolidatedLine {
+  key: string;
+  name: string;
+  unit: string;
+  totalQty: number;
+  sources: string[]; // recipe names
+  ingredientId?: string;
+  stockInfo?: IngredientStock;
+  checked: boolean;
+}
+
 interface Props {
   recipes: Recipe[];
   stockMap: Record<string, IngredientStock>;
@@ -36,8 +56,12 @@ interface Props {
 }
 
 function scaledDisplay(qty: number, unit: string): string {
-  if ((unit === 'ml' || unit === 'cl') && qty >= 1000) {
-    const l = unit === 'cl' ? qty / 100 : qty / 1000;
+  if (unit === 'ml' && qty >= 1000) {
+    const l = qty / 1000;
+    return `${l % 1 === 0 ? l : l.toFixed(2)} L`;
+  }
+  if (unit === 'cl' && qty >= 100) {
+    const l = qty / 100;
     return `${l % 1 === 0 ? l : l.toFixed(2)} L`;
   }
   if (unit === 'g' && qty >= 1000) {
@@ -48,75 +72,120 @@ function scaledDisplay(qty: number, unit: string): string {
   return `${rounded} ${unit}`;
 }
 
+function stockStatus(line: ConsolidatedLine): 'ok' | 'low' | 'insufficient' | 'unknown' {
+  if (!line.ingredientId || line.stockInfo?.stock === undefined) return 'unknown';
+  const available = line.stockInfo.stock;
+  if (available >= line.totalQty) return 'ok';
+  if (available >= line.totalQty * 0.8) return 'low';
+  return 'insufficient';
+}
+
+let itemCounter = 0;
+
 export default function BatchClient({ recipes, stockMap, userId }: Props) {
+  // Phase 1 — Selection
+  const [items, setItems] = useState<BatchItem[]>([]);
   const [search, setSearch] = useState('');
   const [open, setOpen] = useState(false);
-  const [selected, setSelected] = useState<Recipe | null>(null);
-  const [portions, setPortions] = useState(10);
+
+  // Phase 2 — Consolidated
+  const [phase, setPhase] = useState<'select' | 'consolidated' | 'done'>('select');
+  const [checkedKeys, setCheckedKeys] = useState<Set<string>>(new Set());
+
+  // Phase 3 — Validation
   const [producing, setProducing] = useState(false);
-  const [produced, setProduced] = useState(false);
   const [error, setError] = useState('');
 
   const filteredRecipes = useMemo(() => {
-    if (!search.trim()) return recipes;
-    const q = search.toLowerCase();
+    const q = search.toLowerCase().trim();
+    if (!q) return recipes;
     return recipes.filter((r) => r.name.toLowerCase().includes(q));
   }, [recipes, search]);
 
-  function pickRecipe(r: Recipe) {
-    setSelected(r);
+  function addItem(recipe: Recipe) {
+    itemCounter++;
+    setItems((prev) => [...prev, { key: `item-${itemCounter}`, recipe, portions: 1 }]);
     setOpen(false);
     setSearch('');
-    setProduced(false);
-    setError('');
   }
 
-  const scaledIngredients = useMemo(() => {
-    if (!selected) return [];
-    return selected.ingredients.map((ing) => {
-      const stock = ing.ingredientId ? stockMap[ing.ingredientId] : null;
-      const scaledQty = ing.qty * portions;
-      const costPerUnit = stock?.price && stock?.format && stock.format > 0
-        ? stock.price / stock.format
-        : null;
-      const totalCost = costPerUnit ? scaledQty * costPerUnit : null;
-      const availableStock = stock?.stock ?? null;
-      const stockUnit = stock?.unit ?? ing.unit;
-      const sufficient = availableStock === null ? null : availableStock >= scaledQty;
+  function removeItem(key: string) {
+    setItems((prev) => prev.filter((i) => i.key !== key));
+  }
 
-      return {
-        ...ing,
-        scaledQty,
-        costPerUnit,
-        totalCost,
-        availableStock,
-        stockUnit,
-        sufficient,
-        stockInfo: stock,
-      };
+  function updatePortions(key: string, delta: number | null, value?: number) {
+    setItems((prev) =>
+      prev.map((i) =>
+        i.key === key
+          ? { ...i, portions: delta !== null ? Math.max(1, i.portions + delta) : Math.max(1, value ?? 1) }
+          : i
+      )
+    );
+  }
+
+  const consolidatedLines = useMemo((): ConsolidatedLine[] => {
+    // Aggregate all ingredients across all items
+    const map = new Map<string, ConsolidatedLine>();
+
+    for (const item of items) {
+      for (const ing of item.recipe.ingredients) {
+        const keyId = ing.ingredientId
+          ? `id:${ing.ingredientId}`
+          : `name:${ing.name.toLowerCase().trim()}`;
+
+        const existing = map.get(keyId);
+        if (existing) {
+          existing.totalQty += ing.qty * item.portions;
+          if (!existing.sources.includes(item.recipe.name)) {
+            existing.sources.push(item.recipe.name);
+          }
+        } else {
+          const stockInfo = ing.ingredientId ? stockMap[ing.ingredientId] : undefined;
+          map.set(keyId, {
+            key: keyId,
+            name: stockInfo?.name ?? ing.name,
+            unit: ing.unit,
+            totalQty: ing.qty * item.portions,
+            sources: [item.recipe.name],
+            ingredientId: ing.ingredientId,
+            stockInfo,
+            checked: false,
+          });
+        }
+      }
+    }
+
+    return Array.from(map.values());
+  }, [items, stockMap]);
+
+  function toggleCheck(key: string) {
+    setCheckedKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
     });
-  }, [selected, portions, stockMap]);
+  }
 
-  const totalCost = useMemo(
-    () => scaledIngredients.reduce((s, i) => s + (i.totalCost ?? 0), 0),
-    [scaledIngredients]
-  );
+  function checkAll() {
+    setCheckedKeys(new Set(consolidatedLines.map((l) => l.key)));
+  }
 
-  const hasCost = scaledIngredients.some((i) => i.totalCost !== null);
-  const allSufficient = scaledIngredients.every((i) => i.sufficient !== false);
+  function uncheckAll() {
+    setCheckedKeys(new Set());
+  }
 
   async function handleProduce() {
-    if (!selected) return;
     setProducing(true);
     setError('');
     const supabase = createClient();
 
-    const updates = scaledIngredients
-      .filter((i) => i.ingredientId && i.stockInfo?.stock !== undefined)
-      .map((i) => ({
-        id: i.ingredientId!,
-        newStock: Math.max(0, (i.stockInfo!.stock ?? 0) - i.scaledQty),
-        data: { ...i.stockInfo, stock: Math.max(0, (i.stockInfo!.stock ?? 0) - i.scaledQty) },
+    const updates = consolidatedLines
+      .filter((l) => l.ingredientId && l.stockInfo?.stock !== undefined)
+      .map((l) => ({
+        id: l.ingredientId!,
+        newStock: Math.max(0, (l.stockInfo!.stock ?? 0) - l.totalQty),
+        data: { ...l.stockInfo, stock: Math.max(0, (l.stockInfo!.stock ?? 0) - l.totalQty) },
       }));
 
     const results = await Promise.all(
@@ -133,26 +202,150 @@ export default function BatchClient({ recipes, stockMap, userId }: Props) {
     if (failed) {
       setError('Erreur lors de la mise à jour du stock.');
     } else {
-      setProduced(true);
+      setPhase('done');
     }
     setProducing(false);
   }
 
+  // ── PHASE DONE ────────────────────────────────────────────────────────────
+  if (phase === 'done') {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 gap-4 text-center">
+        <CheckCircle2 size={48} className="text-emerald-400" />
+        <p className="text-lg font-semibold text-[var(--text)]">Production validée</p>
+        <p className="text-sm text-[var(--text-dim)]">Le stock a été mis à jour.</p>
+        <button
+          type="button"
+          onClick={() => { setItems([]); setCheckedKeys(new Set()); setPhase('select'); setError(''); }}
+          className="btn-primary mt-2"
+        >
+          Nouveau batch
+        </button>
+      </div>
+    );
+  }
+
+  // ── PHASE CONSOLIDATED ────────────────────────────────────────────────────
+  if (phase === 'consolidated') {
+    const allChecked = consolidatedLines.length > 0 && checkedKeys.size === consolidatedLines.length;
+
+    return (
+      <div className="space-y-4 max-w-xl mx-auto">
+        <div className="flex items-center justify-between">
+          <button
+            type="button"
+            onClick={() => setPhase('select')}
+            className="flex items-center gap-1.5 text-sm text-[var(--text-dim)] hover:text-[var(--text)] transition-colors"
+          >
+            <ChevronDown size={14} className="rotate-90" />
+            Retour
+          </button>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={allChecked ? uncheckAll : checkAll}
+              className="btn-ghost py-1.5 px-3 text-xs"
+            >
+              {allChecked ? 'Tout décocher' : 'Tout cocher'}
+            </button>
+          </div>
+        </div>
+
+        {/* Summary pills */}
+        <div className="flex flex-wrap gap-2">
+          {items.map((item) => (
+            <span key={item.key} className="text-xs px-2.5 py-1 rounded-full border border-[var(--border)] text-[var(--text-dim)]">
+              {item.recipe.name} × {item.portions}
+            </span>
+          ))}
+        </div>
+
+        {/* Consolidated lines */}
+        <div className="card divide-y divide-[var(--border)] p-0 overflow-hidden">
+          {consolidatedLines.length === 0 ? (
+            <p className="text-sm text-[var(--text-dim)] text-center py-6">Aucun ingrédient</p>
+          ) : (
+            consolidatedLines.map((line) => {
+              const checked = checkedKeys.has(line.key);
+              const status = stockStatus(line);
+              const isHomemade = line.stockInfo?.homemade;
+              return (
+                <div
+                  key={line.key}
+                  className={`flex items-start gap-3 px-4 py-3 transition-opacity ${checked ? 'opacity-40' : ''}`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={() => toggleCheck(line.key)}
+                    className="mt-1 shrink-0 accent-[var(--gold)] w-4 h-4"
+                  />
+                  <div className="shrink-0 mt-0.5">
+                    {isHomemade
+                      ? <FlaskConical size={14} className="text-blue-400" />
+                      : <Package size={14} className="text-[var(--gold)]" />
+                    }
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-sm text-[var(--text)] ${checked ? 'line-through' : ''}`}>{line.name}</p>
+                    <p className="text-xs text-[var(--text-dim)] truncate mt-0.5">{line.sources.join(', ')}</p>
+                    {line.stockInfo?.stock !== undefined && (
+                      <p className={`text-xs mt-0.5 ${
+                        status === 'ok' ? 'text-emerald-400'
+                          : status === 'low' ? 'text-orange-400'
+                          : status === 'insufficient' ? 'text-red-400'
+                          : 'text-[var(--text-dim)]'
+                      }`}>
+                        Stock : {line.stockInfo.stock} {line.stockInfo.unit}
+                        {status === 'insufficient' && ' — insuffisant'}
+                        {status === 'low' && ' — juste'}
+                      </p>
+                    )}
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="text-sm font-mono font-semibold text-[var(--text)]">
+                      {scaledDisplay(line.totalQty, line.unit)}
+                    </p>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        {error && <p className="text-xs text-red-400 bg-red-400/10 rounded-lg px-3 py-2">{error}</p>}
+
+        <button
+          type="button"
+          onClick={handleProduce}
+          disabled={producing || consolidatedLines.length === 0}
+          className="btn-primary w-full py-3 flex items-center justify-center gap-2"
+        >
+          {producing
+            ? <><Loader2 size={16} className="animate-spin" />Enregistrement…</>
+            : 'Valider la production'
+          }
+        </button>
+      </div>
+    );
+  }
+
+  // ── PHASE SELECT ──────────────────────────────────────────────────────────
   return (
     <div className="space-y-5 max-w-xl mx-auto">
 
-      {/* Recipe picker */}
+      {/* Picker */}
       <div className="space-y-1.5">
-        <label className="text-xs font-medium text-[var(--text-dim)] uppercase tracking-wide">Recette</label>
+        <label className="text-xs font-medium text-[var(--text-dim)] uppercase tracking-wide">
+          Ajouter une recette / préparation
+        </label>
         <div className="relative">
           <button
             type="button"
             onClick={() => setOpen((v) => !v)}
             className="field-input w-full flex items-center justify-between gap-2 text-left"
           >
-            <span className={selected ? 'text-[var(--text)]' : 'text-[var(--text-dim)]'}>
-              {selected ? selected.name : 'Choisir une recette…'}
-            </span>
+            <span className="text-[var(--text-dim)]">Choisir…</span>
             <ChevronDown size={15} className={`shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
           </button>
 
@@ -171,17 +364,23 @@ export default function BatchClient({ recipes, stockMap, userId }: Props) {
               </div>
               <div className="max-h-56 overflow-y-auto">
                 {filteredRecipes.length === 0 ? (
-                  <p className="text-xs text-[var(--text-dim)] text-center py-3">Aucune recette</p>
+                  <p className="text-xs text-[var(--text-dim)] text-center py-3">Aucun résultat</p>
                 ) : (
                   filteredRecipes.map((r) => (
                     <button
                       key={r.id}
                       type="button"
-                      onMouseDown={(e) => { e.preventDefault(); pickRecipe(r); }}
+                      onMouseDown={(e) => { e.preventDefault(); addItem(r); }}
                       className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-[var(--surface2)] rounded-md transition-colors"
                     >
                       <span className="flex-1 text-[var(--text)] truncate">{r.name}</span>
-                      <span className="text-xs text-[var(--text-dim)] shrink-0">{r.ingredients.length} ing.</span>
+                      <span className={`text-xs rounded-full px-2 py-0.5 border ${
+                        r.type === 'homemade'
+                          ? 'text-blue-400 border-blue-400/30 bg-blue-400/10'
+                          : 'text-[var(--gold)] border-[var(--gold)]/30 bg-[var(--gold)]/10'
+                      }`}>
+                        {r.type === 'homemade' ? 'Maison' : 'Recette'}
+                      </span>
                     </button>
                   ))
                 )}
@@ -191,133 +390,66 @@ export default function BatchClient({ recipes, stockMap, userId }: Props) {
         </div>
       </div>
 
-      {/* Portions */}
-      <div className="space-y-1.5">
-        <label className="text-xs font-medium text-[var(--text-dim)] uppercase tracking-wide">Nombre de portions</label>
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={() => setPortions((p) => Math.max(1, p - 1))}
-            className="w-10 h-10 rounded-lg bg-[var(--surface2)] flex items-center justify-center text-[var(--text)] hover:bg-[var(--border)] transition-colors"
-          >
-            <Minus size={16} />
-          </button>
-          <input
-            type="number"
-            min="1"
-            max="9999"
-            value={portions}
-            onChange={(e) => setPortions(Math.max(1, parseInt(e.target.value) || 1))}
-            className="field-input w-24 text-center font-semibold text-lg"
-          />
-          <button
-            type="button"
-            onClick={() => setPortions((p) => p + 1)}
-            className="w-10 h-10 rounded-lg bg-[var(--surface2)] flex items-center justify-center text-[var(--text)] hover:bg-[var(--border)] transition-colors"
-          >
-            <Plus size={16} />
-          </button>
-          <div className="flex gap-2 ml-1">
-            {[10, 20, 50].map((n) => (
-              <button
-                key={n}
-                type="button"
-                onClick={() => setPortions(n)}
-                className={`px-2.5 py-1 text-xs font-medium rounded-full border transition-all ${
-                  portions === n
-                    ? 'bg-[var(--gold)] text-[#0A0E1A] border-[var(--gold)]'
-                    : 'text-[var(--text-dim)] border-[var(--border)] hover:border-[var(--gold-dim)]'
-                }`}
-              >
-                ×{n}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Scaled ingredients */}
-      {selected && (
-        <>
-          <div className="card space-y-1 divide-y divide-[var(--border)]">
-            <div className="flex items-center justify-between pb-2">
-              <h3 className="text-sm font-semibold text-[var(--text)]">Ingrédients × {portions}</h3>
-              {hasCost && (
-                <span className="text-xs text-[var(--text-dim)]">
-                  Total : <span className="text-[var(--gold)] font-semibold">{totalCost.toFixed(2)} €</span>
-                  {portions > 1 && (
-                    <span className="ml-1">({(totalCost / portions).toFixed(2)} €/portion)</span>
-                  )}
-                </span>
-              )}
-            </div>
-
-            {scaledIngredients.map((ing, i) => {
-              const isHomemade = ing.stockInfo?.homemade;
-              return (
-                <div key={i} className="flex items-center gap-2 py-2.5">
-                  <div className="shrink-0">
-                    {isHomemade
-                      ? <FlaskConical size={14} className="text-blue-400" />
-                      : <Package size={14} className="text-[var(--gold)]" />
-                    }
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm text-[var(--text)] truncate">{ing.name}</p>
-                    {ing.availableStock !== null && (
-                      <p className={`text-xs mt-0.5 ${ing.sufficient ? 'text-emerald-400' : 'text-red-400'}`}>
-                        Stock : {ing.availableStock} {ing.stockUnit}
-                        {!ing.sufficient && ' — insuffisant'}
-                      </p>
-                    )}
-                  </div>
-                  <div className="text-right shrink-0">
-                    <p className="text-sm font-mono font-semibold text-[var(--text)]">
-                      {scaledDisplay(ing.scaledQty, ing.unit)}
-                    </p>
-                    {ing.totalCost !== null && (
-                      <p className="text-xs text-[var(--text-dim)]">{ing.totalCost.toFixed(2)} €</p>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          {produced ? (
-            <div className="flex items-center gap-2 justify-center py-3 text-emerald-400 text-sm font-semibold">
-              <CheckCircle2 size={18} />
-              Stock mis à jour — batch enregistré
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {!allSufficient && (
-                <p className="text-xs text-orange-400 bg-orange-400/10 rounded-lg px-3 py-2">
-                  Certains ingrédients sont en stock insuffisant. Le stock sera ramené à 0.
-                </p>
-              )}
-              {error && <p className="text-xs text-red-400 bg-red-400/10 rounded-lg px-3 py-2">{error}</p>}
-              <button
-                type="button"
-                onClick={handleProduce}
-                disabled={producing}
-                className="btn-primary w-full py-3 flex items-center justify-center gap-2"
-              >
-                {producing
-                  ? <><Loader2 size={16} className="animate-spin" />Enregistrement…</>
-                  : `Valider le batch — ${portions} portion${portions > 1 ? 's' : ''}`
-                }
-              </button>
-            </div>
-          )}
-        </>
-      )}
-
-      {!selected && (
+      {/* Added items */}
+      {items.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-12 gap-3 text-center">
           <Package size={36} className="text-[var(--text-dim)] opacity-30" />
-          <p className="text-sm text-[var(--text-dim)]">Sélectionnez une recette pour calculer votre batch</p>
+          <p className="text-sm text-[var(--text-dim)]">Ajoutez des recettes pour calculer votre batch</p>
         </div>
+      ) : (
+        <>
+          <div className="space-y-3">
+            {items.map((item) => (
+              <div key={item.key} className="card flex items-center gap-3">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-[var(--text)] truncate">{item.recipe.name}</p>
+                  <p className="text-xs text-[var(--text-dim)] mt-0.5">{item.recipe.ingredients.length} ingrédient{item.recipe.ingredients.length > 1 ? 's' : ''}</p>
+                </div>
+                {/* Portions stepper */}
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => updatePortions(item.key, -1)}
+                    className="w-7 h-7 rounded-md bg-[var(--surface2)] flex items-center justify-center text-[var(--text)] hover:bg-[var(--border)] transition-colors"
+                  >
+                    <Minus size={13} />
+                  </button>
+                  <input
+                    type="number"
+                    min="1"
+                    max="9999"
+                    value={item.portions}
+                    onChange={(e) => updatePortions(item.key, null, parseInt(e.target.value) || 1)}
+                    className="field-input w-14 text-center font-semibold py-1 px-1"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => updatePortions(item.key, 1)}
+                    className="w-7 h-7 rounded-md bg-[var(--surface2)] flex items-center justify-center text-[var(--text)] hover:bg-[var(--border)] transition-colors"
+                  >
+                    <Plus size={13} />
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => removeItem(item.key)}
+                  className="shrink-0 p-1.5 text-[var(--text-dim)] hover:text-red-400 transition-colors"
+                >
+                  <X size={15} />
+                </button>
+              </div>
+            ))}
+          </div>
+
+          <button
+            type="button"
+            onClick={() => { setCheckedKeys(new Set()); setPhase('consolidated'); }}
+            className="btn-primary w-full py-3 flex items-center justify-center gap-2"
+          >
+            Calculer
+            <ChevronRight size={16} />
+          </button>
+        </>
       )}
     </div>
   );
