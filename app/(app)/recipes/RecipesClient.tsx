@@ -1,6 +1,7 @@
 'use client';
 import { useState, useMemo, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import { ensureIngredients } from '@/lib/utils/ingredients';
 import { TopBar } from '@/components/layout/TopBar';
 import Link from 'next/link';
 import { Plus, Search, BookOpen, Package, Download, Check, Pencil } from 'lucide-react';
@@ -116,6 +117,18 @@ export default function RecipesClient({ initialRecipes, userId }: Props) {
     setImporting((prev) => new Set(prev).add(cocktail.id));
     try {
       const supabase = createClient();
+
+      // Auto-create the cocktail's ingredients in stocks, then link by id
+      const linkedIngredients = await ensureIngredients(
+        supabase,
+        userId,
+        (cocktail.ingredients ?? []).map((ing) => ({
+          name: ing.name,
+          unit: ing.unit,
+          qty: ing.qty,
+        }))
+      );
+
       const { data, error } = await supabase
         .from('recipes')
         .insert({
@@ -125,7 +138,7 @@ export default function RecipesClient({ initialRecipes, userId }: Props) {
             id: crypto.randomUUID(),
             name: cocktail.name,
             steps: cocktail.steps ?? '',
-            ingredients: cocktail.ingredients,
+            ingredients: linkedIngredients,
           },
           metadata: {
             glass: cocktail.glass,
