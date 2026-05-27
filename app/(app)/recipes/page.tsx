@@ -7,11 +7,27 @@ export default async function RecipesPage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login');
 
-  const { data: recipes } = await supabase
-    .from('recipes')
-    .select('*')
-    .eq('user_id', user.id)
-    .order('updated_at', { ascending: false });
+  const [{ data: recipes }, { data: homemadeRows }] = await Promise.all([
+    supabase
+      .from('recipes')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('updated_at', { ascending: false }),
+    supabase
+      .from('ingredients')
+      .select('id, data, updated_at')
+      .eq('user_id', user.id),
+  ]);
 
-  return <RecipesClient initialRecipes={recipes ?? []} userId={user.id} />;
+  const homemadeIngredients = (homemadeRows ?? []).filter(
+    (r) => (r.data as { homemade?: boolean })?.homemade === true
+  );
+
+  return (
+    <RecipesClient
+      initialRecipes={recipes ?? []}
+      homemadeIngredients={homemadeIngredients}
+      userId={user.id}
+    />
+  );
 }

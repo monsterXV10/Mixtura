@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/client';
 import { ensureIngredients } from '@/lib/utils/ingredients';
 import { TopBar } from '@/components/layout/TopBar';
 import Link from 'next/link';
-import { Plus, Search, BookOpen, Package, Download, Check, Pencil } from 'lucide-react';
+import { Plus, Search, BookOpen, Package, Download, Check, Pencil, FlaskConical } from 'lucide-react';
 
 interface RecipeRow {
   id: string;
@@ -40,8 +40,23 @@ interface CatalogCocktail {
   source: string;
 }
 
+interface HomemadeIngredient {
+  id: string;
+  updated_at: string;
+  data: {
+    name?: string;
+    unit?: string;
+    stock?: number;
+    yieldUnit?: string;
+    yield?: number;
+    steps?: string;
+    composition?: Array<{ name: string; qty: number; unit: string }>;
+  };
+}
+
 interface Props {
   initialRecipes: RecipeRow[];
+  homemadeIngredients: HomemadeIngredient[];
   userId: string;
 }
 
@@ -76,11 +91,12 @@ const SPIRIT_LABELS: Record<string, string> = Object.fromEntries(
   SPIRIT_FILTER_TABS.filter((t) => t.key !== 'all').map((t) => [t.key, t.label])
 );
 
-export default function RecipesClient({ initialRecipes, userId }: Props) {
-  const [activeTab, setActiveTab] = useState<'mine' | 'catalog'>('mine');
+export default function RecipesClient({ initialRecipes, homemadeIngredients, userId }: Props) {
+  const [activeTab, setActiveTab] = useState<'mine' | 'homemade' | 'catalog'>('mine');
   const [recipes, setRecipes] = useState<RecipeRow[]>(initialRecipes);
   const [mySearch, setMySearch] = useState('');
   const [spiritFilter, setSpiritFilter] = useState('all');
+  const [homemadeSearch, setHomemadeSearch] = useState('');
 
   // Catalog state
   const [catalog, setCatalog] = useState<CatalogCocktail[]>([]);
@@ -132,7 +148,13 @@ export default function RecipesClient({ initialRecipes, userId }: Props) {
     }
   }
 
-  function handleTabSwitch(tab: 'mine' | 'catalog') {
+  const filteredHomemade = useMemo(() => {
+    if (!homemadeSearch.trim()) return homemadeIngredients;
+    const q = homemadeSearch.toLowerCase();
+    return homemadeIngredients.filter((i) => i.data.name?.toLowerCase().includes(q));
+  }, [homemadeIngredients, homemadeSearch]);
+
+  function handleTabSwitch(tab: 'mine' | 'homemade' | 'catalog') {
     setActiveTab(tab);
     if (tab === 'catalog') {
       loadCatalog();
@@ -212,7 +234,18 @@ export default function RecipesClient({ initialRecipes, userId }: Props) {
           }`}
         >
           <BookOpen size={15} />
-          Mes recettes
+          Recettes
+        </button>
+        <button
+          onClick={() => handleTabSwitch('homemade')}
+          className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-medium transition-colors ${
+            activeTab === 'homemade'
+              ? 'text-[var(--gold)] border-b-2 border-[var(--gold)]'
+              : 'text-[var(--text-dim)]'
+          }`}
+        >
+          <FlaskConical size={15} />
+          Maison
         </button>
         <button
           onClick={() => handleTabSwitch('catalog')}
@@ -223,7 +256,7 @@ export default function RecipesClient({ initialRecipes, userId }: Props) {
           }`}
         >
           <Package size={15} />
-          Catalogue IBA
+          Catalogue
         </button>
       </div>
 
@@ -331,6 +364,75 @@ export default function RecipesClient({ initialRecipes, userId }: Props) {
                         <Pencil size={14} />
                       </Link>
                     </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'homemade' && (
+          <div className="space-y-4">
+            <div className="relative">
+              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-dim)]" />
+              <input
+                type="text"
+                placeholder="Rechercher une préparation…"
+                value={homemadeSearch}
+                onChange={(e) => setHomemadeSearch(e.target.value)}
+                className="field-input pl-9"
+              />
+            </div>
+
+            {filteredHomemade.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-16 gap-4 text-center">
+                <FlaskConical size={40} className="text-[var(--text-dim)] opacity-40" />
+                <div>
+                  <p className="font-semibold text-[var(--text)]">Aucune préparation maison</p>
+                  <p className="text-sm text-[var(--text-dim)] mt-1">
+                    Créez un ingrédient de type "Préparation maison" dans vos stocks
+                  </p>
+                </div>
+                <Link href="/ingredients/new" className="btn-primary px-4 py-2 text-sm">
+                  <Plus size={14} />
+                  Nouvelle préparation
+                </Link>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                {filteredHomemade.map((item) => {
+                  const d = item.data;
+                  const compCount = d.composition?.length ?? 0;
+                  const stock = d.stock ?? 0;
+                  return (
+                    <Link
+                      key={item.id}
+                      href={`/ingredients/${item.id}`}
+                      className="card hover:border-[var(--gold-dim)] transition-colors block"
+                    >
+                      <div className="flex items-start justify-between gap-2 mb-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <FlaskConical size={14} className="text-blue-400 shrink-0" />
+                          <h3 className="font-semibold text-[var(--text)] text-sm truncate">{d.name}</h3>
+                        </div>
+                        <span className="shrink-0 text-xs px-2 py-0.5 rounded-full font-medium text-blue-400 bg-blue-400/10">
+                          Maison
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-xs text-[var(--text-dim)]">
+                        <span>{compCount} ingrédient{compCount !== 1 ? 's' : ''}</span>
+                        <span>
+                          Stock : <span className={stock > 0 ? 'text-emerald-400' : 'text-red-400'}>
+                            {stock > 0 ? `${stock} ${d.yieldUnit ?? d.unit ?? ''}` : 'Épuisé'}
+                          </span>
+                        </span>
+                      </div>
+                      {d.yield && d.yield > 0 && (
+                        <p className="text-xs text-[var(--text-dim)] mt-1">
+                          Rendement : {d.yield} {d.yieldUnit}
+                        </p>
+                      )}
+                    </Link>
                   );
                 })}
               </div>
