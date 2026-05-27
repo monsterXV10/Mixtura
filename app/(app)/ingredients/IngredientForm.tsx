@@ -213,7 +213,7 @@ export default function IngredientForm({ userId, userIngredients, initialData }:
       const ingredientId = initialData?.id; // défini si modification, undefined si création
 
       // 1. Créer/update chaque sortie comme ingrédient indépendant
-      const outputIds: Array<{ tempId: string; ingredientId: string }> = [];
+      const outputIds: Array<{ tempId: string; ingredientId: string; data: Record<string, unknown> }> = [];
       for (const out of validOutputs) {
         const outName = out.name.trim() || name.trim();
         const outData = {
@@ -233,7 +233,7 @@ export default function IngredientForm({ userId, userIngredients, initialData }:
             .update({ data: { ...outData, sourcePreparationId: ingredientId }, updated_at: new Date().toISOString() })
             .eq('id', out.ingredientId)
             .eq('user_id', userId);
-          outputIds.push({ tempId: out.tempId, ingredientId: out.ingredientId });
+          outputIds.push({ tempId: out.tempId, ingredientId: out.ingredientId, data: { ...outData, sourcePreparationId: ingredientId } });
         } else {
           // Insertion d'une nouvelle sortie
           const { data: inserted } = await supabase
@@ -241,7 +241,7 @@ export default function IngredientForm({ userId, userIngredients, initialData }:
             .insert({ user_id: userId, data: outData, updated_at: new Date().toISOString() })
             .select('id')
             .single();
-          if (inserted) outputIds.push({ tempId: out.tempId, ingredientId: inserted.id as string });
+          if (inserted) outputIds.push({ tempId: out.tempId, ingredientId: inserted.id as string, data: outData });
         }
       }
 
@@ -293,7 +293,7 @@ export default function IngredientForm({ userId, userIngredients, initialData }:
         for (const out of outputIds) {
           await supabase
             .from('ingredients')
-            .update({ data: { sourcePreparationId: newPrepId }, updated_at: new Date().toISOString() } as Record<string, unknown>)
+            .update({ data: { ...out.data, sourcePreparationId: newPrepId }, updated_at: new Date().toISOString() })
             .eq('id', out.ingredientId)
             .eq('user_id', userId);
         }
