@@ -5,9 +5,10 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import {
   Users, BookOpen, FlaskConical, ClipboardList, Download, MessageSquare,
-  Send, Trash2, Loader2, X, Plus, Check, Search,
+  Send, Trash2, Loader2, X, Plus, Check, Search, ChevronDown, Eye,
 } from 'lucide-react';
 import { memberRole } from '@/lib/team';
+import { ensureIngredients, type IngredientRef } from '@/lib/utils/ingredients';
 import type { Team, TeamMember, TeamSharedItem, TeamNote } from '@/lib/team';
 
 interface MyRecipe {
@@ -42,6 +43,7 @@ export default function CommunicationClient({
   const [tab, setTab] = useState<Tab>('recipe');
   const [busy, setBusy] = useState<string | null>(null);
   const [openNotes, setOpenNotes] = useState<Set<string>>(new Set());
+  const [openPreview, setOpenPreview] = useState<Set<string>>(new Set());
   const [noteDrafts, setNoteDrafts] = useState<Record<string, string>>({});
 
   // menu composer
@@ -77,30 +79,42 @@ export default function CommunicationClient({
     try {
       if (item.item_type === 'recipe') {
         const d = item.data as { type?: string; recipeData?: Record<string, unknown>; metadata?: Record<string, unknown> };
+        const recipeData = { ...(d.recipeData ?? {}) } as Record<string, unknown> & { ingredients?: IngredientRef[] };
+        if (Array.isArray(recipeData.ingredients) && recipeData.ingredients.length) {
+          recipeData.ingredients = await ensureIngredients(supabase, userId, recipeData.ingredients);
+        }
         await supabase.from('recipes').insert({
           user_id: userId,
           type: d.type ?? 'cocktail',
-          data: d.recipeData ?? {},
+          data: recipeData,
           metadata: d.metadata ?? {},
         });
-        alert('Recette importée dans vos recettes.');
+        alert('Recette importée — ingrédients ajoutés à vos stocks.');
       } else if (item.item_type === 'ingredient') {
         const d = item.data as { ingredientData?: Record<string, unknown> };
         await supabase.from('ingredients').insert({ user_id: userId, data: d.ingredientData ?? {} });
         alert('Ingrédient importé dans vos stocks.');
       } else if (item.item_type === 'menu') {
         const d = item.data as {
-          recipes?: Array<{ type?: string; recipeData?: Record<string, unknown>; metadata?: Record<string, unknown> }>;
+          recipes?: Array<{ name?: string; type?: string; recipeData?: Record<string, unknown>; metadata?: Record<string, unknown> }>;
         };
-        const rows = (d.recipes ?? []).map((r) => ({
-          user_id: userId,
-          type: r.type ?? 'cocktail',
-          data: r.recipeData ?? {},
-          metadata: r.metadata ?? {},
-        }));
+        const seen = new Set(myRecipes.map((r) => r.name.toLowerCase()));
+        const rows: Array<Record<string, unknown>> = [];
+        let skipped = 0;
+        for (const r of d.recipes ?? []) {
+          const nm = (r.name ?? (r.recipeData as { name?: string })?.name ?? '').toLowerCase();
+          if (nm && seen.has(nm)) { skipped++; continue; }
+          if (nm) seen.add(nm);
+          const rd = { ...(r.recipeData ?? {}) } as Record<string, unknown> & { ingredients?: IngredientRef[] };
+          if (Array.isArray(rd.ingredients) && rd.ingredients.length) {
+            rd.ingredients = await ensureIngredients(supabase, userId, rd.ingredients);
+          }
+          rows.push({ user_id: userId, type: r.type ?? 'cocktail', data: rd, metadata: r.metadata ?? {} });
+        }
         if (rows.length) await supabase.from('recipes').insert(rows);
-        alert(`${rows.length} recette(s) du menu importée(s).`);
+        alert(`${rows.length} recette(s) importée(s)${skipped ? ` · ${skipped} déjà présente(s) ignorée(s)` : ''}.`);
       }
+      router.refresh();
     } finally {
       setBusy(null);
     }
@@ -162,6 +176,14 @@ export default function CommunicationClient({
 
   function toggleNotes(id: string) {
     setOpenNotes((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
+
+  function togglePreview(id: string) {
+    setOpenPreview((prev) => {
       const next = new Set(prev);
       next.has(id) ? next.delete(id) : next.add(id);
       return next;
@@ -386,14 +408,26 @@ export default function CommunicationClient({
                   </div>
                 )}
 
-                {/* Notes */}
-                <button
-                  onClick={() => toggleNotes(item.id)}
-                  className="text-xs text-[var(--text-dim)] hover:text-[var(--text)] flex items-center gap-1"
-                >
-                  <MessageSquare size={12} />
-                  {itemNotes.length > 0 ? `${itemNotes.length} note(s)` : 'Ajouter une note'}
-                </button>
+                {/* Aperçu + notes */}
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => togglePreview(item.id)}
+                    className="text-xs text-[var(--text-dim)] hover:text-[var(--text)] flex items-center gap-1"
+                  >
+                    <Eye size={12} />
+                    Aperçu
+                    <ChevronDown size={12} className={`transition-transform ${openPreview.has(item.id) ? 'rotate-180' : ''}`} />
+                  </button>
+                  <button
+                    onClick={() => toggleNotes(item.id)}
+                    className="text-xs text-[var(--text-dim)] hover:text-[var(--text)] flex items-center gap-1"
+                  >
+                    <MessageSquare size={12} />
+                    {itemNotes.length > 0 ? `${itemNotes.length} note(s)` : 'Ajouter une note'}
+                  </button>
+                </div>
+
+                {openPreview.has(item.id) && <ItemPreview item={item} />}
 
                 {notesOpen && (
                   <div className="space-y-2">
@@ -437,6 +471,106 @@ export default function CommunicationClient({
             );
           })}
         </ul>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------- preview
+function ItemPreview({ item }: { item: TeamSharedItem }) {
+  if (item.item_type === 'recipe') {
+    const rd = (item.data as { recipeData?: { ingredients?: Array<{ qty?: number; unit?: string; name?: string }>; steps?: string } }).recipeData ?? {};
+    const ings = rd.ingredients ?? [];
+    return (
+      <div className="rounded-lg border border-[var(--border)] p-3 space-y-2 text-sm">
+        {ings.length > 0 ? (
+          <ul className="space-y-1">
+            {ings.map((g, i) => (
+              <li key={i} className="flex items-center justify-between gap-2">
+                <span className="text-[var(--text)] truncate">{g.name ?? '—'}</span>
+                <span className="text-[var(--text-dim)] shrink-0">{g.qty ? `${g.qty} ${g.unit ?? ''}` : ''}</span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-[var(--text-dim)]">Aucun ingrédient renseigné.</p>
+        )}
+        {rd.steps && (
+          <p className="text-[var(--text-dim)] whitespace-pre-wrap pt-2 border-t border-[var(--border)]">{rd.steps}</p>
+        )}
+      </div>
+    );
+  }
+
+  if (item.item_type === 'ingredient') {
+    const ig = (item.data as { ingredientData?: Record<string, unknown> }).ingredientData ?? {};
+    const rows: Array<[string, string]> = [];
+    const add = (label: string, v: unknown) => {
+      if (v !== undefined && v !== null && v !== '' && v !== 0) rows.push([label, String(v)]);
+    };
+    add('Type', (ig as { type?: string }).type);
+    add('Famille', (ig as { family?: string }).family);
+    add('Marque', (ig as { brand?: string }).brand);
+    add('Unité', (ig as { unit?: string }).unit);
+    add('Format', (ig as { format?: number }).format);
+    add('Prix', (ig as { price?: number }).price);
+    const comp = (ig as { composition?: Array<{ name?: string; qty?: number; unit?: string }> }).composition ?? [];
+    return (
+      <div className="rounded-lg border border-[var(--border)] p-3 space-y-2 text-sm">
+        {rows.length > 0 ? (
+          <dl className="space-y-1">
+            {rows.map(([k, v]) => (
+              <div key={k} className="flex items-center justify-between gap-2">
+                <dt className="text-[var(--text-dim)]">{k}</dt>
+                <dd className="text-[var(--text)] truncate">{v}</dd>
+              </div>
+            ))}
+          </dl>
+        ) : (
+          <p className="text-[var(--text-dim)]">Pas de détail disponible.</p>
+        )}
+        {comp.length > 0 && (
+          <div className="pt-2 border-t border-[var(--border)]">
+            <p className="text-xs text-[var(--text-dim)] mb-1">Composition</p>
+            <ul className="space-y-1">
+              {comp.map((c, i) => (
+                <li key={i} className="flex items-center justify-between gap-2">
+                  <span className="text-[var(--text)] truncate">{c.name ?? '—'}</span>
+                  <span className="text-[var(--text-dim)] shrink-0">{c.qty ? `${c.qty} ${c.unit ?? ''}` : ''}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // menu
+  const recs = (item.data as { recipes?: Array<{ name?: string; recipeData?: { ingredients?: Array<{ qty?: number; unit?: string; name?: string }> } }> }).recipes ?? [];
+  return (
+    <div className="rounded-lg border border-[var(--border)] p-3 space-y-3 text-sm">
+      {recs.length === 0 ? (
+        <p className="text-[var(--text-dim)]">Menu vide.</p>
+      ) : (
+        recs.map((r, i) => {
+          const ings = r.recipeData?.ingredients ?? [];
+          return (
+            <div key={i} className="space-y-1">
+              <p className="font-medium text-[var(--text)]">{r.name ?? 'Recette'}</p>
+              {ings.length > 0 && (
+                <ul className="space-y-0.5 pl-2">
+                  {ings.map((g, j) => (
+                    <li key={j} className="flex items-center justify-between gap-2 text-[var(--text-dim)]">
+                      <span className="truncate">{g.name ?? '—'}</span>
+                      <span className="shrink-0">{g.qty ? `${g.qty} ${g.unit ?? ''}` : ''}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          );
+        })
       )}
     </div>
   );
