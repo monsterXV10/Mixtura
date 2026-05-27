@@ -1,7 +1,7 @@
 'use client';
 import { useState, useRef, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { matchesIngredient } from '@/lib/utils/ingredients';
+import { matchesIngredient, ensureIngredients } from '@/lib/utils/ingredients';
 import { Plus, Trash2, Loader2, FlaskConical } from 'lucide-react';
 import type { UserIngredientOption } from '@/lib/utils/ingredients';
 
@@ -143,11 +143,17 @@ export default function IngredientForm({ userId, userIngredients, initialData }:
     setSaving(true);
     setError('');
     const supabase = createClient();
+
+    // Auto-create any missing stock entries for composition items
+    const linkedComposition = homemade
+      ? await ensureIngredients(supabase, userId, composition.filter((c) => c.name.trim()))
+      : [];
+
     const data = homemade
       ? {
           name: name.trim(), type: 'homemade', unit, price: 0, stock, format: 0,
           homemade: true,
-          composition: composition.filter((c) => c.name.trim()),
+          composition: linkedComposition,
           yield: yieldAmt, yieldUnit,
           steps: steps.trim() || undefined,
         }
