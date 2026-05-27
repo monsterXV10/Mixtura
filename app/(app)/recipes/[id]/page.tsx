@@ -14,6 +14,46 @@ const METHOD_TIMER_DEFAULTS: Record<string, number> = {
   'Blend': 30,
 };
 
+const METHOD_DEFAULT_STEPS: Record<string, string[]> = {
+  'Shake': [
+    'Verser les ingrédients dans un shaker avec de la glace.',
+    'Shaker énergiquement pendant 10 secondes.',
+    'Filtrer dans un verre rafraîchi.',
+  ],
+  'Shake + Double Strain': [
+    'Verser les ingrédients dans un shaker avec de la glace.',
+    'Shaker énergiquement pendant 12 secondes.',
+    'Filtrer en double passoire dans un verre rafraîchi.',
+  ],
+  'Stir': [
+    'Verser les ingrédients dans un verre à mélange avec de la glace.',
+    'Mélanger délicatement à la cuillère pendant 30 secondes.',
+    'Filtrer dans un verre rafraîchi.',
+  ],
+  'Build': [
+    'Verser les ingrédients directement dans le verre sur glace.',
+    'Mélanger légèrement.',
+  ],
+  'Blend': [
+    'Mettre tous les ingrédients et la glace dans un blender.',
+    'Mixer jusqu\'à consistance lisse.',
+    'Verser dans le verre.',
+  ],
+  'Throw': [
+    'Verser les ingrédients dans un shaker avec de la glace.',
+    'Passer de récipient en récipient en hauteur (throw) plusieurs fois pour aérer.',
+    'Verser dans le verre rafraîchi.',
+  ],
+  'Muddle': [
+    'Écraser les ingrédients frais dans le fond du verre.',
+    'Ajouter les liquides et la glace.',
+    'Mélanger légèrement.',
+  ],
+  'Direct': [
+    'Verser les ingrédients directement dans le verre.',
+  ],
+};
+
 export default async function RecipeDetailPage({
   params,
 }: {
@@ -93,12 +133,18 @@ export default async function RecipeDetailPage({
     cuisine: 'text-emerald-400 bg-emerald-400/10',
   };
 
-  // Split steps into numbered lines
-  const stepLines = steps
+  // Split steps into numbered lines; fall back to method-based default
+  const manualStepLines = steps
     .split('\n')
     .map((l) => l.trim())
     .filter(Boolean)
     .map((l) => l.replace(/^\d+[.)]\s*/, ''));
+
+  const stepLines = manualStepLines.length > 0
+    ? manualStepLines
+    : (METHOD_DEFAULT_STEPS[method] ?? []);
+
+  const stepsAreDefault = manualStepLines.length === 0 && stepLines.length > 0;
 
   return (
     <>
@@ -217,11 +263,18 @@ export default async function RecipeDetailPage({
         )}
 
         {/* Steps */}
-        {stepLines.length > 0 && (
-          <div className="card">
-            <h2 className="font-semibold text-[var(--text)] text-sm mb-4">
+        <div className="card">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-semibold text-[var(--text)] text-sm">
               Préparation
             </h2>
+            {stepsAreDefault && (
+              <span className="text-xs text-[var(--text-dim)] bg-[var(--surface2)] px-2 py-0.5 rounded-full">
+                par défaut · {method}
+              </span>
+            )}
+          </div>
+          {stepLines.length > 0 ? (
             <ol className="space-y-4">
               {stepLines.map((line, i) => (
                 <li key={i} className="flex gap-3">
@@ -234,8 +287,12 @@ export default async function RecipeDetailPage({
                 </li>
               ))}
             </ol>
-          </div>
-        )}
+          ) : (
+            <p className="text-[var(--text-dim)] text-sm">
+              Pas d&apos;instructions. Modifie la recette pour en ajouter.
+            </p>
+          )}
+        </div>
 
         {/* Actions */}
         <Link
