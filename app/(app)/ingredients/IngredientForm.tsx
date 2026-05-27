@@ -331,6 +331,16 @@ export default function IngredientForm({ userId, userIngredients, initialData }:
     }
   };
 
+  const isAlcohol = ['spirit', 'liqueur', 'wine'].includes(type);
+  const isLiquid = isAlcohol || ['syrup', 'juice'].includes(type);
+
+  function selectCategory(key: string) {
+    setType(key);
+    const liquid = ['spirit', 'liqueur', 'wine', 'syrup', 'juice'].includes(key);
+    setUnit(liquid ? 'cl' : key === 'other' ? 'pcs' : 'g');
+    setFormat(liquid ? 70 : 0);
+  }
+
   return (
     <div className="space-y-5 max-w-xl mx-auto">
 
@@ -375,7 +385,7 @@ export default function IngredientForm({ userId, userIngredients, initialData }:
             <label className="text-xs font-medium text-[var(--text-dim)] uppercase tracking-wide">Catégorie</label>
             <div className="flex flex-wrap gap-2">
               {INGREDIENT_TYPES.map((t) => (
-                <button key={t.key} type="button" onClick={() => setType(t.key)}
+                <button key={t.key} type="button" onClick={() => selectCategory(t.key)}
                   className={`px-3 py-1.5 text-xs font-medium rounded-full border transition-all ${
                     type === t.key
                       ? 'bg-[var(--gold)] text-[#0A0E1A] border-[var(--gold)]'
@@ -387,24 +397,28 @@ export default function IngredientForm({ userId, userIngredients, initialData }:
             </div>
           </div>
 
-          {/* Famille d'alcool (libre + suggestions) */}
+          {/* Famille / variété (libre + suggestions) */}
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-[var(--text-dim)] uppercase tracking-wide">
-              Type / famille d'alcool
+              {isAlcohol ? "Type / famille d'alcool" : 'Type / variété (optionnel)'}
             </label>
             <input
               type="text"
-              list="alcohol-families"
+              list={isAlcohol ? 'alcohol-families' : undefined}
               value={family}
               onChange={(e) => setFamily(e.target.value)}
-              placeholder="ex. Whisky, Gin, Rhum…"
+              placeholder={isAlcohol ? 'ex. Whisky, Gin, Rhum…' : 'ex. Café, Citron vert, Menthe…'}
               className="field-input"
             />
-            <datalist id="alcohol-families">
-              {COMMON_FAMILIES.map((f) => <option key={f} value={f} />)}
-            </datalist>
+            {isAlcohol && (
+              <datalist id="alcohol-families">
+                {COMMON_FAMILIES.map((f) => <option key={f} value={f} />)}
+              </datalist>
+            )}
             <p className="text-xs text-[var(--text-dim)]">
-              Permet de retrouver ce produit en tapant la famille (ex. « whisky ») dans une recette.
+              {isAlcohol
+                ? 'Permet de retrouver ce produit en tapant la famille (ex. « whisky ») dans une recette.'
+                : 'Permet de retrouver ce produit en tapant ce mot-clé dans une recette.'}
             </p>
           </div>
 
@@ -440,11 +454,13 @@ export default function IngredientForm({ userId, userIngredients, initialData }:
               </select>
             </div>
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-[var(--text-dim)] uppercase tracking-wide">Format bouteille</label>
+              <label className="text-xs font-medium text-[var(--text-dim)] uppercase tracking-wide">
+                {isLiquid ? 'Format bouteille' : 'Conditionnement'} ({unit})
+              </label>
               <input type="number" min="0" step="any"
                 value={format === 0 ? '' : format}
                 onChange={(e) => setFormat(parseFloat(e.target.value) || 0)}
-                placeholder="ex. 70" className="field-input" />
+                placeholder={isLiquid ? 'ex. 70' : 'ex. 1000'} className="field-input" />
             </div>
           </div>
 
