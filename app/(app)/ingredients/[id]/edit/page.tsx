@@ -40,6 +40,7 @@ export default async function EditIngredientPage({
     yield?: number;
     yieldUnit?: string;
     steps?: string;
+    preparationType?: string;
   };
 
   const initialData = {
@@ -58,6 +59,7 @@ export default async function EditIngredientPage({
     yield: d?.yield,
     yieldUnit: d?.yieldUnit,
     steps: d?.steps,
+    preparationType: d?.preparationType,
   };
 
   return (

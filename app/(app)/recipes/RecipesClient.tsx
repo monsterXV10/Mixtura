@@ -40,6 +40,12 @@ interface CatalogCocktail {
   source: string;
 }
 
+const PREP_TYPE_LABELS: Record<string, string> = {
+  sirop: 'Sirop', infusion: 'Infusion', clarification: 'Clarification',
+  'fat-wash': 'Fat Wash', batch: 'Batch', teinture: 'Teinture',
+  cordial: 'Cordial', puree: 'Purée', autre: 'Autre',
+};
+
 interface HomemadeIngredient {
   id: string;
   updated_at: string;
@@ -50,6 +56,7 @@ interface HomemadeIngredient {
     yieldUnit?: string;
     yield?: number;
     steps?: string;
+    preparationType?: string;
     composition?: Array<{ name: string; qty: number; unit: string }>;
   };
 }
@@ -92,7 +99,13 @@ const SPIRIT_LABELS: Record<string, string> = Object.fromEntries(
 );
 
 export default function RecipesClient({ initialRecipes, homemadeIngredients, userId }: Props) {
-  const [activeTab, setActiveTab] = useState<'mine' | 'homemade' | 'catalog'>('mine');
+  const [activeTab, setActiveTab] = useState<'mine' | 'homemade' | 'catalog'>(() => {
+    if (typeof window !== 'undefined') {
+      const p = new URLSearchParams(window.location.search).get('tab');
+      if (p === 'homemade' || p === 'catalog') return p;
+    }
+    return 'mine';
+  });
   const [recipes, setRecipes] = useState<RecipeRow[]>(initialRecipes);
   const [mySearch, setMySearch] = useState('');
   const [spiritFilter, setSpiritFilter] = useState('all');
@@ -416,7 +429,7 @@ export default function RecipesClient({ initialRecipes, homemadeIngredients, use
                           <h3 className="font-semibold text-[var(--text)] text-sm truncate">{d.name}</h3>
                         </div>
                         <span className="shrink-0 text-xs px-2 py-0.5 rounded-full font-medium text-blue-400 bg-blue-400/10">
-                          Maison
+                          {d.preparationType ? (PREP_TYPE_LABELS[d.preparationType] ?? d.preparationType) : 'Maison'}
                         </span>
                       </div>
                       <div className="flex items-center justify-between text-xs text-[var(--text-dim)]">

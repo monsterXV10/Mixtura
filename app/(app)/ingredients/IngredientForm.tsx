@@ -31,8 +31,21 @@ interface IngredientFormProps {
     yield?: number;
     yieldUnit?: string;
     steps?: string;
+    preparationType?: string;
   };
 }
+
+const PREP_TYPES = [
+  { key: 'sirop', label: 'Sirop' },
+  { key: 'infusion', label: 'Infusion' },
+  { key: 'clarification', label: 'Clarification' },
+  { key: 'fat-wash', label: 'Fat Wash' },
+  { key: 'batch', label: 'Batch' },
+  { key: 'teinture', label: 'Teinture' },
+  { key: 'cordial', label: 'Cordial' },
+  { key: 'puree', label: 'Purée' },
+  { key: 'autre', label: 'Autre' },
+];
 
 const INGREDIENT_TYPES = [
   { key: 'spirit', label: 'Spiritueux' },
@@ -75,6 +88,7 @@ export default function IngredientForm({ userId, userIngredients, initialData }:
   const [yieldAmt, setYieldAmt] = useState(initialData?.yield ?? 0);
   const [yieldUnit, setYieldUnit] = useState(initialData?.yieldUnit ?? 'cl');
   const [steps, setSteps] = useState(initialData?.steps ?? '');
+  const [preparationType, setPreparationType] = useState(initialData?.preparationType ?? '');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -153,6 +167,7 @@ export default function IngredientForm({ userId, userIngredients, initialData }:
       ? {
           name: name.trim(), type: 'homemade', unit, price: 0, stock, format: 0,
           homemade: true,
+          preparationType: preparationType || undefined,
           composition: linkedComposition,
           yield: yieldAmt, yieldUnit,
           steps: steps.trim() || undefined,
@@ -170,7 +185,7 @@ export default function IngredientForm({ userId, userIngredients, initialData }:
       : await supabase.from('ingredients').insert(payload);
 
     if (result.error) { setError('Erreur lors de la sauvegarde.'); setSaving(false); }
-    else { window.location.href = '/ingredients'; }
+    else { window.location.href = homemade ? '/recipes?tab=homemade' : '/ingredients'; }
   };
 
   return (
@@ -312,6 +327,29 @@ export default function IngredientForm({ userId, userIngredients, initialData }:
       {/* ── HOMEMADE ── */}
       {homemade && (
         <>
+          {/* Preparation type */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-[var(--text-dim)] uppercase tracking-wide">
+              Type de préparation
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {PREP_TYPES.map((p) => (
+                <button
+                  key={p.key}
+                  type="button"
+                  onClick={() => setPreparationType(preparationType === p.key ? '' : p.key)}
+                  className={`px-3 py-1.5 text-xs font-medium rounded-full border transition-all ${
+                    preparationType === p.key
+                      ? 'bg-blue-500 text-white border-blue-500'
+                      : 'bg-transparent text-[var(--text-dim)] border-[var(--border)] hover:border-blue-400/60'
+                  }`}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Composition rows — stacked layout for mobile */}
           <div className="space-y-2">
             <label className="text-xs font-medium text-[var(--text-dim)] uppercase tracking-wide">
