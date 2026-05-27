@@ -30,6 +30,7 @@ export default async function BatchPage() {
   const stockMap: Record<string, {
     id: string;
     name: string;
+    type?: string;
     unit: string;
     price?: number;
     format?: number;
@@ -38,10 +39,12 @@ export default async function BatchPage() {
     composition?: Array<{ ingredientId?: string; name: string; qty: number; unit: string }>;
     yield?: number;
     yieldUnit?: string;
+    steps?: string;
   }> = {};
   for (const row of ingredientRows ?? []) {
     const d = row.data as {
       name?: string;
+      type?: string;
       unit?: string;
       price?: number;
       format?: number;
@@ -50,10 +53,12 @@ export default async function BatchPage() {
       composition?: Array<{ ingredientId?: string; name: string; qty: number; unit: string }>;
       yield?: number;
       yieldUnit?: string;
+      steps?: string;
     } | null;
     stockMap[row.id as string] = {
       id: row.id as string,
       name: d?.name ?? '',
+      type: d?.type,
       unit: d?.unit ?? '',
       price: d?.price,
       format: d?.format,
@@ -62,6 +67,7 @@ export default async function BatchPage() {
       composition: d?.composition,
       yield: d?.yield,
       yieldUnit: d?.yieldUnit,
+      steps: d?.steps,
     };
   }
 
