@@ -7,7 +7,7 @@ import QRCode from 'react-qr-code';
 import {
   Users, UserPlus, Copy, Check, QrCode, LogOut, Trash2, Crown,
   Shield, User as UserIcon, Loader2, Plus, LogIn, Mail, X,
-  BookOpen, FlaskConical, Download, MessageSquare, Send, ShieldCheck, Lock,
+  BookOpen, FlaskConical, Download, MessageSquare, Send, ShieldCheck, Lock, Link2,
 } from 'lucide-react';
 import {
   ROLE_LABELS, ROLE_COLORS, memberRole, generateTeamCode, randomToken,
@@ -53,6 +53,7 @@ export default function TeamClient({
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
   const [showQR, setShowQR] = useState(false);
   const [showSharedTab, setShowSharedTab] = useState<'recipe' | 'ingredient'>('recipe');
 
@@ -311,6 +312,13 @@ export default function TeamClient({
     setTimeout(() => setCopied(false), 1500);
   }
 
+  function copyLink() {
+    if (!joinUrl) return;
+    navigator.clipboard?.writeText(joinUrl);
+    setCopiedLink(true);
+    setTimeout(() => setCopiedLink(false), 1500);
+  }
+
   function toggleNotes(id: string) {
     setOpenNotes((prev) => {
       const next = new Set(prev);
@@ -487,6 +495,14 @@ export default function TeamClient({
                 >
                   <QrCode size={16} />
                 </button>
+                <button
+                  onClick={copyLink}
+                  className="p-2.5 rounded-lg bg-[var(--surface2)] text-[var(--text-dim)] hover:text-[var(--text)] transition-colors"
+                  aria-label="Copier le lien d'invitation"
+                  title="Copier le lien d'invitation"
+                >
+                  {copiedLink ? <Check size={16} className="text-emerald-400" /> : <Link2 size={16} />}
+                </button>
               </div>
 
               {showQR && (
@@ -592,12 +608,23 @@ export default function TeamClient({
                     Créer l&apos;invitation
                   </button>
                 </div>
-                <p className="text-xs text-[var(--text-dim)] bg-[var(--surface2)] rounded-lg px-3 py-2">
-                  Un email est envoyé à l&apos;invité. Il peut aussi rejoindre directement avec le
-                  code{' '}
-                  <span className="font-mono font-semibold text-[var(--text)]">{activeTeam.code}</span>{' '}
-                  ou via la bannière à sa connexion.
-                </p>
+                {/* Shareable join link */}
+                <div className="space-y-1.5">
+                  <p className="text-xs text-[var(--text-dim)]">Ou partagez ce lien directement :</p>
+                  <div className="flex items-center gap-2 bg-[var(--surface2)] rounded-lg px-3 py-2">
+                    <Link2 size={13} className="text-[var(--text-dim)] shrink-0" />
+                    <span className="flex-1 text-xs text-[var(--text-dim)] truncate font-mono">
+                      {joinUrl || `…/settings/team?join=${activeTeam.code}`}
+                    </span>
+                    <button
+                      onClick={copyLink}
+                      className="shrink-0 p-1 text-[var(--text-dim)] hover:text-[var(--text)] transition-colors"
+                      aria-label="Copier le lien"
+                    >
+                      {copiedLink ? <Check size={13} className="text-emerald-400" /> : <Copy size={13} />}
+                    </button>
+                  </div>
+                </div>
 
                 {teamInvites.length > 0 && (
                   <ul className="space-y-1.5 pt-1">
@@ -606,6 +633,14 @@ export default function TeamClient({
                         <Mail size={13} className="text-[var(--text-dim)] shrink-0" />
                         <span className="flex-1 truncate text-[var(--text-dim)]">{inv.email}</span>
                         <span className="text-xs text-[var(--text-dim)]">{ROLE_LABELS[(inv.role as TeamRole) ?? 'user']}</span>
+                        <button
+                          onClick={copyLink}
+                          className="p-1 text-[var(--text-dim)] hover:text-[var(--text)] transition-colors"
+                          aria-label="Copier le lien"
+                          title="Copier le lien d'invitation"
+                        >
+                          {copiedLink ? <Check size={13} className="text-emerald-400" /> : <Link2 size={13} />}
+                        </button>
                         <button
                           onClick={() => revokeInvite(inv.id)}
                           disabled={busy === `rev-${inv.id}`}
