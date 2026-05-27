@@ -12,6 +12,14 @@ interface CompositionRow {
   unit: string;
 }
 
+interface OutputRow {
+  tempId: string;
+  name: string;
+  qty: number;
+  unit: string;
+  ingredientId?: string;
+}
+
 interface IngredientFormProps {
   userId: string;
   userIngredients: UserIngredientOption[];
@@ -32,6 +40,7 @@ interface IngredientFormProps {
     yieldUnit?: string;
     steps?: string;
     preparationType?: string;
+    outputs?: Array<{ ingredientId?: string; name: string; qty: number; unit: string }>;
   };
 }
 
@@ -89,6 +98,21 @@ export default function IngredientForm({ userId, userIngredients, initialData }:
   const [yieldUnit, setYieldUnit] = useState(initialData?.yieldUnit ?? 'cl');
   const [steps, setSteps] = useState(initialData?.steps ?? '');
   const [preparationType, setPreparationType] = useState(initialData?.preparationType ?? '');
+
+  // Sorties de la préparation (multi-output support)
+  const [outputs, setOutputs] = useState<OutputRow[]>(() => {
+    if (initialData?.outputs && initialData.outputs.length > 0) {
+      return initialData.outputs.map((o, i) => ({
+        tempId: `out-${i}`,
+        name: o.name,
+        qty: o.qty,
+        unit: o.unit,
+        ingredientId: o.ingredientId,
+      }));
+    }
+    // Ancienne prépa ou nouvelle : 1 sortie vide par défaut
+    return [{ tempId: 'out-0', name: '', qty: initialData?.yield ?? 50, unit: initialData?.yieldUnit ?? 'cl' }];
+  });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -163,29 +187,148 @@ export default function IngredientForm({ userId, userIngredients, initialData }:
       ? await ensureIngredients(supabase, userId, composition.filter((c) => c.name.trim()))
       : [];
 
-    const data = homemade
-      ? {
-          name: name.trim(), type: 'homemade', unit, price: 0, stock, format: 0,
+    if (!homemade) {
+      // Ingrédient acheté — comportement inchangé
+      const data = {
+        name: name.trim(), type, unit, price, stock, format, homemade: false,
+        brand: brand.trim() || undefined,
+        family: family.trim() || undefined,
+        supplier: supplier.trim() || undefined,
+      };
+      const payload = { user_id: userId, data, updated_at: new Date().toISOString() };
+      const result = initialData
+        ? await supabase.from('ingredients').update(payload).eq('id', initialData.id).eq('user_id', userId)
+        : await supabase.from('ingredients').insert(payload);
+      if (result.error) { setError('Erreur lors de la sauvegarde.'); setSaving(false); }
+      else { window.location.href = '/ingredients'; }
+      return;
+    }
+
+    // Préparation maison
+    const validOutputs = outputs.filter((o) => o.qty > 0);
+    const isMultiOutput = validOutputs.length >= 2;
+
+    if (isMultiOutput) {
+      // === Multi-sortie ===
+      const ingredientId = initialData?.id; // défini si modification, undefined si création
+
+      // 1. Créer/update chaque sortie comme ingrédient indépendant
+      const outputIds: Array<{ tempId: string; ingredientId: string }> = [];
+      for (const out of validOutputs) {
+        const outName = out.name.trim() || name.trim();
+        const outData = {
+          name: outName,
           homemade: true,
-          preparationType: preparationType || undefined,
-          composition: linkedComposition,
-          yield: yieldAmt, yieldUnit,
-          steps: steps.trim() || undefined,
-        }
-      : {
-          name: name.trim(), type, unit, price, stock, format, homemade: false,
-          brand: brand.trim() || undefined,
-          family: family.trim() || undefined,
-          supplier: supplier.trim() || undefined,
+          isOutput: true,
+          sourcePreparationId: ingredientId ?? 'pending',
+          unit: out.unit,
+          stock: 0,
+          price: 0,
+          format: 0,
         };
+        if (out.ingredientId) {
+          // Mise à jour d'une sortie existante
+          await supabase
+            .from('ingredients')
+            .update({ data: { ...outData, sourcePreparationId: ingredientId }, updated_at: new Date().toISOString() })
+            .eq('id', out.ingredientId)
+            .eq('user_id', userId);
+          outputIds.push({ tempId: out.tempId, ingredientId: out.ingredientId });
+        } else {
+          // Insertion d'une nouvelle sortie
+          const { data: inserted } = await supabase
+            .from('ingredients')
+            .insert({ user_id: userId, data: outData, updated_at: new Date().toISOString() })
+            .select('id')
+            .single();
+          if (inserted) outputIds.push({ tempId: out.tempId, ingredientId: inserted.id as string });
+        }
+      }
 
-    const payload = { user_id: userId, data, updated_at: new Date().toISOString() };
-    const result = initialData
-      ? await supabase.from('ingredients').update(payload).eq('id', initialData.id).eq('user_id', userId)
-      : await supabase.from('ingredients').insert(payload);
+      // 2. Construire le data de la prépa-conteneur
+      const prepData = {
+        name: name.trim(),
+        type: 'homemade',
+        unit: validOutputs[0]?.unit ?? 'cl',
+        price: 0,
+        stock: 0,
+        format: 0,
+        homemade: true,
+        isPreparation: true,
+        preparationType: preparationType || undefined,
+        composition: linkedComposition,
+        outputs: validOutputs.map((o) => {
+          const matched = outputIds.find((x) => x.tempId === o.tempId);
+          return {
+            ingredientId: matched?.ingredientId,
+            name: o.name.trim() || name.trim(),
+            qty: o.qty,
+            unit: o.unit,
+          };
+        }),
+        steps: steps.trim() || undefined,
+      };
 
-    if (result.error) { setError('Erreur lors de la sauvegarde.'); setSaving(false); }
-    else { window.location.href = homemade ? '/recipes?tab=homemade' : '/ingredients'; }
+      const prepPayload = { user_id: userId, data: prepData, updated_at: new Date().toISOString() };
+
+      if (ingredientId) {
+        // Modification d'une prépa existante
+        const result = await supabase
+          .from('ingredients')
+          .update(prepPayload)
+          .eq('id', ingredientId)
+          .eq('user_id', userId);
+        if (result.error) { setError('Erreur lors de la sauvegarde.'); setSaving(false); return; }
+      } else {
+        // Création d'une nouvelle prépa → récupérer son ID pour lier les sorties
+        const { data: inserted, error } = await supabase
+          .from('ingredients')
+          .insert(prepPayload)
+          .select('id')
+          .single();
+        if (error || !inserted) { setError('Erreur lors de la sauvegarde.'); setSaving(false); return; }
+        const newPrepId = inserted.id as string;
+
+        // 3. Mettre à jour le sourcePreparationId de chaque sortie avec le vrai ID
+        for (const out of outputIds) {
+          await supabase
+            .from('ingredients')
+            .update({ data: { sourcePreparationId: newPrepId }, updated_at: new Date().toISOString() } as Record<string, unknown>)
+            .eq('id', out.ingredientId)
+            .eq('user_id', userId);
+        }
+        // Mettre à jour aussi les sorties référencées dans le prepData
+        const updatedOutputs = prepData.outputs.map((o) => ({
+          ...o,
+          ingredientId: outputIds.find((x) => o.ingredientId === x.ingredientId)?.ingredientId ?? o.ingredientId,
+        }));
+        await supabase
+          .from('ingredients')
+          .update({ data: { ...prepData, outputs: updatedOutputs }, updated_at: new Date().toISOString() })
+          .eq('id', newPrepId)
+          .eq('user_id', userId);
+      }
+
+      window.location.href = '/recipes?tab=homemade';
+    } else {
+      // === Sortie unique — comportement actuel ===
+      const out = validOutputs[0];
+      const data = {
+        name: name.trim(), type: 'homemade', unit: out?.unit ?? unit, price: 0,
+        stock, format: 0, homemade: true,
+        preparationType: preparationType || undefined,
+        composition: linkedComposition,
+        yield: out?.qty ?? yieldAmt,
+        yieldUnit: out?.unit ?? yieldUnit,
+        steps: steps.trim() || undefined,
+      };
+      const payload = { user_id: userId, data, updated_at: new Date().toISOString() };
+      const result = initialData
+        ? await supabase.from('ingredients').update(payload).eq('id', initialData.id).eq('user_id', userId)
+        : await supabase.from('ingredients').insert(payload);
+      if (result.error) { setError('Erreur lors de la sauvegarde.'); setSaving(false); }
+      else { window.location.href = '/recipes?tab=homemade'; }
+    }
   };
 
   return (
@@ -449,40 +592,78 @@ export default function IngredientForm({ userId, userIngredients, initialData }:
             </button>
           </div>
 
-          {/* Yield */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-[var(--text-dim)] uppercase tracking-wide">Rendement produit</label>
-              <input type="number" min="0" step="any"
-                value={yieldAmt === 0 ? '' : yieldAmt}
-                onChange={(e) => setYieldAmt(parseFloat(e.target.value) || 0)}
-                placeholder="ex. 50" className="field-input" />
+          {/* Sorties de la préparation */}
+          <div className="space-y-2">
+            <label className="text-xs font-medium text-[var(--text-dim)] uppercase tracking-wide">
+              Sorties de la préparation
+            </label>
+            <div className="space-y-2">
+              {outputs.map((out, idx) => (
+                <div key={out.tempId} className="card p-3 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={out.name}
+                      onChange={(e) => setOutputs((prev) => prev.map((o) => o.tempId === out.tempId ? { ...o, name: e.target.value } : o))}
+                      placeholder={outputs.length === 1 ? 'Nom de la sortie (optionnel)' : 'Nom de la sortie'}
+                      className="field-input flex-1"
+                    />
+                    <button
+                      type="button"
+                      disabled={outputs.length <= 1}
+                      onClick={() => setOutputs((prev) => prev.filter((o) => o.tempId !== out.tempId))}
+                      className="shrink-0 p-2 text-[var(--text-dim)] hover:text-red-400 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                  <div className="flex gap-2">
+                    <div className="flex-1">
+                      <label className="text-xs text-[var(--text-dim)] mb-1 block">Quantité</label>
+                      <input
+                        type="number" min="0" step="any"
+                        value={out.qty === 0 ? '' : out.qty}
+                        onChange={(e) => setOutputs((prev) => prev.map((o) => o.tempId === out.tempId ? { ...o, qty: parseFloat(e.target.value) || 0 } : o))}
+                        placeholder="0"
+                        className="field-input w-full"
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <label className="text-xs text-[var(--text-dim)] mb-1 block">Unité</label>
+                      <select
+                        value={out.unit}
+                        onChange={(e) => setOutputs((prev) => prev.map((o) => o.tempId === out.tempId ? { ...o, unit: e.target.value } : o))}
+                        className="field-input w-full"
+                      >
+                        {UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-[var(--text-dim)] uppercase tracking-wide">Unité du rendement</label>
-              <select value={yieldUnit} onChange={(e) => setYieldUnit(e.target.value)} className="field-input">
-                {UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
-              </select>
-            </div>
+            <button
+              type="button"
+              onClick={() => setOutputs((prev) => [...prev, { tempId: `out-${Date.now()}`, name: '', qty: 0, unit: 'cl' }])}
+              className="btn-ghost w-full py-2.5 text-sm flex items-center justify-center gap-1.5"
+            >
+              <Plus size={15} />
+              Ajouter une sortie
+            </button>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          {/* Stock — affiché seulement si 1 seule sortie (multi-output gère le stock via chaque sortie) */}
+          {outputs.length <= 1 && (
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-[var(--text-dim)] uppercase tracking-wide">
-                Stock ({yieldUnit || 'cl'})
+                Stock ({outputs[0]?.unit || yieldUnit || 'cl'})
               </label>
               <input type="number" min="0" step="any"
                 value={stock === 0 ? '' : stock}
                 onChange={(e) => setStock(parseFloat(e.target.value) || 0)}
                 placeholder="0" className="field-input" />
             </div>
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-[var(--text-dim)] uppercase tracking-wide">Unité d'utilisation</label>
-              <select value={unit} onChange={(e) => setUnit(e.target.value)} className="field-input">
-                {UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
-              </select>
-            </div>
-          </div>
+          )}
 
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-[var(--text-dim)] uppercase tracking-wide">Instructions (optionnel)</label>

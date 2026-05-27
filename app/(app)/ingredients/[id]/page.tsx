@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { redirect, notFound } from 'next/navigation';
 import { TopBar } from '@/components/layout/TopBar';
 import Link from 'next/link';
-import { Edit2, FlaskConical, Package } from 'lucide-react';
+import { Edit2, FlaskConical, Package, ArrowLeft } from 'lucide-react';
 import TimerWidget from '../TimerWidget';
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -57,7 +57,25 @@ export default async function IngredientDetailPage({
     yield?: number;
     yieldUnit?: string;
     steps?: string;
+    isPreparation?: boolean;
+    isOutput?: boolean;
+    sourcePreparationId?: string;
+    outputs?: Array<{ ingredientId?: string; name: string; qty: number; unit: string }>;
   };
+
+  // Si c'est une sortie, récupérer la prépa source pour afficher le lien
+  let sourcePrepName: string | null = null;
+  if (d.isOutput && d.sourcePreparationId) {
+    const { data: sourcePrep } = await supabase
+      .from('ingredients')
+      .select('id, data')
+      .eq('id', d.sourcePreparationId)
+      .eq('user_id', user.id)
+      .single();
+    if (sourcePrep) {
+      sourcePrepName = ((sourcePrep.data as { name?: string })?.name) ?? null;
+    }
+  }
 
   const catKey = d.type ?? 'other';
   const catLabel = CATEGORY_LABELS[catKey] ?? CATEGORY_LABELS['other'];
@@ -175,6 +193,52 @@ export default async function IngredientDetailPage({
             </div>
           )}
         </div>
+
+        {/* Lien vers la prépa source (si c'est une sortie) */}
+        {d.isOutput && d.sourcePreparationId && (
+          <div className="card space-y-2">
+            <h2 className="text-sm font-semibold text-[var(--text)]">Préparation source</h2>
+            <Link
+              href={`/ingredients/${d.sourcePreparationId}`}
+              className="flex items-center gap-2 text-sm text-blue-400 hover:text-blue-300 transition-colors"
+            >
+              <ArrowLeft size={14} />
+              <FlaskConical size={14} />
+              {sourcePrepName ?? 'Voir la préparation'}
+            </Link>
+          </div>
+        )}
+
+        {/* Sorties (multi-output prep) */}
+        {d.isPreparation && d.outputs && d.outputs.length > 0 && (
+          <div className="card space-y-3">
+            <h2 className="text-sm font-semibold text-[var(--text)] flex items-center gap-2">
+              <FlaskConical size={15} className="text-blue-400" />
+              Sorties de la préparation
+            </h2>
+            <ul className="space-y-2">
+              {d.outputs.map((out, i) => (
+                <li key={i} className="flex items-center justify-between text-sm">
+                  <span className="flex items-center gap-2 text-[var(--text)]">
+                    {out.ingredientId ? (
+                      <Link
+                        href={`/ingredients/${out.ingredientId}`}
+                        className="text-blue-400 hover:text-blue-300 transition-colors"
+                      >
+                        {out.name}
+                      </Link>
+                    ) : (
+                      out.name
+                    )}
+                  </span>
+                  <span className="text-[var(--gold)] font-mono">
+                    {out.qty} {out.unit}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         {/* Composition (homemade only) */}
         {d.homemade && d.composition && d.composition.length > 0 && (

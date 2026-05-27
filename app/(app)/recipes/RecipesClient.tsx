@@ -58,6 +58,10 @@ interface HomemadeIngredient {
     steps?: string;
     preparationType?: string;
     composition?: Array<{ name: string; qty: number; unit: string }>;
+    isPreparation?: boolean;
+    isOutput?: boolean;
+    sourcePreparationId?: string;
+    outputs?: Array<{ ingredientId?: string; name: string; qty: number; unit: string }>;
   };
 }
 
@@ -162,9 +166,12 @@ export default function RecipesClient({ initialRecipes, homemadeIngredients, use
   }
 
   const filteredHomemade = useMemo(() => {
-    if (!homemadeSearch.trim()) return homemadeIngredients;
+    // Les sorties (isOutput) ne sont pas affichées comme cartes séparées — elles sont
+    // sub-items de la carte de leur prépa-conteneur.
+    const visible = homemadeIngredients.filter((i) => !i.data.isOutput);
+    if (!homemadeSearch.trim()) return visible;
     const q = homemadeSearch.toLowerCase();
-    return homemadeIngredients.filter((i) => i.data.name?.toLowerCase().includes(q));
+    return visible.filter((i) => i.data.name?.toLowerCase().includes(q));
   }, [homemadeIngredients, homemadeSearch]);
 
   function handleTabSwitch(tab: 'mine' | 'homemade' | 'catalog') {
@@ -417,6 +424,7 @@ export default function RecipesClient({ initialRecipes, homemadeIngredients, use
                   const d = item.data;
                   const compCount = d.composition?.length ?? 0;
                   const stock = d.stock ?? 0;
+                  const isMultiOutput = d.isPreparation && d.outputs && d.outputs.length > 0;
                   return (
                     <Link
                       key={item.id}
@@ -432,18 +440,30 @@ export default function RecipesClient({ initialRecipes, homemadeIngredients, use
                           {d.preparationType ? (PREP_TYPE_LABELS[d.preparationType] ?? d.preparationType) : 'Maison'}
                         </span>
                       </div>
-                      <div className="flex items-center justify-between text-xs text-[var(--text-dim)]">
-                        <span>{compCount} ingrédient{compCount !== 1 ? 's' : ''}</span>
-                        <span>
-                          Stock : <span className={stock > 0 ? 'text-emerald-400' : 'text-red-400'}>
-                            {stock > 0 ? `${stock} ${d.yieldUnit ?? d.unit ?? ''}` : 'Épuisé'}
-                          </span>
-                        </span>
-                      </div>
-                      {d.yield && d.yield > 0 && (
-                        <p className="text-xs text-[var(--text-dim)] mt-1">
-                          Rendement : {d.yield} {d.yieldUnit}
-                        </p>
+                      {isMultiOutput ? (
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {d.outputs!.map((o) => (
+                            <span key={o.name} className="text-xs bg-blue-400/10 text-blue-300 px-2 py-0.5 rounded-full">
+                              {o.name} · {o.qty} {o.unit}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <>
+                          <div className="flex items-center justify-between text-xs text-[var(--text-dim)]">
+                            <span>{compCount} ingrédient{compCount !== 1 ? 's' : ''}</span>
+                            <span>
+                              Stock : <span className={stock > 0 ? 'text-emerald-400' : 'text-red-400'}>
+                                {stock > 0 ? `${stock} ${d.yieldUnit ?? d.unit ?? ''}` : 'Épuisé'}
+                              </span>
+                            </span>
+                          </div>
+                          {d.yield && d.yield > 0 && (
+                            <p className="text-xs text-[var(--text-dim)] mt-1">
+                              Rendement : {d.yield} {d.yieldUnit}
+                            </p>
+                          )}
+                        </>
                       )}
                     </Link>
                   );

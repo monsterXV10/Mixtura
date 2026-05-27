@@ -17,6 +17,9 @@ export interface UserIngredientOption {
   homemade?: boolean;
   brand?: string;
   family?: string;
+  isPreparation?: boolean;  // conteneur multi-sortie, exclu du picker
+  isOutput?: boolean;       // sortie d'une prépa multi-sortie
+  sourcePreparationId?: string; // lien vers la prépa source (si isOutput)
 }
 
 /** Build an autocomplete option from a raw ingredients row. */
@@ -27,6 +30,9 @@ export function toIngredientOption(row: { id: string; data: unknown }): UserIngr
     homemade?: boolean;
     brand?: string;
     family?: string;
+    isPreparation?: boolean;
+    isOutput?: boolean;
+    sourcePreparationId?: string;
   };
   return {
     id: row.id,
@@ -35,6 +41,9 @@ export function toIngredientOption(row: { id: string; data: unknown }): UserIngr
     homemade: d.homemade ?? false,
     brand: d.brand ?? '',
     family: d.family ?? '',
+    isPreparation: d.isPreparation ?? false,
+    isOutput: d.isOutput ?? false,
+    sourcePreparationId: d.sourcePreparationId,
   };
 }
 

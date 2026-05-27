@@ -41,6 +41,7 @@ export default async function EditIngredientPage({
     yieldUnit?: string;
     steps?: string;
     preparationType?: string;
+    outputs?: Array<{ ingredientId?: string; name: string; qty: number; unit: string }>;
   };
 
   const initialData = {
@@ -60,6 +61,7 @@ export default async function EditIngredientPage({
     yieldUnit: d?.yieldUnit,
     steps: d?.steps,
     preparationType: d?.preparationType,
+    outputs: d?.outputs,
   };
 
   return (

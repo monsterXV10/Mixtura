@@ -107,6 +107,7 @@ export default function RecipeForm({ initialData, userIngredients, userId }: Rec
 
     const filtered = userIngredients
       .filter((ing) => matchesIngredient(ing, value))
+      .filter((ing) => !ing.isPreparation) // exclure les prépa-conteneurs multi-sortie
       .slice(0, 8);
 
     setSuggestions(filtered);
