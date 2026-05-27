@@ -236,7 +236,7 @@ export default function RecipesClient({ initialRecipes, homemadeIngredients, use
       <TopBar
         title="Recettes"
         actions={
-          <Link href="/recipes/new" className="btn-primary px-3 py-1.5 text-sm gap-1">
+          <Link href="/recipes/new" className="btn-primary h-9 px-3 text-sm gap-1">
             <Plus size={15} />
             Ajouter
           </Link>
@@ -285,13 +285,13 @@ export default function RecipesClient({ initialRecipes, homemadeIngredients, use
           <div className="space-y-4">
             {/* Search */}
             <div className="relative">
-              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-dim)]" />
+              <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--text-dim)]" />
               <input
                 type="text"
                 placeholder="Rechercher une recette…"
                 value={mySearch}
                 onChange={(e) => setMySearch(e.target.value)}
-                className="field-input pl-9"
+                className="field-input pl-10"
               />
             </div>
 
@@ -394,13 +394,13 @@ export default function RecipesClient({ initialRecipes, homemadeIngredients, use
         {activeTab === 'homemade' && (
           <div className="space-y-4">
             <div className="relative">
-              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-dim)]" />
+              <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--text-dim)]" />
               <input
                 type="text"
                 placeholder="Rechercher une préparation…"
                 value={homemadeSearch}
                 onChange={(e) => setHomemadeSearch(e.target.value)}
-                className="field-input pl-9"
+                className="field-input pl-10"
               />
             </div>
 
@@ -477,13 +477,13 @@ export default function RecipesClient({ initialRecipes, homemadeIngredients, use
           <div className="space-y-4">
             {/* Search */}
             <div className="relative">
-              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-dim)]" />
+              <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--text-dim)]" />
               <input
                 type="text"
                 placeholder="Rechercher dans le catalogue…"
                 value={catalogSearch}
                 onChange={(e) => setCatalogSearch(e.target.value)}
-                className="field-input pl-9"
+                className="field-input pl-10"
               />
             </div>
 

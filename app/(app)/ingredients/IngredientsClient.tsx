@@ -102,7 +102,7 @@ export default function IngredientsClient({ initialIngredients }: Props) {
       <TopBar
         title="Stocks"
         actions={
-          <Link href="/ingredients/new" className="btn-primary px-3 py-1.5 text-sm gap-1">
+          <Link href="/ingredients/new" className="btn-primary h-9 px-3 text-sm gap-1">
             <Plus size={15} />
             Ajouter
           </Link>
@@ -111,13 +111,13 @@ export default function IngredientsClient({ initialIngredients }: Props) {
 
       <main className="px-4 py-4 pb-safe space-y-4">
         <div className="relative">
-          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-dim)]" />
+          <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--text-dim)]" />
           <input
             type="text"
             placeholder="Rechercher un ingrédient…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="field-input pl-9"
+            className="field-input pl-10"
           />
         </div>
 

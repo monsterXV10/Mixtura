@@ -250,13 +250,13 @@ export default function CommunicationClient({
           ) : (
             <>
               <div className="relative">
-                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-dim)]" />
+                <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--text-dim)]" />
                 <input
                   type="text"
                   value={recipeSearch}
                   onChange={(e) => setRecipeSearch(e.target.value)}
                   placeholder="Rechercher une recette…"
-                  className="field-input pl-9 text-sm"
+                  className="field-input pl-10 text-sm"
                 />
               </div>
               <div className="max-h-56 overflow-y-auto space-y-1 -mx-1 px-1">
@@ -309,7 +309,7 @@ export default function CommunicationClient({
             <button
               key={t}
               onClick={() => setTab(t)}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-md text-xs font-medium transition-colors ${
+              className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded text-xs font-medium transition-colors ${
                 tab === t ? 'bg-[var(--surface)] text-[var(--text)]' : 'text-[var(--text-dim)]'
               }`}
             >
@@ -347,7 +347,7 @@ export default function CommunicationClient({
             const notesOpen = openNotes.has(item.id);
             return (
               <li key={item.id} className="card space-y-2">
-                <div className="flex items-start gap-2">
+                <div className="flex items-center gap-2">
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-[var(--text)] truncate">{name}</p>
                     <p className="text-xs text-[var(--text-dim)]">
@@ -367,10 +367,10 @@ export default function CommunicationClient({
                     <button
                       onClick={() => deleteItem(item)}
                       disabled={busy === `del-${item.id}`}
-                      className="p-1.5 text-[var(--text-dim)] hover:text-red-400 shrink-0"
+                      className="p-2 text-[var(--text-dim)] hover:text-red-400 shrink-0"
                       aria-label="Retirer"
                     >
-                      <Trash2 size={14} />
+                      <Trash2 size={16} />
                     </button>
                   )}
                 </div>
