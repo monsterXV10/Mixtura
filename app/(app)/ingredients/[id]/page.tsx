@@ -49,6 +49,9 @@ export default async function IngredientDetailPage({
     stock?: number;
     format?: number;
     homemade?: boolean;
+    brand?: string;
+    family?: string;
+    supplier?: string;
     composition?: Array<{ ingredientId?: string; name: string; qty: number; unit: string }>;
     yield?: number;
     yieldUnit?: string;
@@ -80,13 +83,20 @@ export default async function IngredientDetailPage({
         {/* Header card */}
         <div className="card space-y-3">
           <div className="flex items-start justify-between gap-2">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 min-w-0">
               {d.homemade ? (
                 <FlaskConical size={20} className="text-blue-400 shrink-0" />
               ) : (
                 <Package size={20} className="text-[var(--gold)] shrink-0" />
               )}
-              <h1 className="text-lg font-bold text-[var(--text)]">{d.name}</h1>
+              <div className="min-w-0">
+                <h1 className="text-lg font-bold text-[var(--text)] truncate">{d.name}</h1>
+                {(d.brand || d.family) && (
+                  <p className="text-xs text-[var(--text-dim)] truncate">
+                    {[d.brand, d.family].filter(Boolean).join(' · ')}
+                  </p>
+                )}
+              </div>
             </div>
             <span className={`shrink-0 text-xs px-2 py-0.5 rounded-full font-medium ${catColor}`}>
               {catLabel}
@@ -95,6 +105,12 @@ export default async function IngredientDetailPage({
 
           {!d.homemade && (
             <div className="grid grid-cols-2 gap-3">
+              {d.supplier && (
+                <div className="col-span-2">
+                  <p className="text-xs text-[var(--text-dim)]">Fournisseur</p>
+                  <p className="text-sm font-semibold text-[var(--text)]">{d.supplier}</p>
+                </div>
+              )}
               <div>
                 <p className="text-xs text-[var(--text-dim)]">Prix achat</p>
                 <p className="text-sm font-semibold text-[var(--text)]">

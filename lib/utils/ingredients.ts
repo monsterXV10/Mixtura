@@ -9,6 +9,45 @@ export interface IngredientRef {
   qty?: number;
 }
 
+/** Autocomplete option shown when linking an ingredient in a recipe/composition. */
+export interface UserIngredientOption {
+  id: string;
+  name: string;
+  unit: string;
+  homemade?: boolean;
+  brand?: string;
+  family?: string;
+}
+
+/** Build an autocomplete option from a raw ingredients row. */
+export function toIngredientOption(row: { id: string; data: unknown }): UserIngredientOption {
+  const d = (row.data ?? {}) as {
+    name?: string;
+    unit?: string;
+    homemade?: boolean;
+    brand?: string;
+    family?: string;
+  };
+  return {
+    id: row.id,
+    name: d.name ?? '',
+    unit: d.unit ?? 'cl',
+    homemade: d.homemade ?? false,
+    brand: d.brand ?? '',
+    family: d.family ?? '',
+  };
+}
+
+/** True when the query matches the option's name, brand, or family (case-insensitive). */
+export function matchesIngredient(opt: UserIngredientOption, query: string): boolean {
+  const q = query.toLowerCase();
+  return (
+    opt.name.toLowerCase().includes(q) ||
+    (opt.brand ?? '').toLowerCase().includes(q) ||
+    (opt.family ?? '').toLowerCase().includes(q)
+  );
+}
+
 /**
  * Ensures every named ingredient row exists in the user's `ingredients` table.
  * - Rows already carrying an ingredientId are left as-is.

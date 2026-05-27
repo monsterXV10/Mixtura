@@ -1,8 +1,9 @@
 'use client';
 import { useState, useRef, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import { matchesIngredient } from '@/lib/utils/ingredients';
 import { Plus, Trash2, Loader2, FlaskConical } from 'lucide-react';
-import type { UserIngredientOption } from '@/app/(app)/recipes/RecipeForm';
+import type { UserIngredientOption } from '@/lib/utils/ingredients';
 
 interface CompositionRow {
   ingredientId?: string;
@@ -23,6 +24,9 @@ interface IngredientFormProps {
     stock: number;
     format: number;
     homemade: boolean;
+    brand?: string;
+    family?: string;
+    supplier?: string;
     composition?: CompositionRow[];
     yield?: number;
     yieldUnit?: string;
@@ -43,6 +47,15 @@ const INGREDIENT_TYPES = [
 
 const UNITS = ['cl', 'ml', 'L', 'g', 'kg', 'pcs', 'dash', 'barspoon', '%'];
 
+// Suggestions for the "famille d'alcool" datalist (free text — user can type anything)
+const COMMON_FAMILIES = [
+  'Whisky', 'Bourbon', 'Scotch', 'Rye Whiskey', 'Irish Whiskey',
+  'Gin', 'Vodka', 'Rhum', 'Rhum agricole', 'Tequila', 'Mezcal',
+  'Cognac', 'Armagnac', 'Brandy', 'Calvados',
+  'Vermouth', 'Amaro', 'Bitters', 'Triple Sec', 'Liqueur',
+  'Champagne', 'Vin', 'Porto', 'Sherry',
+];
+
 const EMPTY_COMP: CompositionRow = { name: '', qty: 0, unit: 'cl' };
 
 export default function IngredientForm({ userId, userIngredients, initialData }: IngredientFormProps) {
@@ -53,6 +66,9 @@ export default function IngredientForm({ userId, userIngredients, initialData }:
   const [stock, setStock] = useState(initialData?.stock ?? 0);
   const [format, setFormat] = useState(initialData?.format ?? 70);
   const [homemade, setHomemade] = useState(initialData?.homemade ?? false);
+  const [brand, setBrand] = useState(initialData?.brand ?? '');
+  const [family, setFamily] = useState(initialData?.family ?? '');
+  const [supplier, setSupplier] = useState(initialData?.supplier ?? '');
   const [composition, setComposition] = useState<CompositionRow[]>(
     initialData?.composition?.length ? initialData.composition : [{ ...EMPTY_COMP }]
   );
@@ -84,9 +100,8 @@ export default function IngredientForm({ userId, userIngredients, initialData }:
       return updated;
     });
     if (!value.trim()) { setSuggestions([]); setActiveIndex(null); return; }
-    const q = value.toLowerCase();
     const filtered = userIngredients
-      .filter((i) => i.name.toLowerCase().includes(q) && i.name.toLowerCase() !== name.toLowerCase())
+      .filter((i) => matchesIngredient(i, value) && i.name.toLowerCase() !== name.toLowerCase())
       .slice(0, 8);
     setSuggestions(filtered);
     setActiveIndex(index);
@@ -136,7 +151,12 @@ export default function IngredientForm({ userId, userIngredients, initialData }:
           yield: yieldAmt, yieldUnit,
           steps: steps.trim() || undefined,
         }
-      : { name: name.trim(), type, unit, price, stock, format, homemade: false };
+      : {
+          name: name.trim(), type, unit, price, stock, format, homemade: false,
+          brand: brand.trim() || undefined,
+          family: family.trim() || undefined,
+          supplier: supplier.trim() || undefined,
+        };
 
     const payload = { user_id: userId, data, updated_at: new Date().toISOString() };
     const result = initialData
@@ -200,6 +220,51 @@ export default function IngredientForm({ userId, userIngredients, initialData }:
                   {t.label}
                 </button>
               ))}
+            </div>
+          </div>
+
+          {/* Famille d'alcool (libre + suggestions) */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-[var(--text-dim)] uppercase tracking-wide">
+              Type / famille d'alcool
+            </label>
+            <input
+              type="text"
+              list="alcohol-families"
+              value={family}
+              onChange={(e) => setFamily(e.target.value)}
+              placeholder="ex. Whisky, Gin, Rhum…"
+              className="field-input"
+            />
+            <datalist id="alcohol-families">
+              {COMMON_FAMILIES.map((f) => <option key={f} value={f} />)}
+            </datalist>
+            <p className="text-xs text-[var(--text-dim)]">
+              Permet de retrouver ce produit en tapant la famille (ex. « whisky ») dans une recette.
+            </p>
+          </div>
+
+          {/* Marque + Fournisseur */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-[var(--text-dim)] uppercase tracking-wide">Marque</label>
+              <input
+                type="text"
+                value={brand}
+                onChange={(e) => setBrand(e.target.value)}
+                placeholder="ex. Jack Daniel's"
+                className="field-input"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-[var(--text-dim)] uppercase tracking-wide">Fournisseur</label>
+              <input
+                type="text"
+                value={supplier}
+                onChange={(e) => setSupplier(e.target.value)}
+                placeholder="ex. Metro"
+                className="field-input"
+              />
             </div>
           </div>
 
@@ -305,16 +370,24 @@ export default function IngredientForm({ userId, userIngredients, initialData }:
                     {/* Autocomplete dropdown */}
                     {showDrop && (
                       <div ref={dropdownRef} className="absolute left-3 right-12 top-14 z-50 card p-1 shadow-lg">
-                        {suggestions.map((opt) => (
-                          <button key={opt.id} type="button"
-                            onMouseDown={(e) => { e.preventDefault(); pickSuggestion(index, opt); }}
-                            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-[var(--text)] hover:bg-[var(--surface2)] rounded-md transition-colors text-left"
-                          >
-                            <span className={`w-2 h-2 rounded-full shrink-0 ${opt.homemade ? 'bg-blue-400' : 'bg-emerald-400'}`} />
-                            {opt.name}
-                            {opt.homemade && <FlaskConical size={12} className="ml-auto text-blue-400 shrink-0" />}
-                          </button>
-                        ))}
+                        {suggestions.map((opt) => {
+                          const subtitle = [opt.brand, opt.family].filter(Boolean).join(' · ');
+                          return (
+                            <button key={opt.id} type="button"
+                              onMouseDown={(e) => { e.preventDefault(); pickSuggestion(index, opt); }}
+                              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-[var(--text)] hover:bg-[var(--surface2)] rounded-md transition-colors text-left"
+                            >
+                              <span className={`w-2 h-2 rounded-full shrink-0 ${opt.homemade ? 'bg-blue-400' : 'bg-emerald-400'}`} />
+                              <span className="flex-1 min-w-0">
+                                <span className="block truncate">{opt.name}</span>
+                                {subtitle && (
+                                  <span className="block text-xs text-[var(--text-dim)] truncate">{subtitle}</span>
+                                )}
+                              </span>
+                              {opt.homemade && <FlaskConical size={12} className="text-blue-400 shrink-0" />}
+                            </button>
+                          );
+                        })}
                       </div>
                     )}
                   </div>

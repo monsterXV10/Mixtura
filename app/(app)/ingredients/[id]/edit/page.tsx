@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { redirect, notFound } from 'next/navigation';
 import { TopBar } from '@/components/layout/TopBar';
+import { toIngredientOption } from '@/lib/utils/ingredients';
 import IngredientForm from '../../IngredientForm';
 
 export default async function EditIngredientPage({
@@ -22,15 +23,7 @@ export default async function EditIngredientPage({
 
   const userIngredients = (ingredientRows ?? [])
     .filter((i) => i.id !== id) // exclude self from composition options
-    .map((i) => {
-      const d = i.data as { name?: string; unit?: string; homemade?: boolean };
-      return {
-        id: i.id as string,
-        name: d?.name ?? '',
-        unit: d?.unit ?? 'cl',
-        homemade: d?.homemade ?? false,
-      };
-    });
+    .map((i) => toIngredientOption({ id: i.id as string, data: i.data }));
 
   const d = ingredient.data as {
     name?: string;
@@ -40,6 +33,9 @@ export default async function EditIngredientPage({
     stock?: number;
     format?: number;
     homemade?: boolean;
+    brand?: string;
+    family?: string;
+    supplier?: string;
     composition?: Array<{ ingredientId?: string; name: string; qty: number; unit: string }>;
     yield?: number;
     yieldUnit?: string;
@@ -55,6 +51,9 @@ export default async function EditIngredientPage({
     stock: d?.stock ?? 0,
     format: d?.format ?? 70,
     homemade: d?.homemade ?? false,
+    brand: d?.brand,
+    family: d?.family,
+    supplier: d?.supplier,
     composition: d?.composition,
     yield: d?.yield,
     yieldUnit: d?.yieldUnit,

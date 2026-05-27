@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { redirect, notFound } from 'next/navigation';
 import { TopBar } from '@/components/layout/TopBar';
+import { toIngredientOption } from '@/lib/utils/ingredients';
 import RecipeForm from '../../RecipeForm';
 
 export default async function EditRecipePage({
@@ -20,15 +21,9 @@ export default async function EditRecipePage({
 
   if (!recipe) notFound();
 
-  const userIngredients = (ingredientRows ?? []).map((i) => {
-    const d = i.data as { name?: string; unit?: string; homemade?: boolean };
-    return {
-      id: i.id as string,
-      name: d?.name ?? '',
-      unit: d?.unit ?? 'cl',
-      homemade: d?.homemade ?? false,
-    };
-  });
+  const userIngredients = (ingredientRows ?? []).map((i) =>
+    toIngredientOption({ id: i.id as string, data: i.data })
+  );
 
   // Build a lookup map by name for back-compat: existing rows without ingredientId
   const nameToId = new Map(userIngredients.map((i) => [i.name.toLowerCase(), i.id]));

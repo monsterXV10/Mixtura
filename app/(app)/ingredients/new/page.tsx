@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import { TopBar } from '@/components/layout/TopBar';
+import { toIngredientOption } from '@/lib/utils/ingredients';
 import IngredientForm from '../IngredientForm';
 
 export default async function NewIngredientPage() {
@@ -13,15 +14,9 @@ export default async function NewIngredientPage() {
     .select('id, data')
     .eq('user_id', user.id);
 
-  const userIngredients = (ingredients ?? []).map((i) => {
-    const d = i.data as { name?: string; unit?: string; homemade?: boolean };
-    return {
-      id: i.id as string,
-      name: d?.name ?? '',
-      unit: d?.unit ?? 'cl',
-      homemade: d?.homemade ?? false,
-    };
-  });
+  const userIngredients = (ingredients ?? []).map((i) =>
+    toIngredientOption({ id: i.id as string, data: i.data })
+  );
 
   return (
     <>

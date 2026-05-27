@@ -12,6 +12,8 @@ interface IngredientData {
   stock?: number;
   format?: number;
   homemade?: boolean;
+  brand?: string;
+  family?: string;
   yield?: number;
   yieldUnit?: string;
 }
@@ -168,7 +170,14 @@ export default function IngredientsClient({ initialIngredients }: Props) {
                       {isHomemade ? (
                         <FlaskConical size={14} className="text-blue-400 shrink-0" />
                       ) : null}
-                      <h3 className="font-semibold text-[var(--text)] text-sm truncate">{d.name}</h3>
+                      <div className="min-w-0">
+                        <h3 className="font-semibold text-[var(--text)] text-sm truncate">{d.name}</h3>
+                        {(d.brand || d.family) && (
+                          <p className="text-xs text-[var(--text-dim)] truncate">
+                            {[d.brand, d.family].filter(Boolean).join(' · ')}
+                          </p>
+                        )}
+                      </div>
                     </div>
                     <span className={`shrink-0 text-xs px-2 py-0.5 rounded-full font-medium ${catColor}`}>
                       {catLabel}

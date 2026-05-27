@@ -1,15 +1,11 @@
 'use client';
 import { useState, useRef, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { ensureIngredients } from '@/lib/utils/ingredients';
+import { ensureIngredients, matchesIngredient } from '@/lib/utils/ingredients';
+import type { UserIngredientOption } from '@/lib/utils/ingredients';
 import { Plus, Trash2, Loader2, FlaskConical } from 'lucide-react';
 
-export interface UserIngredientOption {
-  id: string;
-  name: string;
-  unit: string;
-  homemade?: boolean;
-}
+export type { UserIngredientOption };
 
 interface RecipeIngredientRow {
   ingredientId?: string;
@@ -93,9 +89,8 @@ export default function RecipeForm({ initialData, userIngredients, userId }: Rec
       return;
     }
 
-    const q = value.toLowerCase();
     const filtered = userIngredients
-      .filter((ing) => ing.name.toLowerCase().includes(q))
+      .filter((ing) => matchesIngredient(ing, value))
       .slice(0, 8);
 
     setSuggestions(filtered);
@@ -281,18 +276,26 @@ export default function RecipeForm({ initialData, userIngredients, userId }: Rec
                 {/* Autocomplete dropdown */}
                 {showDrop && (
                   <div ref={dropdownRef} className="absolute left-3 right-12 top-14 z-50 card p-1 shadow-lg">
-                    {suggestions.map((opt) => (
-                      <button
-                        key={opt.id}
-                        type="button"
-                        onMouseDown={(e) => { e.preventDefault(); handleSuggestionPick(index, opt); }}
-                        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-[var(--text)] hover:bg-[var(--surface2)] rounded-md transition-colors text-left"
-                      >
-                        <span className={`w-2 h-2 rounded-full shrink-0 ${opt.homemade ? 'bg-blue-400' : 'bg-emerald-400'}`} />
-                        {opt.name}
-                        {opt.homemade && <FlaskConical size={12} className="ml-auto text-blue-400 shrink-0" />}
-                      </button>
-                    ))}
+                    {suggestions.map((opt) => {
+                      const subtitle = [opt.brand, opt.family].filter(Boolean).join(' · ');
+                      return (
+                        <button
+                          key={opt.id}
+                          type="button"
+                          onMouseDown={(e) => { e.preventDefault(); handleSuggestionPick(index, opt); }}
+                          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-[var(--text)] hover:bg-[var(--surface2)] rounded-md transition-colors text-left"
+                        >
+                          <span className={`w-2 h-2 rounded-full shrink-0 ${opt.homemade ? 'bg-blue-400' : 'bg-emerald-400'}`} />
+                          <span className="flex-1 min-w-0">
+                            <span className="block truncate">{opt.name}</span>
+                            {subtitle && (
+                              <span className="block text-xs text-[var(--text-dim)] truncate">{subtitle}</span>
+                            )}
+                          </span>
+                          {opt.homemade && <FlaskConical size={12} className="text-blue-400 shrink-0" />}
+                        </button>
+                      );
+                    })}
                   </div>
                 )}
               </div>
