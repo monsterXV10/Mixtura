@@ -3,6 +3,7 @@ import { redirect, notFound } from 'next/navigation';
 import { TopBar } from '@/components/layout/TopBar';
 import Link from 'next/link';
 import { Edit2, FlaskConical, Package } from 'lucide-react';
+import TimerWidget from '../TimerWidget';
 
 const CATEGORY_LABELS: Record<string, string> = {
   spirit: 'Spiritueux', liqueur: 'Liqueur', wine: 'Vin',
@@ -202,6 +203,9 @@ export default async function IngredientDetailPage({
             <p className="text-sm text-[var(--text-dim)] whitespace-pre-line leading-relaxed">{d.steps}</p>
           </div>
         )}
+
+        {/* Timer — always shown for homemade preparations */}
+        {d.homemade && <TimerWidget />}
       </main>
     </>
   );
