@@ -1,12 +1,13 @@
 'use client';
 import { useState, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import QRCode from 'react-qr-code';
 import {
   Users, UserPlus, Copy, Check, QrCode, LogOut, Trash2, Crown,
   Shield, User as UserIcon, Loader2, Plus, LogIn, Mail, X,
-  BookOpen, FlaskConical, Download, MessageSquare, Send, ShieldCheck,
+  BookOpen, FlaskConical, Download, MessageSquare, Send, ShieldCheck, Lock,
 } from 'lucide-react';
 import {
   ROLE_LABELS, ROLE_COLORS, memberRole, generateTeamCode, randomToken,
@@ -19,6 +20,8 @@ interface Props {
   userId: string;
   userEmail: string;
   myName: string;
+  canCreateTeam: boolean;
+  teamPlanName: string;
   teams: Team[];
   members: TeamMember[];
   sharedItems: TeamSharedItem[];
@@ -28,7 +31,8 @@ interface Props {
 }
 
 export default function TeamClient({
-  userId, userEmail, myName, teams, members, sharedItems, invitations, notes, pendingInvites,
+  userId, userEmail, myName, canCreateTeam, teamPlanName,
+  teams, members, sharedItems, invitations, notes, pendingInvites,
 }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -344,31 +348,14 @@ export default function TeamClient({
       {/* No team → onboarding */}
       {teams.length === 0 ? (
         <>
+          {/* Join — available to everyone, including free accounts */}
           <div className="card space-y-3">
             <h2 className="font-semibold text-[var(--text)] text-sm flex items-center gap-2">
-              <Plus size={15} className="text-[var(--gold)]" /> Créer une équipe
+              <LogIn size={15} className="text-[var(--gold)]" /> Rejoindre une équipe
             </h2>
-            <input
-              type="text"
-              value={newTeamName}
-              onChange={(e) => setNewTeamName(e.target.value)}
-              placeholder="Nom de l'établissement"
-              className="field-input"
-            />
-            <button
-              onClick={createTeam}
-              disabled={busy === 'create' || !newTeamName.trim()}
-              className="btn-primary w-full py-2.5 text-sm flex items-center justify-center gap-2"
-            >
-              {busy === 'create' ? <Loader2 size={15} className="animate-spin" /> : <Users size={15} />}
-              Créer l&apos;équipe
-            </button>
-          </div>
-
-          <div className="card space-y-3">
-            <h2 className="font-semibold text-[var(--text)] text-sm flex items-center gap-2">
-              <LogIn size={15} className="text-[var(--gold)]" /> Rejoindre avec un code
-            </h2>
+            <p className="text-xs text-[var(--text-dim)]">
+              Entrez le code fourni par votre établissement, ou scannez son QR code.
+            </p>
             <div className="flex gap-2">
               <input
                 type="text"
@@ -387,6 +374,45 @@ export default function TeamClient({
               </button>
             </div>
           </div>
+
+          {/* Create — gated behind the Team plan */}
+          {canCreateTeam ? (
+            <div className="card space-y-3">
+              <h2 className="font-semibold text-[var(--text)] text-sm flex items-center gap-2">
+                <Plus size={15} className="text-[var(--gold)]" /> Créer une équipe
+              </h2>
+              <input
+                type="text"
+                value={newTeamName}
+                onChange={(e) => setNewTeamName(e.target.value)}
+                placeholder="Nom de l'établissement"
+                className="field-input"
+              />
+              <button
+                onClick={createTeam}
+                disabled={busy === 'create' || !newTeamName.trim()}
+                className="btn-primary w-full py-2.5 text-sm flex items-center justify-center gap-2"
+              >
+                {busy === 'create' ? <Loader2 size={15} className="animate-spin" /> : <Users size={15} />}
+                Créer l&apos;équipe
+              </button>
+            </div>
+          ) : (
+            <div className="card space-y-3">
+              <h2 className="font-semibold text-[var(--text)] text-sm flex items-center gap-2">
+                <Lock size={15} className="text-[var(--text-dim)]" /> Créer une équipe
+              </h2>
+              <p className="text-sm text-[var(--text-dim)]">
+                Créer et gérer votre propre équipe nécessite le plan{' '}
+                <span className="text-[var(--gold)] font-medium">{teamPlanName}</span>. Vos
+                barmans, eux, peuvent rejoindre gratuitement avec un code.
+              </p>
+              <Link href="/settings" className="btn-ghost w-full py-2.5 text-sm flex items-center justify-center gap-2">
+                <Crown size={14} className="text-[var(--gold)]" />
+                Passer au plan {teamPlanName}
+              </Link>
+            </div>
+          )}
         </>
       ) : (
         activeTeam && (
@@ -525,33 +551,35 @@ export default function TeamClient({
                 <h3 className="font-semibold text-[var(--text)] text-sm flex items-center gap-2">
                   <UserPlus size={15} className="text-[var(--gold)]" /> Inviter
                 </h3>
+                <input
+                  type="email"
+                  value={inviteEmail}
+                  onChange={(e) => setInviteEmail(e.target.value)}
+                  placeholder="email@exemple.com"
+                  className="field-input w-full"
+                />
                 <div className="flex gap-2">
-                  <input
-                    type="email"
-                    value={inviteEmail}
-                    onChange={(e) => setInviteEmail(e.target.value)}
-                    placeholder="email@exemple.com"
-                    className="field-input flex-1"
-                  />
                   <select
                     value={inviteRole}
                     onChange={(e) => setInviteRole(e.target.value as 'user' | 'admin')}
-                    className="field-input w-28"
+                    className="field-input w-32 shrink-0"
                   >
                     <option value="user">Barman</option>
                     <option value="admin">Manager</option>
                   </select>
+                  <button
+                    onClick={invite}
+                    disabled={busy === 'invite' || !inviteEmail.trim()}
+                    className="btn-ghost flex-1 py-2 text-sm flex items-center justify-center gap-2"
+                  >
+                    {busy === 'invite' ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+                    Créer l&apos;invitation
+                  </button>
                 </div>
-                <button
-                  onClick={invite}
-                  disabled={busy === 'invite' || !inviteEmail.trim()}
-                  className="btn-ghost w-full py-2 text-sm flex items-center justify-center gap-2"
-                >
-                  {busy === 'invite' ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
-                  Créer l&apos;invitation
-                </button>
-                <p className="text-xs text-[var(--text-dim)]">
-                  L&apos;invité verra l&apos;invitation à sa connexion, ou peut rejoindre directement avec le code ci-dessus.
+                <p className="text-xs text-[var(--text-dim)] bg-[var(--surface2)] rounded-lg px-3 py-2">
+                  ⚠️ Aucun email n&apos;est envoyé. L&apos;invité voit l&apos;invitation en
+                  ouvrant Mixtura, ou rejoint directement avec le code{' '}
+                  <span className="font-mono font-semibold text-[var(--text)]">{activeTeam.code}</span>.
                 </p>
 
                 {teamInvites.length > 0 && (

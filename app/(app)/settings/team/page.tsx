@@ -2,8 +2,6 @@ import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import { TopBar } from '@/components/layout/TopBar';
 import { PLANS, hasFeature, type PlanId } from '@/config/plans';
-import { Lock, Crown } from 'lucide-react';
-import Link from 'next/link';
 import TeamClient from './TeamClient';
 import type { Team, TeamMember, TeamInvitation, TeamSharedItem, TeamNote } from '@/lib/team';
 
@@ -25,44 +23,9 @@ export default async function TeamSettingsPage() {
   const plan = ((profile?.plan as PlanId) ?? 'free') as PlanId;
   const myName = profile?.display_name ?? user.email?.split('@')[0] ?? 'Moi';
 
-  // ---- Plan gate -------------------------------------------------------
-  if (!hasFeature(plan, 'teamManagement')) {
-    return (
-      <>
-        <TopBar title="Équipe" backHref="/settings" />
-        <main className="px-4 py-5 pb-safe max-w-xl mx-auto">
-          <div className="card flex flex-col items-center text-center gap-4 py-10">
-            <div className="w-14 h-14 rounded-full bg-[var(--gold)]/10 flex items-center justify-center">
-              <Lock size={24} className="text-[var(--gold)]" />
-            </div>
-            <div>
-              <h2 className="font-semibold text-[var(--text)]">
-                Gestion d&apos;équipe — Plan {PLANS.team.name}
-              </h2>
-              <p className="text-sm text-[var(--text-dim)] mt-2 max-w-sm">
-                Invitez vos barmans, gérez les rôles et partagez recettes,
-                préparations et notes avec toute l&apos;équipe.
-              </p>
-            </div>
-            <ul className="text-sm text-[var(--text-dim)] space-y-1.5 text-left">
-              <li className="flex items-center gap-2">
-                <Crown size={14} className="text-[var(--gold)]" /> Rôles &amp; permissions
-              </li>
-              <li className="flex items-center gap-2">
-                <Crown size={14} className="text-[var(--gold)]" /> Invitations par code &amp; QR
-              </li>
-              <li className="flex items-center gap-2">
-                <Crown size={14} className="text-[var(--gold)]" /> Partage de recettes &amp; ingrédients
-              </li>
-            </ul>
-            <Link href="/settings" className="btn-primary px-5 py-2.5 text-sm mt-2">
-              Passer au plan {PLANS.team.name}
-            </Link>
-          </div>
-        </main>
-      </>
-    );
-  }
+  // Creating/owning a team requires the Team plan. Joining an existing team
+  // (by code or invitation) is open to everyone — barmen don't need to pay.
+  const canCreateTeam = hasFeature(plan, 'teamManagement');
 
   // ---- Load team data --------------------------------------------------
   const { data: memberships } = await supabase
@@ -142,6 +105,8 @@ export default async function TeamSettingsPage() {
           userId={user.id}
           userEmail={user.email ?? ''}
           myName={myName}
+          canCreateTeam={canCreateTeam}
+          teamPlanName={PLANS.team.name}
           teams={teams}
           members={members}
           sharedItems={sharedItems}
