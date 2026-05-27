@@ -16,7 +16,14 @@ interface IngredientData {
   family?: string;
   yield?: number;
   yieldUnit?: string;
+  preparationType?: string;
 }
+
+const PREP_TYPE_LABELS: Record<string, string> = {
+  sirop: 'Sirop', infusion: 'Infusion', clarification: 'Clarification',
+  'fat-wash': 'Fat Wash', batch: 'Batch', teinture: 'Teinture',
+  cordial: 'Cordial', puree: 'Purée',
+};
 
 interface IngredientRow {
   id: string;
@@ -157,8 +164,10 @@ export default function IngredientsClient({ initialIngredients }: Props) {
               const d = ing.data;
               const isHomemade = d.homemade === true;
               const catKey = isHomemade ? 'homemade' : (d.type?.toLowerCase() ?? 'other');
-              const catLabel = CATEGORY_LABELS[catKey] ?? CATEGORY_LABELS['other'];
               const catColor = CATEGORY_COLORS[catKey] ?? CATEGORY_COLORS['other'];
+              const catLabel = isHomemade
+                ? (d.preparationType ? (PREP_TYPE_LABELS[d.preparationType] ?? 'Maison') : 'Fait maison')
+                : (CATEGORY_LABELS[catKey] ?? CATEGORY_LABELS['other']);
               const stock = d.stock ?? 0;
               const status = getStockStatus(stock, isHomemade ? undefined : d.format);
               const stockDisplay = isHomemade ? `${stock} ${d.yieldUnit ?? d.unit}` : `${stock} ${d.unit ?? ''}`;

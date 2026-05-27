@@ -257,21 +257,30 @@ export default function BatchClient({ recipes, stockMap, userId }: Props) {
     <div className="space-y-4 max-w-xl mx-auto">
 
       {/* Batch name */}
-      <input
-        type="text"
-        placeholder="Nom du batch (ex. Soirée vendredi…)"
-        value={batchName}
-        onChange={(e) => setBatchName(e.target.value)}
-        className="field-input font-medium"
-      />
+      <div className="space-y-1.5">
+        <label className="text-xs font-medium text-[var(--text-dim)] uppercase tracking-wide">
+          Nom du batch
+        </label>
+        <input
+          type="text"
+          placeholder="ex. Soirée vendredi…"
+          value={batchName}
+          onChange={(e) => setBatchName(e.target.value)}
+          className="field-input font-medium"
+        />
+      </div>
 
       {/* Add recipe row */}
+      <div className="space-y-1.5">
+        <label className="text-xs font-medium text-[var(--text-dim)] uppercase tracking-wide">
+          Ajouter une recette
+        </label>
       <div className="flex gap-2">
         <div className="relative flex-1 min-w-0">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-dim)] pointer-events-none" />
           <input
             type="text"
-            placeholder="Ajouter une recette…"
+            placeholder="Rechercher…"
             value={search}
             onChange={(e) => { setSearch(e.target.value); setSearchOpen(true); }}
             onFocus={() => setSearchOpen(true)}
@@ -302,24 +311,27 @@ export default function BatchClient({ recipes, stockMap, userId }: Props) {
             </div>
           )}
         </div>
-        <input
-          type="number"
-          min="1"
-          value={addQty}
-          onChange={(e) => setAddQty(Math.max(1, parseInt(e.target.value) || 1))}
-          className="field-input w-14 text-center shrink-0"
-        />
-        <select
-          value={addUnit}
-          onChange={(e) => setAddUnit(e.target.value as BatchQtyUnit)}
-          className="field-input text-sm shrink-0"
-        >
-          <option value="portions">por.</option>
-          <option value="cl">cl</option>
-          <option value="L">L</option>
-          <option value="btl70">btl 70cl</option>
-          <option value="btl100">btl 100cl</option>
-        </select>
+        <div className="flex gap-1.5 shrink-0">
+          <input
+            type="number"
+            min="1"
+            value={addQty}
+            onChange={(e) => setAddQty(Math.max(1, parseInt(e.target.value) || 1))}
+            className="field-input w-14 text-center"
+          />
+          <select
+            value={addUnit}
+            onChange={(e) => setAddUnit(e.target.value as BatchQtyUnit)}
+            className="field-input text-sm"
+          >
+            <option value="portions">por.</option>
+            <option value="cl">cl</option>
+            <option value="L">L</option>
+            <option value="btl70">btl 70cl</option>
+            <option value="btl100">btl 100cl</option>
+          </select>
+        </div>
+      </div>
       </div>
 
       {items.length === 0 ? (

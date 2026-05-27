@@ -1,38 +1,47 @@
 'use client';
 import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import {
   Users, BookOpen, FlaskConical, ClipboardList, Download, MessageSquare,
   Send, Trash2, Loader2, X, Plus, Check, Search, ChevronDown, Eye,
+  UserPlus, Copy, QrCode, Mail, LogIn, Lock, Crown, Shield,
+  User as UserIcon, ShieldCheck, LogOut, Link2,
 } from 'lucide-react';
-import { memberRole } from '@/lib/team';
+import QRCode from 'react-qr-code';
+import {
+  ROLE_LABELS, ROLE_COLORS, memberRole, generateTeamCode, randomToken,
+} from '@/lib/team';
 import { ensureIngredients, type IngredientRef } from '@/lib/utils/ingredients';
-import type { Team, TeamMember, TeamSharedItem, TeamNote } from '@/lib/team';
+import type { Team, TeamMember, TeamInvitation, TeamSharedItem, TeamNote, TeamRole } from '@/lib/team';
+import Link from 'next/link';
 
 interface MyRecipe {
-  id: string;
-  type: string;
-  name: string;
-  data: Record<string, unknown>;
-  metadata: Record<string, unknown>;
+  id: string; type: string; name: string;
+  data: Record<string, unknown>; metadata: Record<string, unknown>;
 }
 
 interface Props {
   userId: string;
+  userEmail: string;
   myName: string;
+  canCreateTeam: boolean;
+  teamPlanName: string;
   teams: Team[];
   members: TeamMember[];
+  invitations: TeamInvitation[];
   sharedItems: TeamSharedItem[];
   notes: TeamNote[];
   myRecipes: MyRecipe[];
+  pendingInvites: Array<TeamInvitation & { team_name: string }>;
 }
 
-type Tab = 'recipe' | 'ingredient' | 'menu';
+type MainTab = 'shares' | 'members';
+type ShareTab = 'recipe' | 'ingredient' | 'menu';
 
 export default function CommunicationClient({
-  userId, myName, teams, members, sharedItems, notes, myRecipes,
+  userId, userEmail, myName, canCreateTeam, teamPlanName,
+  teams, members, invitations, sharedItems, notes, myRecipes, pendingInvites,
 }: Props) {
   const router = useRouter();
   const supabase = createClient();
@@ -40,32 +49,61 @@ export default function CommunicationClient({
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(teams[0]?.id ?? null);
   const activeTeam = teams.find((t) => t.id === selectedTeamId) ?? teams[0] ?? null;
 
-  const [tab, setTab] = useState<Tab>('recipe');
+  const [mainTab, setMainTab] = useState<MainTab>('shares');
+  const [shareTab, setShareTab] = useState<ShareTab>('recipe');
   const [busy, setBusy] = useState<string | null>(null);
+  const [error, setError] = useState('');
+
+  // Join / create
+  const [joinCode, setJoinCode] = useState('');
+  const [newTeamName, setNewTeamName] = useState('');
+
+  // Invite members
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteRole, setInviteRole] = useState<'user' | 'admin'>('user');
+
+  // Code/link copy
+  const [copied, setCopied] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
+  const [showQR, setShowQR] = useState(false);
+
+  // Notes & preview
   const [openNotes, setOpenNotes] = useState<Set<string>>(new Set());
   const [openPreview, setOpenPreview] = useState<Set<string>>(new Set());
   const [noteDrafts, setNoteDrafts] = useState<Record<string, string>>({});
 
-  // menu composer
+  // Menu composer
   const [composing, setComposing] = useState(false);
   const [menuName, setMenuName] = useState('');
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const [recipeSearch, setRecipeSearch] = useState('');
 
-  const isManager = useMemo(() => {
-    if (!activeTeam) return false;
-    if (activeTeam.owner_id === userId) return true;
+  // Dismissed pending invites
+  const [dismissed, setDismissed] = useState<Set<string>>(new Set());
+
+  const myRole: TeamRole = useMemo(() => {
+    if (!activeTeam) return 'user';
     const me = members.find((m) => m.team_id === activeTeam.id && m.user_id === userId);
-    return me ? memberRole(me, activeTeam.owner_id) !== 'user' : false;
+    if (activeTeam.owner_id === userId) return 'owner';
+    return me ? memberRole(me, activeTeam.owner_id) : 'user';
   }, [activeTeam, members, userId]);
 
+  const canManage = myRole === 'owner' || myRole === 'admin';
+
+  const joinUrl = typeof window !== 'undefined' && activeTeam
+    ? `${window.location.origin}/settings/team?join=${activeTeam.code}`
+    : activeTeam ? `/settings/team?join=${activeTeam.code}` : '';
+
+  const teamMembers = activeTeam ? members.filter((m) => m.team_id === activeTeam.id) : [];
+  const teamInvites = activeTeam ? invitations.filter((i) => i.team_id === activeTeam.id) : [];
   const teamShared = activeTeam ? sharedItems.filter((s) => s.team_id === activeTeam.id) : [];
+
   const counts = {
     recipe: teamShared.filter((s) => s.item_type === 'recipe').length,
     ingredient: teamShared.filter((s) => s.item_type === 'ingredient').length,
     menu: teamShared.filter((s) => s.item_type === 'menu').length,
   };
-  const items = teamShared.filter((s) => s.item_type === tab);
+  const items = teamShared.filter((s) => s.item_type === shareTab);
 
   const filteredRecipes = useMemo(() => {
     if (!recipeSearch.trim()) return myRecipes;
@@ -73,7 +111,87 @@ export default function CommunicationClient({
     return myRecipes.filter((r) => r.name.toLowerCase().includes(q));
   }, [myRecipes, recipeSearch]);
 
-  // ---------------------------------------------------------------- actions
+  // ── actions ──────────────────────────────────────────────────────────────
+  async function joinByCode() {
+    const code = joinCode.trim().toUpperCase();
+    if (!code) return;
+    setBusy('join'); setError('');
+    const { data: team } = await supabase.from('teams').select('*').eq('code', code).maybeSingle();
+    if (!team) { setError('Aucune équipe avec ce code.'); setBusy(null); return; }
+    const already = members.some((m) => m.team_id === team.id && m.user_id === userId);
+    if (already) { setError('Vous êtes déjà dans cette équipe.'); setBusy(null); return; }
+    const { error: e } = await supabase.from('team_members').insert({
+      team_id: team.id, user_id: userId, email: userEmail, display_name: myName, role: 'user',
+    });
+    if (e) { setError('Impossible de rejoindre cette équipe.'); setBusy(null); return; }
+    await supabase.from('team_invitations').update({ accepted: true }).eq('team_id', team.id).eq('email', userEmail);
+    setJoinCode(''); setSelectedTeamId(team.id as string); setBusy(null); router.refresh();
+  }
+
+  async function createTeam() {
+    const name = newTeamName.trim();
+    if (!name) return;
+    setBusy('create'); setError('');
+    const code = generateTeamCode();
+    const { data: team, error: e1 } = await supabase.from('teams').insert({ name, code, owner_id: userId }).select().single();
+    if (e1 || !team) { setError("Impossible de créer l'équipe."); setBusy(null); return; }
+    await supabase.from('team_members').insert({ team_id: team.id, user_id: userId, email: userEmail, display_name: myName, role: 'admin' });
+    setNewTeamName(''); setSelectedTeamId(team.id as string); setBusy(null); router.refresh();
+  }
+
+  async function acceptInvite(inv: TeamInvitation) {
+    setBusy(`inv-${inv.id}`);
+    const { error: e } = await supabase.from('team_members').insert({
+      team_id: inv.team_id, user_id: userId, email: userEmail, display_name: myName, role: inv.role ?? 'user',
+    });
+    if (!e) {
+      await supabase.from('team_invitations').update({ accepted: true }).eq('id', inv.id);
+      setSelectedTeamId(inv.team_id);
+    }
+    setBusy(null); router.refresh();
+  }
+
+  async function invite() {
+    const email = inviteEmail.trim().toLowerCase();
+    if (!email || !activeTeam) return;
+    setBusy('invite'); setError('');
+    const { error: e } = await supabase.from('team_invitations').insert({
+      team_id: activeTeam.id, email, role: inviteRole, token: randomToken(), invited_by: userId,
+    });
+    if (e) { setError("Impossible d'enregistrer l'invitation."); setBusy(null); return; }
+    try {
+      const url = `${window.location.origin}/settings/team?join=${activeTeam.code}`;
+      await supabase.functions.invoke('invite-email', { body: { teamId: activeTeam.id, inviteeEmail: email, joinUrl: url } });
+    } catch { /* email optional */ }
+    setInviteEmail(''); setBusy(null); router.refresh();
+  }
+
+  async function revokeInvite(id: string) {
+    setBusy(`rev-${id}`);
+    await supabase.from('team_invitations').delete().eq('id', id);
+    setBusy(null); router.refresh();
+  }
+
+  async function changeRole(m: TeamMember, role: 'user' | 'admin') {
+    setBusy(`role-${m.id}`);
+    await supabase.from('team_members').update({ role }).eq('id', m.id);
+    setBusy(null); router.refresh();
+  }
+
+  async function removeMember(m: TeamMember) {
+    if (!confirm(`Retirer ${m.display_name ?? m.email} de l'équipe ?`)) return;
+    setBusy(`rm-${m.id}`);
+    await supabase.from('team_members').delete().eq('id', m.id);
+    setBusy(null); router.refresh();
+  }
+
+  async function leaveTeam() {
+    if (!activeTeam || !confirm('Quitter cette équipe ?')) return;
+    setBusy('leave');
+    await supabase.from('team_members').delete().eq('team_id', activeTeam.id).eq('user_id', userId);
+    setSelectedTeamId(null); setBusy(null); router.refresh();
+  }
+
   async function importItem(item: TeamSharedItem) {
     setBusy(`imp-${item.id}`);
     try {
@@ -83,21 +201,14 @@ export default function CommunicationClient({
         if (Array.isArray(recipeData.ingredients) && recipeData.ingredients.length) {
           recipeData.ingredients = await ensureIngredients(supabase, userId, recipeData.ingredients);
         }
-        await supabase.from('recipes').insert({
-          user_id: userId,
-          type: d.type ?? 'cocktail',
-          data: recipeData,
-          metadata: d.metadata ?? {},
-        });
+        await supabase.from('recipes').insert({ user_id: userId, type: d.type ?? 'cocktail', data: recipeData, metadata: d.metadata ?? {} });
         alert('Recette importée — ingrédients ajoutés à vos stocks.');
       } else if (item.item_type === 'ingredient') {
         const d = item.data as { ingredientData?: Record<string, unknown> };
         await supabase.from('ingredients').insert({ user_id: userId, data: d.ingredientData ?? {} });
         alert('Ingrédient importé dans vos stocks.');
       } else if (item.item_type === 'menu') {
-        const d = item.data as {
-          recipes?: Array<{ name?: string; type?: string; recipeData?: Record<string, unknown>; metadata?: Record<string, unknown> }>;
-        };
+        const d = item.data as { recipes?: Array<{ name?: string; type?: string; recipeData?: Record<string, unknown>; metadata?: Record<string, unknown> }> };
         const seen = new Set(myRecipes.map((r) => r.name.toLowerCase()));
         const rows: Array<Record<string, unknown>> = [];
         let skipped = 0;
@@ -106,119 +217,144 @@ export default function CommunicationClient({
           if (nm && seen.has(nm)) { skipped++; continue; }
           if (nm) seen.add(nm);
           const rd = { ...(r.recipeData ?? {}) } as Record<string, unknown> & { ingredients?: IngredientRef[] };
-          if (Array.isArray(rd.ingredients) && rd.ingredients.length) {
-            rd.ingredients = await ensureIngredients(supabase, userId, rd.ingredients);
-          }
+          if (Array.isArray(rd.ingredients) && rd.ingredients.length) rd.ingredients = await ensureIngredients(supabase, userId, rd.ingredients);
           rows.push({ user_id: userId, type: r.type ?? 'cocktail', data: rd, metadata: r.metadata ?? {} });
         }
         if (rows.length) await supabase.from('recipes').insert(rows);
         alert(`${rows.length} recette(s) importée(s)${skipped ? ` · ${skipped} déjà présente(s) ignorée(s)` : ''}.`);
       }
       router.refresh();
-    } finally {
-      setBusy(null);
-    }
+    } finally { setBusy(null); }
   }
 
   async function deleteItem(item: TeamSharedItem) {
     if (!confirm('Retirer cet élément du partage équipe ?')) return;
     setBusy(`del-${item.id}`);
     await supabase.from('team_shared_items').delete().eq('id', item.id);
-    setBusy(null);
-    router.refresh();
+    setBusy(null); router.refresh();
   }
 
   async function addNote(itemId: string) {
     const content = (noteDrafts[itemId] ?? '').trim();
     if (!content || !activeTeam) return;
     setBusy(`note-${itemId}`);
-    await supabase.from('team_notes').insert({
-      team_id: activeTeam.id,
-      user_id: userId,
-      author_name: myName,
-      item_id: itemId,
-      content,
-    });
+    await supabase.from('team_notes').insert({ team_id: activeTeam.id, user_id: userId, author_name: myName, item_id: itemId, content });
     setNoteDrafts((p) => ({ ...p, [itemId]: '' }));
-    setBusy(null);
-    router.refresh();
+    setBusy(null); router.refresh();
   }
 
   async function deleteNote(id: string) {
     setBusy(`dn-${id}`);
     await supabase.from('team_notes').delete().eq('id', id);
-    setBusy(null);
-    router.refresh();
+    setBusy(null); router.refresh();
   }
 
   async function shareMenu() {
     const name = menuName.trim();
     if (!name || !activeTeam || picked.size === 0) return;
     setBusy('menu');
-    const recipes = myRecipes
-      .filter((r) => picked.has(r.id))
-      .map((r) => ({ name: r.name, type: r.type, recipeData: r.data, metadata: r.metadata }));
-    await supabase.from('team_shared_items').insert({
-      team_id: activeTeam.id,
-      shared_by: userId,
-      sharer_name: myName,
-      item_type: 'menu',
-      share_mode: 'copy',
-      data: { name, recipes },
-    });
-    setMenuName('');
-    setPicked(new Set());
-    setComposing(false);
-    setBusy(null);
-    setTab('menu');
-    router.refresh();
+    const recipes = myRecipes.filter((r) => picked.has(r.id)).map((r) => ({ name: r.name, type: r.type, recipeData: r.data, metadata: r.metadata }));
+    await supabase.from('team_shared_items').insert({ team_id: activeTeam.id, shared_by: userId, sharer_name: myName, item_type: 'menu', share_mode: 'copy', data: { name, recipes } });
+    setMenuName(''); setPicked(new Set()); setComposing(false); setBusy(null); setShareTab('menu'); router.refresh();
   }
 
-  function toggleNotes(id: string) {
-    setOpenNotes((prev) => {
-      const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
-      return next;
-    });
+  function toggle(set: Set<string>, setFn: (s: Set<string>) => void, id: string) {
+    const next = new Set(set);
+    next.has(id) ? next.delete(id) : next.add(id);
+    setFn(next);
   }
 
-  function togglePreview(id: string) {
-    setOpenPreview((prev) => {
-      const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
-      return next;
-    });
+  function copyCode() {
+    if (!activeTeam) return;
+    navigator.clipboard?.writeText(activeTeam.code);
+    setCopied(true); setTimeout(() => setCopied(false), 1500);
   }
 
-  function togglePick(id: string) {
-    setPicked((prev) => {
-      const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
-      return next;
-    });
+  function copyLink() {
+    if (!joinUrl) return;
+    navigator.clipboard?.writeText(joinUrl);
+    setCopiedLink(true); setTimeout(() => setCopiedLink(false), 1500);
   }
 
-  // ---------------------------------------------------------------- empty
+  // ── render: no team ──────────────────────────────────────────────────────
+  const visiblePending = pendingInvites.filter((i) => !dismissed.has(i.id));
+
   if (!activeTeam) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 gap-4 text-center">
-        <div className="w-14 h-14 rounded-full bg-[var(--surface2)] flex items-center justify-center">
-          <Users size={24} className="text-[var(--text-dim)]" />
+      <div className="space-y-4">
+        {/* Pending invitations */}
+        {visiblePending.length > 0 && (
+          <div className="space-y-2">
+            {visiblePending.map((inv) => (
+              <div key={inv.id} className="card border-[var(--gold)]/30 flex items-center gap-3">
+                <Mail size={18} className="text-[var(--gold)] shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-[var(--text)]">Invitation à rejoindre <strong>{inv.team_name}</strong></p>
+                  <p className="text-xs text-[var(--text-dim)]">En tant que {ROLE_LABELS[(inv.role as TeamRole) ?? 'user']}</p>
+                </div>
+                <button onClick={() => acceptInvite(inv)} disabled={busy === `inv-${inv.id}`} className="btn-primary px-3 py-1.5 text-xs">
+                  {busy === `inv-${inv.id}` ? <Loader2 size={13} className="animate-spin" /> : 'Rejoindre'}
+                </button>
+                <button onClick={() => setDismissed((p) => new Set(p).add(inv.id))} className="p-1 text-[var(--text-dim)] hover:text-[var(--text)]">
+                  <X size={16} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Join by code */}
+        <div className="card space-y-3">
+          <h2 className="font-semibold text-[var(--text)] text-sm flex items-center gap-2">
+            <LogIn size={15} className="text-[var(--gold)]" /> Rejoindre une équipe
+          </h2>
+          <p className="text-xs text-[var(--text-dim)]">Entrez le code fourni par votre établissement.</p>
+          <div className="flex gap-2">
+            <input type="text" value={joinCode} onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+              placeholder="Code à 6 caractères" maxLength={6}
+              className="field-input flex-1 font-mono tracking-widest uppercase" />
+            <button onClick={joinByCode} disabled={busy === 'join' || !joinCode.trim()} className="btn-primary px-4 text-sm">
+              {busy === 'join' ? <Loader2 size={15} className="animate-spin" /> : 'Rejoindre'}
+            </button>
+          </div>
         </div>
-        <div>
-          <p className="font-semibold text-[var(--text)]">Aucune équipe</p>
-          <p className="text-sm text-[var(--text-dim)] mt-1 max-w-xs">
-            Rejoignez ou créez une équipe pour partager cocktails, ingrédients et menus.
-          </p>
-        </div>
-        <Link href="/settings/team" className="btn-primary px-5 py-2.5 text-sm">
-          Aller à l&apos;équipe
-        </Link>
+
+        {/* Create team */}
+        {canCreateTeam ? (
+          <div className="card space-y-3">
+            <h2 className="font-semibold text-[var(--text)] text-sm flex items-center gap-2">
+              <Plus size={15} className="text-[var(--gold)]" /> Créer une équipe
+            </h2>
+            <input type="text" value={newTeamName} onChange={(e) => setNewTeamName(e.target.value)}
+              placeholder="Nom de l'établissement" className="field-input" />
+            <button onClick={createTeam} disabled={busy === 'create' || !newTeamName.trim()}
+              className="btn-primary w-full py-2.5 text-sm flex items-center justify-center gap-2">
+              {busy === 'create' ? <Loader2 size={15} className="animate-spin" /> : <Users size={15} />}
+              Créer l&apos;équipe
+            </button>
+          </div>
+        ) : (
+          <div className="card space-y-3">
+            <h2 className="font-semibold text-[var(--text)] text-sm flex items-center gap-2">
+              <Lock size={15} className="text-[var(--text-dim)]" /> Créer une équipe
+            </h2>
+            <p className="text-sm text-[var(--text-dim)]">
+              Créer une équipe nécessite le plan <span className="text-[var(--gold)] font-medium">{teamPlanName}</span>.
+              Vos barmans peuvent rejoindre gratuitement avec un code.
+            </p>
+            <Link href="/settings" className="btn-ghost w-full py-2.5 text-sm flex items-center justify-center gap-2">
+              <Crown size={14} className="text-[var(--gold)]" /> Passer au plan {teamPlanName}
+            </Link>
+          </div>
+        )}
+
+        {error && <p className="text-sm text-red-400 bg-red-400/10 rounded-lg px-3 py-2">{error}</p>}
       </div>
     );
   }
 
-  const TAB_META: Record<Tab, { label: string; icon: typeof BookOpen }> = {
+  // ── render: in team ──────────────────────────────────────────────────────
+  const TAB_SHARE: Record<ShareTab, { label: string; icon: typeof BookOpen }> = {
     recipe: { label: 'Cocktails', icon: BookOpen },
     ingredient: { label: 'Ingrédients', icon: FlaskConical },
     menu: { label: 'Menus', icon: ClipboardList },
@@ -226,257 +362,364 @@ export default function CommunicationClient({
 
   return (
     <div className="space-y-4">
-      {/* Team header + switcher */}
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2 min-w-0">
-          <Users size={16} className="text-[var(--gold)] shrink-0" />
-          {teams.length > 1 ? (
-            <select
-              value={activeTeam.id}
-              onChange={(e) => setSelectedTeamId(e.target.value)}
-              className="bg-transparent text-[var(--text)] font-semibold text-sm focus:outline-none"
-            >
-              {teams.map((t) => (
-                <option key={t.id} value={t.id}>{t.name}</option>
-              ))}
-            </select>
-          ) : (
-            <span className="font-semibold text-[var(--text)] text-sm truncate">{activeTeam.name}</span>
-          )}
-        </div>
-        <button
-          onClick={() => setComposing((v) => !v)}
-          className="btn-ghost px-3 py-1.5 text-xs flex items-center gap-1.5 shrink-0"
-        >
-          <Plus size={13} /> Créer un menu
-        </button>
-      </div>
+      {error && <p className="text-sm text-red-400 bg-red-400/10 rounded-lg px-3 py-2">{error}</p>}
 
-      {/* Menu composer */}
-      {composing && (
-        <div className="card space-y-3">
-          <h3 className="font-semibold text-[var(--text)] text-sm flex items-center gap-2">
-            <ClipboardList size={15} className="text-[var(--gold)]" /> Nouveau menu
-          </h3>
-          <input
-            type="text"
-            value={menuName}
-            onChange={(e) => setMenuName(e.target.value)}
-            placeholder="Nom du menu (ex. Carte été)"
-            className="field-input"
-          />
-          {myRecipes.length === 0 ? (
-            <p className="text-sm text-[var(--text-dim)]">
-              Vous n&apos;avez pas encore de recettes à ajouter.
-            </p>
-          ) : (
-            <>
-              <div className="relative">
-                <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--text-dim)]" />
-                <input
-                  type="text"
-                  value={recipeSearch}
-                  onChange={(e) => setRecipeSearch(e.target.value)}
-                  placeholder="Rechercher une recette…"
-                  className="field-input pl-10 text-sm"
-                />
+      {/* Pending invites for me */}
+      {visiblePending.length > 0 && (
+        <div className="space-y-2">
+          {visiblePending.map((inv) => (
+            <div key={inv.id} className="card border-[var(--gold)]/30 flex items-center gap-3">
+              <Mail size={18} className="text-[var(--gold)] shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm text-[var(--text)]">Invitation à rejoindre <strong>{inv.team_name}</strong></p>
               </div>
-              <div className="max-h-56 overflow-y-auto space-y-1 -mx-1 px-1">
-                {filteredRecipes.map((r) => {
-                  const on = picked.has(r.id);
-                  return (
-                    <button
-                      key={r.id}
-                      onClick={() => togglePick(r.id)}
-                      className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-left text-sm transition-colors ${
-                        on ? 'bg-[var(--gold)]/10 text-[var(--text)]' : 'hover:bg-[var(--surface2)] text-[var(--text-dim)]'
-                      }`}
-                    >
-                      <span className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${
-                        on ? 'bg-[var(--gold)] border-[var(--gold)]' : 'border-[var(--border)]'
-                      }`}>
-                        {on && <Check size={11} className="text-[#0A0E1A]" />}
-                      </span>
-                      <span className="truncate flex-1">{r.name}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </>
-          )}
-          <div className="flex gap-2">
-            <button
-              onClick={() => { setComposing(false); setPicked(new Set()); setMenuName(''); }}
-              className="btn-ghost flex-1 py-2 text-sm"
-            >
-              Annuler
-            </button>
-            <button
-              onClick={shareMenu}
-              disabled={busy === 'menu' || !menuName.trim() || picked.size === 0}
-              className="btn-primary flex-1 py-2 text-sm flex items-center justify-center gap-2"
-            >
-              {busy === 'menu' ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
-              Partager ({picked.size})
-            </button>
-          </div>
+              <button onClick={() => acceptInvite(inv)} disabled={busy === `inv-${inv.id}`} className="btn-primary px-3 py-1.5 text-xs">
+                {busy === `inv-${inv.id}` ? <Loader2 size={13} className="animate-spin" /> : 'Rejoindre'}
+              </button>
+              <button onClick={() => setDismissed((p) => new Set(p).add(inv.id))} className="p-1 text-[var(--text-dim)]"><X size={16} /></button>
+            </div>
+          ))}
         </div>
       )}
 
-      {/* Tabs */}
-      <div className="flex gap-1 bg-[var(--surface2)] rounded-lg p-1">
-        {(Object.keys(TAB_META) as Tab[]).map((t) => {
-          const { label, icon: Icon } = TAB_META[t];
-          return (
-            <button
-              key={t}
-              onClick={() => setTab(t)}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded text-xs font-medium transition-colors ${
-                tab === t ? 'bg-[var(--surface)] text-[var(--text)]' : 'text-[var(--text-dim)]'
-              }`}
-            >
-              <Icon size={13} /> {label}
-              <span className="text-[10px] opacity-70">{counts[t]}</span>
-            </button>
-          );
-        })}
+      {/* Team header */}
+      <div className="card space-y-3">
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            {teams.length > 1 ? (
+              <select value={activeTeam.id} onChange={(e) => setSelectedTeamId(e.target.value)}
+                className="bg-transparent font-bold text-[var(--text)] text-lg focus:outline-none truncate max-w-[200px]">
+                {teams.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+              </select>
+            ) : (
+              <h2 className="font-bold text-[var(--text)] text-lg truncate">{activeTeam.name}</h2>
+            )}
+            <p className="text-xs text-[var(--text-dim)]">{teamMembers.length} membre{teamMembers.length !== 1 ? 's' : ''}</p>
+          </div>
+          <span className={`shrink-0 text-xs px-2 py-1 rounded-full font-medium flex items-center gap-1 ${ROLE_COLORS[myRole]}`}>
+            {myRole === 'owner' ? <Crown size={11} /> : myRole === 'admin' ? <Shield size={11} /> : <UserIcon size={11} />}
+            {ROLE_LABELS[myRole]}
+          </span>
+        </div>
+
+        {/* Code + copy + link + QR */}
+        <div className="flex items-center gap-2">
+          <div className="flex-1 flex items-center gap-2 bg-[var(--surface2)] rounded-lg px-3 py-2">
+            <span className="text-xs text-[var(--text-dim)]">Code</span>
+            <span className="font-mono font-bold tracking-widest text-[var(--text)]">{activeTeam.code}</span>
+          </div>
+          <button onClick={copyCode} className="p-2.5 rounded-lg bg-[var(--surface2)] text-[var(--text-dim)] hover:text-[var(--text)] transition-colors" aria-label="Copier le code">
+            {copied ? <Check size={16} className="text-emerald-400" /> : <Copy size={16} />}
+          </button>
+          <button onClick={copyLink} className="p-2.5 rounded-lg bg-[var(--surface2)] text-[var(--text-dim)] hover:text-[var(--text)] transition-colors" aria-label="Copier le lien">
+            {copiedLink ? <Check size={16} className="text-emerald-400" /> : <Link2 size={16} />}
+          </button>
+          <button onClick={() => setShowQR((v) => !v)}
+            className={`p-2.5 rounded-lg transition-colors ${showQR ? 'bg-[var(--gold)] text-[#0A0E1A]' : 'bg-[var(--surface2)] text-[var(--text-dim)] hover:text-[var(--text)]'}`}>
+            <QrCode size={16} />
+          </button>
+        </div>
+
+        {showQR && (
+          <div className="flex flex-col items-center gap-2 py-2">
+            <div className="bg-white p-3 rounded-lg">
+              <QRCode value={joinUrl} size={150} />
+            </div>
+            <p className="text-xs text-[var(--text-dim)]">Scannez pour rejoindre l&apos;équipe</p>
+          </div>
+        )}
       </div>
 
-      {/* Items */}
-      {items.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-14 gap-3 text-center">
-          {(() => {
-            const Icon = TAB_META[tab].icon;
-            return <Icon size={36} className="text-[var(--text-dim)] opacity-40" />;
-          })()}
-          <p className="text-sm text-[var(--text-dim)] max-w-xs">
-            {tab === 'menu'
-              ? 'Aucun menu partagé. Cliquez sur « Créer un menu ».'
-              : tab === 'recipe'
-              ? 'Aucun cocktail partagé. Utilisez « Partager » sur une recette.'
-              : 'Aucun ingrédient partagé. Utilisez « Partager » sur une fiche ingrédient.'}
-          </p>
-        </div>
-      ) : (
-        <ul className="space-y-2">
-          {items.map((item) => {
-            const itemNotes = notes.filter((n) => n.item_id === item.id);
-            const name = (item.data as { name?: string }).name ?? 'Sans nom';
-            const menuRecipes = item.item_type === 'menu'
-              ? ((item.data as { recipes?: Array<{ name?: string }> }).recipes ?? [])
-              : [];
-            const canDelete = item.shared_by === userId || isManager;
-            const notesOpen = openNotes.has(item.id);
-            return (
-              <li key={item.id} className="card space-y-2">
-                <div className="flex items-center gap-2">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-[var(--text)] truncate">{name}</p>
-                    <p className="text-xs text-[var(--text-dim)]">
-                      {item.item_type === 'menu' && `${menuRecipes.length} recette(s) · `}
-                      Partagé par {item.sharer_name ?? 'un membre'}
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => importItem(item)}
-                    disabled={busy === `imp-${item.id}`}
-                    className="btn-ghost px-2.5 py-1 text-xs flex items-center gap-1 shrink-0"
-                  >
-                    {busy === `imp-${item.id}` ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />}
-                    Importer
-                  </button>
-                  {canDelete && (
-                    <button
-                      onClick={() => deleteItem(item)}
-                      disabled={busy === `del-${item.id}`}
-                      className="p-2 text-[var(--text-dim)] hover:text-red-400 shrink-0"
-                      aria-label="Retirer"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  )}
-                </div>
+      {/* Main tabs */}
+      <div className="flex rounded-lg bg-[var(--surface2)] p-0.5 gap-0.5">
+        <button type="button" onClick={() => setMainTab('shares')}
+          className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-md text-sm font-medium transition-colors ${mainTab === 'shares' ? 'bg-[var(--surface)] text-[var(--text)] shadow-sm' : 'text-[var(--text-dim)]'}`}>
+          <BookOpen size={14} /> Partages
+        </button>
+        <button type="button" onClick={() => setMainTab('members')}
+          className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-md text-sm font-medium transition-colors ${mainTab === 'members' ? 'bg-[var(--surface)] text-[var(--text)] shadow-sm' : 'text-[var(--text-dim)]'}`}>
+          <Users size={14} /> Membres
+          <span className="text-xs bg-[var(--surface2)] text-[var(--text-dim)] rounded-full px-1.5 py-px leading-none">{teamMembers.length}</span>
+        </button>
+      </div>
 
-                {/* Menu contents */}
-                {item.item_type === 'menu' && menuRecipes.length > 0 && (
-                  <div className="flex flex-wrap gap-1">
-                    {menuRecipes.map((r, i) => (
-                      <span key={i} className="text-xs bg-[var(--surface2)] text-[var(--text-dim)] px-2 py-0.5 rounded-full">
-                        {r.name ?? 'Recette'}
-                      </span>
-                    ))}
-                  </div>
-                )}
-
-                {/* Aperçu + notes */}
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={() => togglePreview(item.id)}
-                    className="text-xs text-[var(--text-dim)] hover:text-[var(--text)] flex items-center gap-1"
-                  >
-                    <Eye size={12} />
-                    Aperçu
-                    <ChevronDown size={12} className={`transition-transform ${openPreview.has(item.id) ? 'rotate-180' : ''}`} />
-                  </button>
-                  <button
-                    onClick={() => toggleNotes(item.id)}
-                    className="text-xs text-[var(--text-dim)] hover:text-[var(--text)] flex items-center gap-1"
-                  >
-                    <MessageSquare size={12} />
-                    {itemNotes.length > 0 ? `${itemNotes.length} note(s)` : 'Ajouter une note'}
-                  </button>
-                </div>
-
-                {openPreview.has(item.id) && <ItemPreview item={item} />}
-
-                {notesOpen && (
-                  <div className="space-y-2">
-                    {itemNotes.map((n) => (
-                      <div key={n.id} className="flex items-start gap-2 text-sm bg-[var(--surface2)] rounded-md px-2.5 py-1.5">
-                        <div className="flex-1 min-w-0">
-                          <p className="text-[var(--text)]">{n.content}</p>
-                          <p className="text-xs text-[var(--text-dim)]">{n.author_name ?? 'Membre'}</p>
-                        </div>
-                        {n.user_id === userId && (
-                          <button
-                            onClick={() => deleteNote(n.id)}
-                            className="p-0.5 text-[var(--text-dim)] hover:text-red-400 shrink-0"
-                            aria-label="Supprimer la note"
-                          >
-                            <X size={13} />
+      {/* ── MEMBERS TAB ── */}
+      {mainTab === 'members' && (
+        <div className="space-y-4">
+          {/* Member list */}
+          <div className="card space-y-3">
+            <h3 className="font-semibold text-[var(--text)] text-sm flex items-center gap-2">
+              <Users size={14} className="text-[var(--gold)]" /> Membres
+            </h3>
+            <ul className="space-y-2">
+              {teamMembers.map((m) => {
+                const role = memberRole(m, activeTeam.owner_id);
+                const isMe = m.user_id === userId;
+                const canEditThis = canManage && role !== 'owner' && !isMe;
+                return (
+                  <li key={m.id} className="flex items-center gap-3 py-1.5 border-b border-[var(--border)] last:border-0">
+                    <span className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${ROLE_COLORS[role]}`}>
+                      {role === 'owner' ? <Crown size={14} /> : role === 'admin' ? <Shield size={14} /> : <UserIcon size={14} />}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-[var(--text)] truncate">
+                        {m.display_name ?? m.email ?? 'Membre'} {isMe && <span className="text-[var(--text-dim)]">(vous)</span>}
+                      </p>
+                      <p className="text-xs text-[var(--text-dim)]">{ROLE_LABELS[role]}</p>
+                    </div>
+                    {canEditThis && (
+                      <div className="flex items-center gap-1">
+                        {role === 'user' ? (
+                          <button onClick={() => changeRole(m, 'admin')} disabled={busy === `role-${m.id}`}
+                            className="p-1.5 text-[var(--text-dim)] hover:text-blue-400 transition-colors" title="Promouvoir manager">
+                            <ShieldCheck size={15} />
+                          </button>
+                        ) : (
+                          <button onClick={() => changeRole(m, 'user')} disabled={busy === `role-${m.id}`}
+                            className="p-1.5 text-blue-400 hover:text-[var(--text-dim)] transition-colors" title="Rétrograder barman">
+                            <Shield size={15} />
                           </button>
                         )}
+                        <button onClick={() => removeMember(m)} disabled={busy === `rm-${m.id}`}
+                          className="p-1.5 text-[var(--text-dim)] hover:text-red-400 transition-colors">
+                          <Trash2 size={15} />
+                        </button>
                       </div>
-                    ))}
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        value={noteDrafts[item.id] ?? ''}
-                        onChange={(e) => setNoteDrafts((p) => ({ ...p, [item.id]: e.target.value }))}
-                        onKeyDown={(e) => e.key === 'Enter' && addNote(item.id)}
-                        placeholder="Écrire une note…"
-                        className="field-input flex-1 text-sm py-1.5"
-                      />
-                      <button
-                        onClick={() => addNote(item.id)}
-                        disabled={busy === `note-${item.id}` || !(noteDrafts[item.id] ?? '').trim()}
-                        className="btn-primary px-3 text-xs"
-                      >
-                        {busy === `note-${item.id}` ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />}
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+
+          {/* Invite */}
+          {canManage && (
+            <div className="card space-y-3">
+              <h3 className="font-semibold text-[var(--text)] text-sm flex items-center gap-2">
+                <UserPlus size={14} className="text-[var(--gold)]" /> Inviter
+              </h3>
+              <input type="email" value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)}
+                placeholder="email@exemple.com" className="field-input w-full" />
+              <div className="flex gap-2">
+                <select value={inviteRole} onChange={(e) => setInviteRole(e.target.value as 'user' | 'admin')} className="field-input w-32 shrink-0">
+                  <option value="user">Barman</option>
+                  <option value="admin">Manager</option>
+                </select>
+                <button onClick={invite} disabled={busy === 'invite' || !inviteEmail.trim()}
+                  className="btn-primary flex-1 py-2 text-sm flex items-center justify-center gap-2">
+                  {busy === 'invite' ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+                  Inviter
+                </button>
+              </div>
+
+              {/* Share link */}
+              <div className="flex items-center gap-2 bg-[var(--surface2)] rounded-lg px-3 py-2">
+                <Link2 size={13} className="text-[var(--text-dim)] shrink-0" />
+                <span className="flex-1 text-xs text-[var(--text-dim)] truncate font-mono">
+                  {joinUrl || `…/settings/team?join=${activeTeam.code}`}
+                </span>
+                <button onClick={copyLink} className="shrink-0 p-1 text-[var(--text-dim)] hover:text-[var(--text)] transition-colors">
+                  {copiedLink ? <Check size={13} className="text-emerald-400" /> : <Copy size={13} />}
+                </button>
+              </div>
+
+              {/* Pending invites list */}
+              {teamInvites.length > 0 && (
+                <ul className="space-y-1.5 pt-1">
+                  {teamInvites.map((inv) => (
+                    <li key={inv.id} className="flex items-center gap-2 text-sm">
+                      <Mail size={13} className="text-[var(--text-dim)] shrink-0" />
+                      <span className="flex-1 truncate text-[var(--text-dim)]">{inv.email}</span>
+                      <span className="text-xs text-[var(--text-dim)]">{ROLE_LABELS[(inv.role as TeamRole) ?? 'user']}</span>
+                      <button onClick={() => revokeInvite(inv.id)} disabled={busy === `rev-${inv.id}`}
+                        className="p-1 text-[var(--text-dim)] hover:text-red-400">
+                        <X size={14} />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+
+          {/* Leave */}
+          {myRole !== 'owner' && (
+            <button onClick={leaveTeam} disabled={busy === 'leave'}
+              className="w-full py-2.5 text-sm flex items-center justify-center gap-2 text-red-400 bg-red-400/10 rounded-lg hover:bg-red-400/20 transition-colors">
+              {busy === 'leave' ? <Loader2 size={14} className="animate-spin" /> : <LogOut size={14} />}
+              Quitter l&apos;équipe
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* ── SHARES TAB ── */}
+      {mainTab === 'shares' && (
+        <div className="space-y-4">
+          {/* Team header actions */}
+          <div className="flex items-center justify-between">
+            <span />
+            <button onClick={() => setComposing((v) => !v)} className="btn-ghost px-3 py-1.5 text-xs flex items-center gap-1.5">
+              <Plus size={13} /> Créer un menu
+            </button>
+          </div>
+
+          {/* Menu composer */}
+          {composing && (
+            <div className="card space-y-3">
+              <h3 className="font-semibold text-[var(--text)] text-sm flex items-center gap-2">
+                <ClipboardList size={15} className="text-[var(--gold)]" /> Nouveau menu
+              </h3>
+              <input type="text" value={menuName} onChange={(e) => setMenuName(e.target.value)}
+                placeholder="Nom du menu (ex. Carte été)" className="field-input" />
+              {myRecipes.length === 0 ? (
+                <p className="text-sm text-[var(--text-dim)]">Vous n&apos;avez pas encore de recettes.</p>
+              ) : (
+                <>
+                  <div className="relative">
+                    <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--text-dim)]" />
+                    <input type="text" value={recipeSearch} onChange={(e) => setRecipeSearch(e.target.value)}
+                      placeholder="Rechercher une recette…" className="field-input pl-10 text-sm" />
+                  </div>
+                  <div className="max-h-56 overflow-y-auto space-y-1 -mx-1 px-1">
+                    {filteredRecipes.map((r) => {
+                      const on = picked.has(r.id);
+                      return (
+                        <button key={r.id} onClick={() => toggle(picked, setPicked, r.id)}
+                          className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-left text-sm transition-colors ${on ? 'bg-[var(--gold)]/10 text-[var(--text)]' : 'hover:bg-[var(--surface2)] text-[var(--text-dim)]'}`}>
+                          <span className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${on ? 'bg-[var(--gold)] border-[var(--gold)]' : 'border-[var(--border)]'}`}>
+                            {on && <Check size={11} className="text-[#0A0E1A]" />}
+                          </span>
+                          <span className="truncate flex-1">{r.name}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+              <div className="flex gap-2">
+                <button onClick={() => { setComposing(false); setPicked(new Set()); setMenuName(''); }} className="btn-ghost flex-1 py-2 text-sm">Annuler</button>
+                <button onClick={shareMenu} disabled={busy === 'menu' || !menuName.trim() || picked.size === 0}
+                  className="btn-primary flex-1 py-2 text-sm flex items-center justify-center gap-2">
+                  {busy === 'menu' ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+                  Partager ({picked.size})
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Share type tabs */}
+          <div className="flex gap-1 bg-[var(--surface2)] rounded-lg p-1">
+            {(Object.keys(TAB_SHARE) as ShareTab[]).map((t) => {
+              const { label, icon: Icon } = TAB_SHARE[t];
+              return (
+                <button key={t} onClick={() => setShareTab(t)}
+                  className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded text-xs font-medium transition-colors ${shareTab === t ? 'bg-[var(--surface)] text-[var(--text)]' : 'text-[var(--text-dim)]'}`}>
+                  <Icon size={13} /> {label}
+                  <span className="text-[10px] opacity-70">{counts[t]}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Items */}
+          {items.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-14 gap-3 text-center">
+              {(() => { const Icon = TAB_SHARE[shareTab].icon; return <Icon size={36} className="text-[var(--text-dim)] opacity-40" />; })()}
+              <p className="text-sm text-[var(--text-dim)] max-w-xs">
+                {shareTab === 'menu' ? 'Aucun menu partagé. Cliquez sur « Créer un menu ».' :
+                 shareTab === 'recipe' ? 'Aucun cocktail partagé. Utilisez « Partager » sur une recette.' :
+                 'Aucun ingrédient partagé. Utilisez « Partager » sur une fiche ingrédient.'}
+              </p>
+            </div>
+          ) : (
+            <ul className="space-y-2">
+              {items.map((item) => {
+                const itemNotes = notes.filter((n) => n.item_id === item.id);
+                const name = (item.data as { name?: string }).name ?? 'Sans nom';
+                const menuRecipes = item.item_type === 'menu' ? ((item.data as { recipes?: Array<{ name?: string }> }).recipes ?? []) : [];
+                const canDelete = item.shared_by === userId || canManage;
+                return (
+                  <li key={item.id} className="card space-y-2">
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-[var(--text)] truncate">{name}</p>
+                        <p className="text-xs text-[var(--text-dim)]">
+                          {item.item_type === 'menu' && `${menuRecipes.length} recette(s) · `}
+                          Partagé par {item.sharer_name ?? 'un membre'}
+                        </p>
+                      </div>
+                      <button onClick={() => importItem(item)} disabled={busy === `imp-${item.id}`}
+                        className="btn-ghost px-2.5 py-1 text-xs flex items-center gap-1 shrink-0">
+                        {busy === `imp-${item.id}` ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />}
+                        Importer
+                      </button>
+                      {canDelete && (
+                        <button onClick={() => deleteItem(item)} disabled={busy === `del-${item.id}`}
+                          className="p-2 text-[var(--text-dim)] hover:text-red-400 shrink-0">
+                          <Trash2 size={16} />
+                        </button>
+                      )}
+                    </div>
+
+                    {item.item_type === 'menu' && menuRecipes.length > 0 && (
+                      <div className="flex flex-wrap gap-1">
+                        {menuRecipes.map((r, i) => (
+                          <span key={i} className="text-xs bg-[var(--surface2)] text-[var(--text-dim)] px-2 py-0.5 rounded-full">{r.name ?? 'Recette'}</span>
+                        ))}
+                      </div>
+                    )}
+
+                    <div className="flex items-center gap-3">
+                      <button onClick={() => toggle(openPreview, setOpenPreview, item.id)}
+                        className="text-xs text-[var(--text-dim)] hover:text-[var(--text)] flex items-center gap-1">
+                        <Eye size={12} /> Aperçu
+                        <ChevronDown size={12} className={`transition-transform ${openPreview.has(item.id) ? 'rotate-180' : ''}`} />
+                      </button>
+                      <button onClick={() => toggle(openNotes, setOpenNotes, item.id)}
+                        className="text-xs text-[var(--text-dim)] hover:text-[var(--text)] flex items-center gap-1">
+                        <MessageSquare size={12} />
+                        {itemNotes.length > 0 ? `${itemNotes.length} note(s)` : 'Ajouter une note'}
                       </button>
                     </div>
-                  </div>
-                )}
-              </li>
-            );
-          })}
-        </ul>
+
+                    {openPreview.has(item.id) && <ItemPreview item={item} />}
+
+                    {openNotes.has(item.id) && (
+                      <div className="space-y-2">
+                        {itemNotes.map((n) => (
+                          <div key={n.id} className="flex items-start gap-2 text-sm bg-[var(--surface2)] rounded-md px-2.5 py-1.5">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-[var(--text)]">{n.content}</p>
+                              <p className="text-xs text-[var(--text-dim)]">{n.author_name ?? 'Membre'}</p>
+                            </div>
+                            {n.user_id === userId && (
+                              <button onClick={() => deleteNote(n.id)} className="p-0.5 text-[var(--text-dim)] hover:text-red-400 shrink-0"><X size={13} /></button>
+                            )}
+                          </div>
+                        ))}
+                        <div className="flex gap-2">
+                          <input type="text" value={noteDrafts[item.id] ?? ''} onChange={(e) => setNoteDrafts((p) => ({ ...p, [item.id]: e.target.value }))}
+                            onKeyDown={(e) => e.key === 'Enter' && addNote(item.id)}
+                            placeholder="Écrire une note…" className="field-input flex-1 text-sm py-1.5" />
+                          <button onClick={() => addNote(item.id)} disabled={busy === `note-${item.id}` || !(noteDrafts[item.id] ?? '').trim()} className="btn-primary px-3 text-xs">
+                            {busy === `note-${item.id}` ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
       )}
     </div>
   );
 }
 
-// ---------------------------------------------------------------- preview
+// ── preview ──────────────────────────────────────────────────────────────────
 function ItemPreview({ item }: { item: TeamSharedItem }) {
   if (item.item_type === 'recipe') {
     const rd = (item.data as { recipeData?: { ingredients?: Array<{ qty?: number; unit?: string; name?: string }>; steps?: string } }).recipeData ?? {};
@@ -492,86 +735,39 @@ function ItemPreview({ item }: { item: TeamSharedItem }) {
               </li>
             ))}
           </ul>
-        ) : (
-          <p className="text-[var(--text-dim)]">Aucun ingrédient renseigné.</p>
-        )}
-        {rd.steps && (
-          <p className="text-[var(--text-dim)] whitespace-pre-wrap pt-2 border-t border-[var(--border)]">{rd.steps}</p>
-        )}
+        ) : <p className="text-[var(--text-dim)]">Aucun ingrédient renseigné.</p>}
+        {rd.steps && <p className="text-[var(--text-dim)] whitespace-pre-wrap pt-2 border-t border-[var(--border)]">{rd.steps}</p>}
       </div>
     );
   }
-
   if (item.item_type === 'ingredient') {
     const ig = (item.data as { ingredientData?: Record<string, unknown> }).ingredientData ?? {};
     const rows: Array<[string, string]> = [];
-    const add = (label: string, v: unknown) => {
-      if (v !== undefined && v !== null && v !== '' && v !== 0) rows.push([label, String(v)]);
-    };
+    const add = (label: string, v: unknown) => { if (v !== undefined && v !== null && v !== '' && v !== 0) rows.push([label, String(v)]); };
     add('Type', (ig as { type?: string }).type);
     add('Famille', (ig as { family?: string }).family);
     add('Marque', (ig as { brand?: string }).brand);
     add('Unité', (ig as { unit?: string }).unit);
-    add('Format', (ig as { format?: number }).format);
-    add('Prix', (ig as { price?: number }).price);
     const comp = (ig as { composition?: Array<{ name?: string; qty?: number; unit?: string }> }).composition ?? [];
     return (
       <div className="rounded-lg border border-[var(--border)] p-3 space-y-2 text-sm">
-        {rows.length > 0 ? (
-          <dl className="space-y-1">
-            {rows.map(([k, v]) => (
-              <div key={k} className="flex items-center justify-between gap-2">
-                <dt className="text-[var(--text-dim)]">{k}</dt>
-                <dd className="text-[var(--text)] truncate">{v}</dd>
-              </div>
-            ))}
-          </dl>
-        ) : (
-          <p className="text-[var(--text-dim)]">Pas de détail disponible.</p>
-        )}
-        {comp.length > 0 && (
-          <div className="pt-2 border-t border-[var(--border)]">
-            <p className="text-xs text-[var(--text-dim)] mb-1">Composition</p>
-            <ul className="space-y-1">
-              {comp.map((c, i) => (
-                <li key={i} className="flex items-center justify-between gap-2">
-                  <span className="text-[var(--text)] truncate">{c.name ?? '—'}</span>
-                  <span className="text-[var(--text-dim)] shrink-0">{c.qty ? `${c.qty} ${c.unit ?? ''}` : ''}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
+        {rows.length > 0 ? <dl className="space-y-1">{rows.map(([k, v]) => <div key={k} className="flex items-center justify-between gap-2"><dt className="text-[var(--text-dim)]">{k}</dt><dd className="text-[var(--text)] truncate">{v}</dd></div>)}</dl> : <p className="text-[var(--text-dim)]">Pas de détail disponible.</p>}
+        {comp.length > 0 && <div className="pt-2 border-t border-[var(--border)]"><p className="text-xs text-[var(--text-dim)] mb-1">Composition</p><ul className="space-y-1">{comp.map((c, i) => <li key={i} className="flex items-center justify-between gap-2"><span className="text-[var(--text)] truncate">{c.name ?? '—'}</span><span className="text-[var(--text-dim)] shrink-0">{c.qty ? `${c.qty} ${c.unit ?? ''}` : ''}</span></li>)}</ul></div>}
       </div>
     );
   }
-
-  // menu
   const recs = (item.data as { recipes?: Array<{ name?: string; recipeData?: { ingredients?: Array<{ qty?: number; unit?: string; name?: string }> } }> }).recipes ?? [];
   return (
     <div className="rounded-lg border border-[var(--border)] p-3 space-y-3 text-sm">
-      {recs.length === 0 ? (
-        <p className="text-[var(--text-dim)]">Menu vide.</p>
-      ) : (
-        recs.map((r, i) => {
-          const ings = r.recipeData?.ingredients ?? [];
-          return (
-            <div key={i} className="space-y-1">
-              <p className="font-medium text-[var(--text)]">{r.name ?? 'Recette'}</p>
-              {ings.length > 0 && (
-                <ul className="space-y-0.5 pl-2">
-                  {ings.map((g, j) => (
-                    <li key={j} className="flex items-center justify-between gap-2 text-[var(--text-dim)]">
-                      <span className="truncate">{g.name ?? '—'}</span>
-                      <span className="shrink-0">{g.qty ? `${g.qty} ${g.unit ?? ''}` : ''}</span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          );
-        })
-      )}
+      {recs.length === 0 ? <p className="text-[var(--text-dim)]">Menu vide.</p> : recs.map((r, i) => {
+        const ings = r.recipeData?.ingredients ?? [];
+        return (
+          <div key={i} className="space-y-1">
+            <p className="font-medium text-[var(--text)]">{r.name ?? 'Recette'}</p>
+            {ings.length > 0 && <ul className="space-y-0.5 pl-2">{ings.map((g, j) => <li key={j} className="flex items-center justify-between gap-2 text-[var(--text-dim)]"><span className="truncate">{g.name ?? '—'}</span><span className="shrink-0">{g.qty ? `${g.qty} ${g.unit ?? ''}` : ''}</span></li>)}</ul>}
+          </div>
+        );
+      })}
     </div>
   );
 }
