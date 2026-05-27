@@ -6,6 +6,8 @@ import {
   CheckCircle2, Loader2, X, ChevronRight,
 } from 'lucide-react';
 
+type BatchQtyUnit = 'portions' | 'cl' | 'L' | 'btl70' | 'btl100';
+
 interface IngredientStock {
   id: string;
   name: string;
@@ -14,6 +16,9 @@ interface IngredientStock {
   format?: number;
   stock?: number;
   homemade?: boolean;
+  composition?: Array<{ ingredientId?: string; name: string; qty: number; unit: string }>;
+  yield?: number;
+  yieldUnit?: string;
 }
 
 interface RecipeIngredient {
@@ -33,9 +38,10 @@ interface Recipe {
 }
 
 interface BatchItem {
-  key: string; // unique per added item
+  key: string;
   recipe: Recipe;
-  portions: number;
+  qty: number;
+  qtyUnit: BatchQtyUnit;
 }
 
 interface ConsolidatedLine {
@@ -43,7 +49,7 @@ interface ConsolidatedLine {
   name: string;
   unit: string;
   totalQty: number;
-  sources: string[]; // recipe names
+  sources: string[];
   ingredientId?: string;
   stockInfo?: IngredientStock;
   checked: boolean;
@@ -53,6 +59,30 @@ interface Props {
   recipes: Recipe[];
   stockMap: Record<string, IngredientStock>;
   userId: string;
+}
+
+function toCl(qty: number, unit: string): number {
+  const u = unit.toLowerCase();
+  if (u === 'cl') return qty;
+  if (u === 'ml') return qty / 10;
+  if (u === 'l') return qty * 100;
+  return qty;
+}
+
+function recipeLiquidVolumeCl(recipe: Recipe): number {
+  return recipe.ingredients.reduce((sum, ing) => sum + toCl(ing.qty, ing.unit), 0);
+}
+
+function effectivePortions(qty: number, unit: BatchQtyUnit, recipe: Recipe): number {
+  if (unit === 'portions') return qty;
+  const recipeVol = recipeLiquidVolumeCl(recipe);
+  if (recipeVol <= 0) return qty;
+  const targetCl =
+    unit === 'cl' ? qty :
+    unit === 'L' ? qty * 100 :
+    unit === 'btl70' ? qty * 70 :
+    qty * 100; // btl100
+  return targetCl / recipeVol;
 }
 
 function scaledDisplay(qty: number, unit: string): string {
@@ -80,6 +110,14 @@ function stockStatus(line: ConsolidatedLine): 'ok' | 'low' | 'insufficient' | 'u
   return 'insufficient';
 }
 
+const QTY_UNIT_LABELS: Record<BatchQtyUnit, string> = {
+  portions: 'portions',
+  cl: 'cl',
+  L: 'L',
+  btl70: 'btl 70cl',
+  btl100: 'btl 100cl',
+};
+
 let itemCounter = 0;
 
 export default function BatchClient({ recipes, stockMap, userId }: Props) {
@@ -91,6 +129,7 @@ export default function BatchClient({ recipes, stockMap, userId }: Props) {
   // Phase 2 — Consolidated
   const [phase, setPhase] = useState<'select' | 'consolidated' | 'done'>('select');
   const [checkedKeys, setCheckedKeys] = useState<Set<string>>(new Set());
+  const [expandMode, setExpandMode] = useState<'prep' | 'raw'>('prep');
 
   // Phase 3 — Validation
   const [producing, setProducing] = useState(false);
@@ -104,7 +143,7 @@ export default function BatchClient({ recipes, stockMap, userId }: Props) {
 
   function addItem(recipe: Recipe) {
     itemCounter++;
-    setItems((prev) => [...prev, { key: `item-${itemCounter}`, recipe, portions: 1 }]);
+    setItems((prev) => [...prev, { key: `item-${itemCounter}`, recipe, qty: 1, qtyUnit: 'portions' }]);
     setOpen(false);
     setSearch('');
   }
@@ -113,50 +152,94 @@ export default function BatchClient({ recipes, stockMap, userId }: Props) {
     setItems((prev) => prev.filter((i) => i.key !== key));
   }
 
-  function updatePortions(key: string, delta: number | null, value?: number) {
+  function updateQty(key: string, delta: number | null, value?: number) {
     setItems((prev) =>
       prev.map((i) =>
         i.key === key
-          ? { ...i, portions: delta !== null ? Math.max(1, i.portions + delta) : Math.max(1, value ?? 1) }
+          ? { ...i, qty: delta !== null ? Math.max(1, i.qty + delta) : Math.max(1, value ?? 1) }
           : i
       )
     );
   }
 
+  function setQtyUnit(key: string, unit: BatchQtyUnit) {
+    setItems((prev) =>
+      prev.map((i) => i.key === key ? { ...i, qtyUnit: unit } : i)
+    );
+  }
+
   const consolidatedLines = useMemo((): ConsolidatedLine[] => {
-    // Aggregate all ingredients across all items
     const map = new Map<string, ConsolidatedLine>();
 
     for (const item of items) {
-      for (const ing of item.recipe.ingredients) {
-        const keyId = ing.ingredientId
-          ? `id:${ing.ingredientId}`
-          : `name:${ing.name.toLowerCase().trim()}`;
+      const portions = effectivePortions(item.qty, item.qtyUnit, item.recipe);
 
-        const existing = map.get(keyId);
-        if (existing) {
-          existing.totalQty += ing.qty * item.portions;
-          if (!existing.sources.includes(item.recipe.name)) {
-            existing.sources.push(item.recipe.name);
+      for (const ing of item.recipe.ingredients) {
+        const stockInfo = ing.ingredientId ? stockMap[ing.ingredientId] : undefined;
+        const isExpandable =
+          expandMode === 'raw' &&
+          stockInfo?.homemade === true &&
+          (stockInfo.composition?.length ?? 0) > 0;
+
+        if (isExpandable) {
+          const prepYieldCl = toCl(stockInfo!.yield ?? 1, stockInfo!.yieldUnit ?? stockInfo!.unit ?? 'cl');
+          const neededCl = toCl(ing.qty * portions, ing.unit);
+          const scale = prepYieldCl > 0 ? neededCl / prepYieldCl : 0;
+
+          for (const comp of stockInfo!.composition!) {
+            const compKey = comp.ingredientId
+              ? `id:${comp.ingredientId}`
+              : `name:${comp.name.toLowerCase().trim()}`;
+            const scaledQty = comp.qty * scale;
+            const existing = map.get(compKey);
+            const compStock = comp.ingredientId ? stockMap[comp.ingredientId] : undefined;
+            const sourceLabel = `${item.recipe.name} → ${stockInfo!.name}`;
+
+            if (existing) {
+              existing.totalQty += scaledQty;
+              if (!existing.sources.includes(sourceLabel)) existing.sources.push(sourceLabel);
+            } else {
+              map.set(compKey, {
+                key: compKey,
+                name: compStock?.name ?? comp.name,
+                unit: comp.unit,
+                totalQty: scaledQty,
+                sources: [sourceLabel],
+                ingredientId: comp.ingredientId,
+                stockInfo: compStock,
+                checked: false,
+              });
+            }
           }
         } else {
-          const stockInfo = ing.ingredientId ? stockMap[ing.ingredientId] : undefined;
-          map.set(keyId, {
-            key: keyId,
-            name: stockInfo?.name ?? ing.name,
-            unit: ing.unit,
-            totalQty: ing.qty * item.portions,
-            sources: [item.recipe.name],
-            ingredientId: ing.ingredientId,
-            stockInfo,
-            checked: false,
-          });
+          const keyId = ing.ingredientId
+            ? `id:${ing.ingredientId}`
+            : `name:${ing.name.toLowerCase().trim()}`;
+
+          const existing = map.get(keyId);
+          if (existing) {
+            existing.totalQty += ing.qty * portions;
+            if (!existing.sources.includes(item.recipe.name)) {
+              existing.sources.push(item.recipe.name);
+            }
+          } else {
+            map.set(keyId, {
+              key: keyId,
+              name: stockInfo?.name ?? ing.name,
+              unit: ing.unit,
+              totalQty: ing.qty * portions,
+              sources: [item.recipe.name],
+              ingredientId: ing.ingredientId,
+              stockInfo,
+              checked: false,
+            });
+          }
         }
       }
     }
 
     return Array.from(map.values());
-  }, [items, stockMap]);
+  }, [items, stockMap, expandMode]);
 
   function toggleCheck(key: string) {
     setCheckedKeys((prev) => {
@@ -240,7 +323,24 @@ export default function BatchClient({ recipes, stockMap, userId }: Props) {
             <ChevronDown size={14} className="rotate-90" />
             Retour
           </button>
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2">
+            {/* Expand mode toggle */}
+            <div className="flex items-center gap-1 bg-[var(--surface2)] rounded-lg p-0.5">
+              <button
+                type="button"
+                onClick={() => setExpandMode('prep')}
+                className={`text-xs px-2.5 py-1 rounded-md transition-colors ${expandMode === 'prep' ? 'bg-[var(--surface)] text-[var(--text)]' : 'text-[var(--text-dim)]'}`}
+              >
+                Stock prépa
+              </button>
+              <button
+                type="button"
+                onClick={() => setExpandMode('raw')}
+                className={`text-xs px-2.5 py-1 rounded-md transition-colors ${expandMode === 'raw' ? 'bg-[var(--surface)] text-[var(--text)]' : 'text-[var(--text-dim)]'}`}
+              >
+                Matières brutes
+              </button>
+            </div>
             <button
               type="button"
               onClick={allChecked ? uncheckAll : checkAll}
@@ -255,7 +355,7 @@ export default function BatchClient({ recipes, stockMap, userId }: Props) {
         <div className="flex flex-wrap gap-2">
           {items.map((item) => (
             <span key={item.key} className="text-xs px-2.5 py-1 rounded-full border border-[var(--border)] text-[var(--text-dim)]">
-              {item.recipe.name} × {item.portions}
+              {item.recipe.name} × {item.qty} {QTY_UNIT_LABELS[item.qtyUnit]}
             </span>
           ))}
         </div>
@@ -405,11 +505,11 @@ export default function BatchClient({ recipes, stockMap, userId }: Props) {
                   <p className="text-sm font-medium text-[var(--text)] truncate">{item.recipe.name}</p>
                   <p className="text-xs text-[var(--text-dim)] mt-0.5">{item.recipe.ingredients.length} ingrédient{item.recipe.ingredients.length > 1 ? 's' : ''}</p>
                 </div>
-                {/* Portions stepper */}
+                {/* Qty stepper + unit dropdown */}
                 <div className="flex items-center gap-1.5 shrink-0">
                   <button
                     type="button"
-                    onClick={() => updatePortions(item.key, -1)}
+                    onClick={() => updateQty(item.key, -1)}
                     className="w-7 h-7 rounded-md bg-[var(--surface2)] flex items-center justify-center text-[var(--text)] hover:bg-[var(--border)] transition-colors"
                   >
                     <Minus size={13} />
@@ -418,17 +518,28 @@ export default function BatchClient({ recipes, stockMap, userId }: Props) {
                     type="number"
                     min="1"
                     max="9999"
-                    value={item.portions}
-                    onChange={(e) => updatePortions(item.key, null, parseInt(e.target.value) || 1)}
+                    value={item.qty}
+                    onChange={(e) => updateQty(item.key, null, parseInt(e.target.value) || 1)}
                     className="field-input w-14 text-center font-semibold py-1 px-1"
                   />
                   <button
                     type="button"
-                    onClick={() => updatePortions(item.key, 1)}
+                    onClick={() => updateQty(item.key, 1)}
                     className="w-7 h-7 rounded-md bg-[var(--surface2)] flex items-center justify-center text-[var(--text)] hover:bg-[var(--border)] transition-colors"
                   >
                     <Plus size={13} />
                   </button>
+                  <select
+                    value={item.qtyUnit}
+                    onChange={(e) => setQtyUnit(item.key, e.target.value as BatchQtyUnit)}
+                    className="field-input text-sm py-1 pr-7 pl-2"
+                  >
+                    <option value="portions">portions</option>
+                    <option value="cl">cl</option>
+                    <option value="L">L</option>
+                    <option value="btl70">btl 70cl</option>
+                    <option value="btl100">btl 100cl</option>
+                  </select>
                 </div>
                 <button
                   type="button"

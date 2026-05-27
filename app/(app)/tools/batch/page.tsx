@@ -27,9 +27,30 @@ export default async function BatchPage() {
     };
   }).filter((r) => r.name && r.ingredients.length > 0);
 
-  const stockMap: Record<string, { id: string; name: string; unit: string; price?: number; format?: number; stock?: number; homemade?: boolean }> = {};
+  const stockMap: Record<string, {
+    id: string;
+    name: string;
+    unit: string;
+    price?: number;
+    format?: number;
+    stock?: number;
+    homemade?: boolean;
+    composition?: Array<{ ingredientId?: string; name: string; qty: number; unit: string }>;
+    yield?: number;
+    yieldUnit?: string;
+  }> = {};
   for (const row of ingredientRows ?? []) {
-    const d = row.data as { name?: string; unit?: string; price?: number; format?: number; stock?: number; homemade?: boolean } | null;
+    const d = row.data as {
+      name?: string;
+      unit?: string;
+      price?: number;
+      format?: number;
+      stock?: number;
+      homemade?: boolean;
+      composition?: Array<{ ingredientId?: string; name: string; qty: number; unit: string }>;
+      yield?: number;
+      yieldUnit?: string;
+    } | null;
     stockMap[row.id as string] = {
       id: row.id as string,
       name: d?.name ?? '',
@@ -38,6 +59,9 @@ export default async function BatchPage() {
       format: d?.format,
       stock: d?.stock,
       homemade: d?.homemade,
+      composition: d?.composition,
+      yield: d?.yield,
+      yieldUnit: d?.yieldUnit,
     };
   }
 
