@@ -34,6 +34,7 @@ export default async function EditRecipePage({
   const recipeData = recipe.data as {
     name?: string;
     steps?: string;
+    timerSeconds?: number;
     ingredients?: Array<{ ingredientId?: string; qty: number; name: string; unit: string }>;
   } | null;
 
@@ -62,6 +63,7 @@ export default async function EditRecipePage({
     method,
     garnish: recipeMetadata?.garnish ?? '',
     spiritFamily: recipeMetadata?.spiritFamily ?? '',
+    timerSeconds: recipeData?.timerSeconds ?? 0,
   };
 
   return (

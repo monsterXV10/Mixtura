@@ -2,8 +2,17 @@ import { createClient } from '@/lib/supabase/server';
 import { redirect, notFound } from 'next/navigation';
 import { TopBar } from '@/components/layout/TopBar';
 import Link from 'next/link';
-import { Pencil, GlassWater, Flame } from 'lucide-react';
+import { Pencil, GlassWater, FlaskConical } from 'lucide-react';
 import { RecipeDeleteButton } from '../RecipeDeleteButton';
+import { RecipeTimer } from '../RecipeTimer';
+
+const METHOD_TIMER_DEFAULTS: Record<string, number> = {
+  'Shake': 10,
+  'Shake + Double Strain': 12,
+  'Stir': 30,
+  'Throw': 20,
+  'Blend': 30,
+};
 
 export default async function RecipeDetailPage({
   params,
@@ -29,7 +38,8 @@ export default async function RecipeDetailPage({
   const recipeData = recipe.data as {
     name?: string;
     steps?: string;
-    ingredients?: Array<{ qty: number; name: string; unit: string }>;
+    timerSeconds?: number;
+    ingredients?: Array<{ ingredientId?: string; qty: number; name: string; unit: string }>;
   } | null;
 
   const recipeMetadata = recipe.metadata as {
@@ -47,6 +57,30 @@ export default async function RecipeDetailPage({
   const garnish = recipeMetadata?.garnish ?? '';
   const recipeType = recipe.type as string;
 
+  // Timer: manual value wins, otherwise auto-detect from method
+  const timerSeconds =
+    (recipeData?.timerSeconds ?? 0) > 0
+      ? (recipeData!.timerSeconds as number)
+      : (METHOD_TIMER_DEFAULTS[method] ?? 0);
+
+  // Fetch stock info to color-code ingredients
+  const linkedIds = ingredients
+    .map((i) => i.ingredientId)
+    .filter((id): id is string => Boolean(id));
+
+  const stockMap = new Map<string, { homemade?: boolean }>();
+  if (linkedIds.length > 0) {
+    const { data: stockRows } = await supabase
+      .from('ingredients')
+      .select('id, data')
+      .eq('user_id', user.id)
+      .in('id', linkedIds);
+    for (const row of stockRows ?? []) {
+      const d = row.data as { homemade?: boolean } | null;
+      stockMap.set(row.id as string, { homemade: d?.homemade });
+    }
+  }
+
   const TYPE_LABELS: Record<string, string> = {
     cocktail: 'Cocktail',
     coffee: 'Café',
@@ -58,6 +92,13 @@ export default async function RecipeDetailPage({
     coffee: 'text-amber-400 bg-amber-400/10',
     cuisine: 'text-emerald-400 bg-emerald-400/10',
   };
+
+  // Split steps into numbered lines
+  const stepLines = steps
+    .split('\n')
+    .map((l) => l.trim())
+    .filter(Boolean)
+    .map((l) => l.replace(/^\d+[.)]\s*/, ''));
 
   return (
     <>
@@ -75,7 +116,7 @@ export default async function RecipeDetailPage({
         }
       />
       <main className="px-4 py-5 pb-safe space-y-5">
-        {/* Header info */}
+        {/* Header badges */}
         <div className="flex flex-wrap gap-2">
           <span
             className={`text-xs font-medium px-2 py-1 rounded-full ${
@@ -96,7 +137,7 @@ export default async function RecipeDetailPage({
             </span>
           )}
           {garnish && (
-            <span className="text-xs px-2 py-1 rounded-full bg-[var(--surface2)] text-[var(--text-dim)]">
+            <span className="text-xs px-2 py-1 rounded-full bg-[var(--surface2)] text-[var(--text-dim)] italic">
               {garnish}
             </span>
           )}
@@ -104,40 +145,95 @@ export default async function RecipeDetailPage({
 
         {/* Ingredients */}
         <div className="card space-y-2">
-          <h2 className="font-semibold text-[var(--text)] text-sm mb-3">
-            Ingrédients ({ingredients.length})
-          </h2>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="font-semibold text-[var(--text)] text-sm">
+              Ingrédients ({ingredients.length})
+            </h2>
+            <div className="flex items-center gap-3 text-xs text-[var(--text-dim)]">
+              <span className="flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />
+                Stock
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-blue-400 inline-block" />
+                Maison
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-orange-400 inline-block" />
+                Nouveau
+              </span>
+            </div>
+          </div>
+
           {ingredients.length === 0 ? (
             <p className="text-[var(--text-dim)] text-sm">Aucun ingrédient.</p>
           ) : (
-            <ul className="space-y-2">
+            <ul className="space-y-0">
               {ingredients.map(
-                (ing: { qty: number; name: string; unit: string }, i: number) => (
-                  <li
-                    key={i}
-                    className="flex items-center justify-between py-1.5 border-b border-[var(--border)] last:border-0"
-                  >
-                    <span className="text-[var(--text)] text-sm">{ing.name}</span>
-                    <span className="text-[var(--gold)] text-sm font-medium tabular-nums">
-                      {ing.qty} {ing.unit}
-                    </span>
-                  </li>
-                )
+                (ing, i) => {
+                  const info = ing.ingredientId ? stockMap.get(ing.ingredientId) : undefined;
+                  const dotColor = ing.ingredientId
+                    ? info
+                      ? info.homemade
+                        ? 'bg-blue-400'
+                        : 'bg-emerald-400'
+                      : 'bg-orange-400'
+                    : 'bg-[var(--border)]';
+                  const isHomemade = info?.homemade;
+
+                  return (
+                    <li
+                      key={i}
+                      className="flex items-center gap-3 py-2.5 border-b border-[var(--border)] last:border-0"
+                    >
+                      <span className={`w-2 h-2 rounded-full shrink-0 ${dotColor}`} />
+                      <span className="flex-1 text-[var(--text)] text-sm flex items-center gap-1.5">
+                        {ing.name}
+                        {isHomemade && (
+                          <FlaskConical size={11} className="text-blue-400 shrink-0" />
+                        )}
+                      </span>
+                      <span className="text-[var(--gold)] text-sm font-medium tabular-nums">
+                        {ing.qty} {ing.unit}
+                      </span>
+                    </li>
+                  );
+                }
               )}
             </ul>
           )}
         </div>
 
+        {/* Timer */}
+        {timerSeconds > 0 && (
+          <RecipeTimer
+            seconds={timerSeconds}
+            label={
+              method && METHOD_TIMER_DEFAULTS[method]
+                ? `Minuteur · ${method}`
+                : 'Minuteur'
+            }
+          />
+        )}
+
         {/* Steps */}
-        {steps && (
+        {stepLines.length > 0 && (
           <div className="card">
-            <h2 className="font-semibold text-[var(--text)] text-sm mb-3 flex items-center gap-2">
-              <Flame size={14} className="text-[var(--gold)]" />
+            <h2 className="font-semibold text-[var(--text)] text-sm mb-4">
               Préparation
             </h2>
-            <p className="text-[var(--text-dim)] text-sm whitespace-pre-wrap leading-relaxed">
-              {steps}
-            </p>
+            <ol className="space-y-4">
+              {stepLines.map((line, i) => (
+                <li key={i} className="flex gap-3">
+                  <span className="shrink-0 w-6 h-6 rounded-full bg-[var(--gold)]/15 text-[var(--gold)] text-xs font-semibold flex items-center justify-center mt-0.5">
+                    {i + 1}
+                  </span>
+                  <span className="text-[var(--text-dim)] text-sm leading-relaxed">
+                    {line}
+                  </span>
+                </li>
+              ))}
+            </ol>
           </div>
         )}
 

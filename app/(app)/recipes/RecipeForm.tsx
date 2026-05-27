@@ -3,7 +3,15 @@ import { useState, useRef, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { ensureIngredients, matchesIngredient } from '@/lib/utils/ingredients';
 import type { UserIngredientOption } from '@/lib/utils/ingredients';
-import { Plus, Trash2, Loader2, FlaskConical } from 'lucide-react';
+import { Plus, Trash2, Loader2, FlaskConical, Timer } from 'lucide-react';
+
+const METHOD_TIMER_DEFAULTS: Record<string, number> = {
+  'Shake': 10,
+  'Shake + Double Strain': 12,
+  'Stir': 30,
+  'Throw': 20,
+  'Blend': 30,
+};
 
 export type { UserIngredientOption };
 
@@ -39,6 +47,7 @@ interface RecipeFormProps {
     method: string;
     garnish: string;
     spiritFamily: string;
+    timerSeconds: number;
   };
   userIngredients: UserIngredientOption[];
   userId: string;
@@ -73,6 +82,7 @@ export default function RecipeForm({ initialData, userIngredients, userId }: Rec
   const [method, setMethod] = useState(initialData?.method ?? '');
   const [garnish, setGarnish] = useState(initialData?.garnish ?? '');
   const [spiritFamily, setSpiritFamily] = useState(initialData?.spiritFamily ?? '');
+  const [timerSeconds, setTimerSeconds] = useState(initialData?.timerSeconds ?? 0);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -170,6 +180,7 @@ export default function RecipeForm({ initialData, userIngredients, userId }: Rec
         name: name.trim(),
         steps,
         ingredients: ingredientRows,
+        timerSeconds: timerSeconds > 0 ? timerSeconds : undefined,
       },
       metadata: type === 'cocktail' ? { glass, method, garnish, spiritFamily: spiritFamily || undefined } : {},
       updated_at: new Date().toISOString(),
@@ -340,6 +351,36 @@ export default function RecipeForm({ initialData, userIngredients, userId }: Rec
           rows={5}
           className="field-input resize-none"
         />
+      </div>
+
+      {/* Timer */}
+      <div className="space-y-1.5">
+        <label className="text-xs font-medium text-[var(--text-dim)] uppercase tracking-wide flex items-center gap-1.5">
+          <Timer size={12} />
+          Minuteur (optionnel)
+        </label>
+        <div className="flex items-center gap-2">
+          <input
+            type="number"
+            min="0"
+            step="1"
+            value={timerSeconds || ''}
+            onChange={(e) => setTimerSeconds(parseInt(e.target.value) || 0)}
+            placeholder="0"
+            className="field-input w-24"
+          />
+          <span className="text-sm text-[var(--text-dim)]">secondes</span>
+          {type === 'cocktail' && method && METHOD_TIMER_DEFAULTS[method] && (
+            <button
+              type="button"
+              onClick={() => setTimerSeconds(METHOD_TIMER_DEFAULTS[method])}
+              className="text-xs text-[var(--gold)] hover:underline ml-1"
+            >
+              ← {method} : {METHOD_TIMER_DEFAULTS[method]}s
+            </button>
+          )}
+        </div>
+        <p className="text-xs text-[var(--text-dim)]">Affiché comme minuteur interactif dans la recette</p>
       </div>
 
       {/* Cocktail details */}
