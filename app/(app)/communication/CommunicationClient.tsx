@@ -7,6 +7,7 @@ import {
   Send, Trash2, Loader2, X, Plus, Check, Search, ChevronDown, Eye,
   UserPlus, Copy, QrCode, Mail, LogIn, Lock, Crown, Shield,
   User as UserIcon, ShieldCheck, LogOut, Link2, Timer, Play, Square, RotateCcw,
+  Package, ChevronRight,
 } from 'lucide-react';
 import QRCode from 'react-qr-code';
 import {
@@ -517,6 +518,21 @@ export default function CommunicationClient({
           </div>
         )}
       </div>
+
+      {/* Bar stock shortcut */}
+      <Link
+        href={`/communication/bar?team=${activeTeam.id}`}
+        className="flex items-center gap-3 px-4 py-3 card hover:border-[var(--gold-dim)] transition-colors"
+      >
+        <div className="w-9 h-9 rounded-lg bg-[var(--gold)]/10 flex items-center justify-center shrink-0">
+          <Package size={18} className="text-[var(--gold)]" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold text-[var(--text)]">Stock du bar</p>
+          <p className="text-xs text-[var(--text-dim)]">Gérer les ingrédients de l&apos;équipe</p>
+        </div>
+        <ChevronRight size={16} className="text-[var(--text-dim)] shrink-0" />
+      </Link>
 
       {/* Main tabs */}
       <div className="flex rounded-lg bg-[var(--surface2)] p-0.5 gap-0.5">

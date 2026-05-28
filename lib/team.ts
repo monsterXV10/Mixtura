@@ -6,7 +6,7 @@ export interface Team {
   code: string;
   owner_id: string;
   created_at: string;
-  settings?: { batch_mode?: 'readonly' | 'collaborative' | 'assigned' };
+  settings?: { batch_mode?: 'readonly' | 'collaborative' | 'assigned' } | null;
 }
 
 export interface TeamMember {
