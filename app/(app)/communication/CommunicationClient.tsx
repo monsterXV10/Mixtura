@@ -23,7 +23,7 @@ interface MyRecipe {
 
 interface BatchRow {
   id: string; user_id: string; team_id: string | null; name: string;
-  items: Array<{ key: string; recipeName: string; qty: number; qtyUnit: string }>;
+  items: Array<{ key: string; recipeName: string; qty: number; qtyUnit: string; ingredients?: Array<{ ingredientId?: string; qty: number; name: string; unit: string; type?: string; homemade?: boolean }>; steps?: string | null }>;
   timers: Record<string, { durationSec: number; startedAt: string | null; label: string }>;
   checked: string[]; status: string; created_at: string; updated_at: string;
 }
@@ -108,6 +108,7 @@ export default function CommunicationClient({
   // Live batches state (for real-time timer updates)
   const [liveBatches, setLiveBatches] = useState<BatchRow[]>(teamBatches);
   const [tick, setTick] = useState(0);
+  const [expandedBatchItems, setExpandedBatchItems] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     setLiveBatches(teamBatches);
@@ -694,21 +695,64 @@ export default function CommunicationClient({
                   <div className="divide-y divide-[var(--border)] border-b border-[var(--border)]">
                     {batch.items.map((item) => {
                       const isDone = batch.checked?.includes(item.key);
-                      return canInteract ? (
-                        <button key={item.key} type="button"
-                          onClick={() => toggleBatchChecked(batch.id, item.key)}
-                          className={`w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-[var(--surface2)] transition-colors ${isDone ? 'opacity-50' : ''}`}>
-                          <div className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 transition-colors ${isDone ? 'bg-[var(--gold)] border-[var(--gold)]' : 'border-[var(--border)]'}`}>
-                            {isDone && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#0A0E1A" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                      const expandKey = `${batch.id}:${item.key}`;
+                      const isExpanded = expandedBatchItems.has(expandKey);
+                      const hasDetail = (item.ingredients?.length ?? 0) > 0 || !!item.steps;
+                      const portions = (() => {
+                        if (item.qtyUnit === 'portions') return item.qty;
+                        if (!item.ingredients?.length) return item.qty;
+                        const vol = item.ingredients.reduce((s, i) => {
+                          const u = i.unit.toLowerCase();
+                          return s + (u === 'cl' ? i.qty : u === 'ml' ? i.qty / 10 : u === 'l' ? i.qty * 100 : i.qty);
+                        }, 0);
+                        if (vol <= 0) return item.qty;
+                        const target = item.qtyUnit === 'cl' ? item.qty : item.qtyUnit === 'L' ? item.qty * 100
+                          : item.qtyUnit === 'btl70' ? item.qty * 70 : item.qty * 100;
+                        return target / vol;
+                      })();
+                      return (
+                        <div key={item.key}>
+                          <div className={`flex items-center gap-3 px-4 py-2.5 ${isDone ? 'opacity-50' : ''}`}>
+                            {canInteract ? (
+                              <button type="button" onClick={() => toggleBatchChecked(batch.id, item.key)}
+                                className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 transition-colors ${isDone ? 'bg-[var(--gold)] border-[var(--gold)]' : 'border-[var(--border)]'}`}>
+                                {isDone && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#0A0E1A" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                              </button>
+                            ) : (
+                              <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${isDone ? 'bg-emerald-400' : 'bg-[var(--border)]'}`} />
+                            )}
+                            <span className={`flex-1 text-sm text-[var(--text)] truncate ${isDone ? 'line-through' : ''}`}>{item.recipeName}</span>
+                            <span className="text-xs text-[var(--text-dim)] tabular-nums shrink-0">{item.qty} {item.qtyUnit}</span>
+                            {hasDetail && (
+                              <button type="button"
+                                onClick={() => setExpandedBatchItems((prev) => { const n = new Set(prev); n.has(expandKey) ? n.delete(expandKey) : n.add(expandKey); return n; })}
+                                className="p-1 text-[var(--text-dim)] hover:text-[var(--text)] transition-colors shrink-0">
+                                <ChevronDown size={13} className={`transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                              </button>
+                            )}
                           </div>
-                          <span className={`flex-1 text-sm text-[var(--text)] truncate ${isDone ? 'line-through' : ''}`}>{item.recipeName}</span>
-                          <span className="text-xs text-[var(--text-dim)] tabular-nums shrink-0">{item.qty} {item.qtyUnit}</span>
-                        </button>
-                      ) : (
-                        <div key={item.key} className="flex items-center gap-3 px-4 py-2.5">
-                          <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${isDone ? 'bg-emerald-400' : 'bg-[var(--border)]'}`} />
-                          <span className={`flex-1 text-sm text-[var(--text)] truncate ${isDone ? 'line-through opacity-50' : ''}`}>{item.recipeName}</span>
-                          <span className="text-xs text-[var(--text-dim)] tabular-nums shrink-0">{item.qty} {item.qtyUnit}</span>
+                          {isExpanded && (
+                            <div className="mx-4 mb-2 rounded-lg bg-[var(--surface2)]/50 border border-[var(--border)] overflow-hidden">
+                              {item.ingredients && item.ingredients.length > 0 && (
+                                <div className="p-3 space-y-1.5">
+                                  {item.ingredients.map((ing, idx) => (
+                                    <div key={idx} className="flex justify-between gap-2">
+                                      <span className="text-xs text-[var(--text)] truncate">{ing.name}</span>
+                                      <span className="text-xs font-mono text-[var(--text-dim)] shrink-0 tabular-nums">
+                                        {Math.round(ing.qty * portions * 100) / 100} {ing.unit}
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                              {item.steps && (
+                                <div className={`px-3 pb-3 ${item.ingredients?.length ? 'pt-2 border-t border-[var(--border)]' : 'pt-3'}`}>
+                                  <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-dim)] mb-1">Préparation</p>
+                                  <p className="text-xs text-[var(--text-dim)] leading-relaxed whitespace-pre-line">{item.steps}</p>
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
                       );
                     })}

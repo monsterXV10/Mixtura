@@ -269,7 +269,7 @@ export default function BatchClient({ recipes, stockMap, userId, teams }: Props)
     const supabase = createClient();
     const payload = {
       name: batchName || 'Batch sans titre',
-      items: items.map((i) => ({ key: i.key, recipeId: i.recipe.id, recipeName: i.recipe.name, qty: i.qty, qtyUnit: i.qtyUnit })),
+      items: items.map((i) => ({ key: i.key, recipeId: i.recipe.id, recipeName: i.recipe.name, qty: i.qty, qtyUnit: i.qtyUnit, ingredients: i.recipe.ingredients, steps: i.recipe.steps ?? null })),
       timers,
       checked: [...checked],
       status: 'active' as const,

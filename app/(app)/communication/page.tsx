@@ -83,7 +83,7 @@ export default async function CommunicationPage() {
   // Active batches shared with user's teams
   interface BatchRow {
     id: string; user_id: string; team_id: string | null; name: string;
-    items: Array<{ key: string; recipeName: string; qty: number; qtyUnit: string }>;
+    items: Array<{ key: string; recipeName: string; qty: number; qtyUnit: string; ingredients?: Array<{ ingredientId?: string; qty: number; name: string; unit: string; type?: string; homemade?: boolean }>; steps?: string | null }>;
     timers: Record<string, { durationSec: number; startedAt: string | null; label: string }>;
     checked: string[]; status: string; created_at: string; updated_at: string;
   }
