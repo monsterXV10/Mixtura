@@ -20,6 +20,8 @@ interface RecipeIngredientRow {
   qty: number;
   name: string;
   unit: string;
+  type?: string;
+  homemade?: boolean;
 }
 
 const SPIRIT_CATEGORIES = [
@@ -132,6 +134,8 @@ export default function RecipeForm({ initialData, userIngredients, userId }: Rec
         ingredientId: option.id,
         name: option.name,
         unit: option.unit,
+        type: option.type,
+        homemade: option.homemade,
       };
       return updated;
     });

@@ -14,7 +14,7 @@ export default async function BatchPage() {
   ]);
 
   const recipes = (recipeRows ?? []).map((r) => {
-    const d = r.data as { name?: string; ingredients?: Array<{ ingredientId?: string; qty: number; name: string; unit: string }> } | null;
+    const d = r.data as { name?: string; ingredients?: Array<{ ingredientId?: string; qty: number; name: string; unit: string; type?: string; homemade?: boolean }> } | null;
     const m = r.metadata as { glass?: string; method?: string | string[] } | null;
     const rawMethod = m?.method;
     return {

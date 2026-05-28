@@ -17,6 +17,7 @@ interface IngredientStock {
 
 interface RecipeIngredient {
   ingredientId?: string; qty: number; name: string; unit: string;
+  type?: string; homemade?: boolean;
 }
 
 interface Recipe {
@@ -92,10 +93,18 @@ function stockStatus(line: ConsolidatedLine): 'ok' | 'low' | 'insufficient' | 'u
 }
 
 function groupByCategory(ings: RecipeIngredient[], stockMap: Record<string, IngredientStock>) {
+  const byName: Record<string, IngredientStock> = {};
+  for (const s of Object.values(stockMap)) {
+    if (s.name) byName[s.name.toLowerCase()] = s;
+  }
   const g: Record<string, RecipeIngredient[]> = {};
   for (const ing of ings) {
-    const info = ing.ingredientId ? stockMap[ing.ingredientId] : undefined;
-    const cat = info?.homemade ? 'homemade' : (info?.type?.toLowerCase() ?? 'other');
+    const info = ing.ingredientId
+      ? stockMap[ing.ingredientId]
+      : byName[ing.name.toLowerCase()];
+    const isHomemade = info?.homemade ?? ing.homemade ?? false;
+    const rawType = info?.type ?? ing.type;
+    const cat = isHomemade ? 'homemade' : (rawType?.toLowerCase() ?? 'other');
     (g[cat] ??= []).push(ing);
   }
   return g;

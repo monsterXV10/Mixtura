@@ -14,6 +14,7 @@ export interface UserIngredientOption {
   id: string;
   name: string;
   unit: string;
+  type?: string;
   homemade?: boolean;
   brand?: string;
   family?: string;
@@ -27,6 +28,7 @@ export function toIngredientOption(row: { id: string; data: unknown }): UserIngr
   const d = (row.data ?? {}) as {
     name?: string;
     unit?: string;
+    type?: string;
     homemade?: boolean;
     brand?: string;
     family?: string;
@@ -38,6 +40,7 @@ export function toIngredientOption(row: { id: string; data: unknown }): UserIngr
     id: row.id,
     name: d.name ?? '',
     unit: d.unit ?? 'cl',
+    type: d.type,
     homemade: d.homemade ?? false,
     brand: d.brand ?? '',
     family: d.family ?? '',
