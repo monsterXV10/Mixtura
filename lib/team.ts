@@ -6,6 +6,7 @@ export interface Team {
   code: string;
   owner_id: string;
   created_at: string;
+  settings?: { batch_mode?: string } | null;
 }
 
 export interface TeamMember {
