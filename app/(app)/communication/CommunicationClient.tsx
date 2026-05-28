@@ -136,6 +136,18 @@ export default function CommunicationClient({
     return () => { supabase.removeChannel(ch); };
   }, [liveBatches.length]);
 
+  async function toggleBatchChecked(batchId: string, itemKey: string) {
+    const batch = liveBatches.find((b) => b.id === batchId);
+    if (!batch) return;
+    const current = batch.checked ?? [];
+    const updated = current.includes(itemKey)
+      ? current.filter((k) => k !== itemKey)
+      : [...current, itemKey];
+    setLiveBatches((prev) => prev.map((b) => b.id === batchId ? { ...b, checked: updated } : b));
+    const supabase = createClient();
+    await supabase.from('batches').update({ checked: updated, updated_at: new Date().toISOString() }).eq('id', batchId);
+  }
+
   async function toggleBatchTimer(batchId: string, timerKey: string) {
     const batch = liveBatches.find((b) => b.id === batchId);
     if (!batch) return;
@@ -648,10 +660,9 @@ export default function CommunicationClient({
             </div>
           ) : teamBatchesForActiveTeam.map((batch) => {
             const totalItems = batch.items?.length ?? 0;
-            const checkedCount = batch.checked?.length ?? 0;
-            const activeTimers = Object.entries(batch.timers ?? {}).filter(([, t]) => t.startedAt && getRemaining(t) > 0);
+            const checkedCount = (batch.checked ?? []).filter((k) => batch.items?.some((i) => i.key === k)).length;
             const batchMode = activeTeam?.settings?.batch_mode ?? 'readonly';
-            const canInteract = batchMode === 'collaborative' || batchMode === 'assigned';
+            const canInteract = batch.user_id === userId || batchMode === 'collaborative' || batchMode === 'assigned';
 
             return (
               <div key={batch.id} className="card p-0 overflow-hidden">
@@ -660,15 +671,12 @@ export default function CommunicationClient({
                     <div>
                       <p className="font-semibold text-[var(--text)]">{batch.name || 'Batch sans titre'}</p>
                       <p className="text-xs text-[var(--text-dim)] mt-0.5">
-                        {totalItems} recette{totalItems !== 1 ? 's' : ''} ·{' '}
-                        {checkedCount}/{Object.keys(batch.timers ?? {}).filter((k) => k !== '__global').length + totalItems} éléments
+                        {checkedCount}/{totalItems} recette{totalItems !== 1 ? 's' : ''} préparée{checkedCount !== 1 ? 's' : ''}
                       </p>
                     </div>
-                    {canInteract && (
-                      <span className="shrink-0 text-[10px] px-2 py-0.5 rounded-full bg-emerald-400/10 text-emerald-400 font-medium">
-                        Collaboratif
-                      </span>
-                    )}
+                    <span className={`shrink-0 text-[10px] px-2 py-0.5 rounded-full font-medium ${canInteract ? 'bg-emerald-400/10 text-emerald-400' : 'bg-[var(--surface2)] text-[var(--text-dim)]'}`}>
+                      {canInteract ? 'Actif' : 'Lecture'}
+                    </span>
                   </div>
                   {/* Progress bar */}
                   {totalItems > 0 && (
@@ -683,14 +691,27 @@ export default function CommunicationClient({
 
                 {/* Recipes list */}
                 {batch.items && batch.items.length > 0 && (
-                  <div className="px-4 py-2 space-y-1 border-b border-[var(--border)]">
-                    {batch.items.map((item) => (
-                      <div key={item.key} className="flex items-center gap-2 py-1">
-                        <div className={`w-1.5 h-1.5 rounded-full ${batch.checked?.includes(item.key) ? 'bg-emerald-400' : 'bg-[var(--border)]'}`} />
-                        <span className="flex-1 text-sm text-[var(--text)] truncate">{item.recipeName}</span>
-                        <span className="text-xs text-[var(--text-dim)] tabular-nums">{item.qty} {item.qtyUnit}</span>
-                      </div>
-                    ))}
+                  <div className="divide-y divide-[var(--border)] border-b border-[var(--border)]">
+                    {batch.items.map((item) => {
+                      const isDone = batch.checked?.includes(item.key);
+                      return canInteract ? (
+                        <button key={item.key} type="button"
+                          onClick={() => toggleBatchChecked(batch.id, item.key)}
+                          className={`w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-[var(--surface2)] transition-colors ${isDone ? 'opacity-50' : ''}`}>
+                          <div className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 transition-colors ${isDone ? 'bg-[var(--gold)] border-[var(--gold)]' : 'border-[var(--border)]'}`}>
+                            {isDone && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#0A0E1A" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                          </div>
+                          <span className={`flex-1 text-sm text-[var(--text)] truncate ${isDone ? 'line-through' : ''}`}>{item.recipeName}</span>
+                          <span className="text-xs text-[var(--text-dim)] tabular-nums shrink-0">{item.qty} {item.qtyUnit}</span>
+                        </button>
+                      ) : (
+                        <div key={item.key} className="flex items-center gap-3 px-4 py-2.5">
+                          <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${isDone ? 'bg-emerald-400' : 'bg-[var(--border)]'}`} />
+                          <span className={`flex-1 text-sm text-[var(--text)] truncate ${isDone ? 'line-through opacity-50' : ''}`}>{item.recipeName}</span>
+                          <span className="text-xs text-[var(--text-dim)] tabular-nums shrink-0">{item.qty} {item.qtyUnit}</span>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
 
