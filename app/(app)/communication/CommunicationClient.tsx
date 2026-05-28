@@ -1,12 +1,13 @@
 'use client';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import {
   Users, BookOpen, FlaskConical, ClipboardList, Download, MessageSquare,
   Send, Trash2, Loader2, X, Plus, Check, Search, ChevronDown, Eye,
   UserPlus, Copy, QrCode, Mail, LogIn, Lock, Crown, Shield,
-  User as UserIcon, ShieldCheck, LogOut, Link2,
+  User as UserIcon, ShieldCheck, LogOut, Link2, Timer, Play, Square, RotateCcw,
+  Package, ChevronRight,
 } from 'lucide-react';
 import QRCode from 'react-qr-code';
 import {
@@ -19,6 +20,13 @@ import Link from 'next/link';
 interface MyRecipe {
   id: string; type: string; name: string;
   data: Record<string, unknown>; metadata: Record<string, unknown>;
+}
+
+interface BatchRow {
+  id: string; user_id: string; team_id: string | null; name: string;
+  items: Array<{ key: string; recipeName: string; qty: number; qtyUnit: string; ingredients?: Array<{ ingredientId?: string; qty: number; name: string; unit: string; type?: string; homemade?: boolean }>; steps?: string | null }>;
+  timers: Record<string, { durationSec: number; startedAt: string | null; label: string }>;
+  checked: string[]; status: string; created_at: string; updated_at: string;
 }
 
 interface Props {
@@ -34,14 +42,31 @@ interface Props {
   notes: TeamNote[];
   myRecipes: MyRecipe[];
   pendingInvites: Array<TeamInvitation & { team_name: string }>;
+  teamBatches?: BatchRow[];
 }
 
-type MainTab = 'shares' | 'members';
+type MainTab = 'shares' | 'members' | 'batches';
 type ShareTab = 'recipe' | 'ingredient' | 'menu';
+
+function fmtTime(totalSec: number): string {
+  const sec = Math.max(0, totalSec);
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  const s = sec % 60;
+  if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+}
+
+function getRemaining(entry: { durationSec: number; startedAt: string | null }): number {
+  if (!entry.startedAt) return entry.durationSec;
+  const elapsed = Math.floor((Date.now() - new Date(entry.startedAt).getTime()) / 1000);
+  return Math.max(0, entry.durationSec - elapsed);
+}
 
 export default function CommunicationClient({
   userId, userEmail, myName, canCreateTeam, teamPlanName,
   teams, members, invitations, sharedItems, notes, myRecipes, pendingInvites,
+  teamBatches = [],
 }: Props) {
   const router = useRouter();
   const supabase = createClient();
@@ -81,6 +106,69 @@ export default function CommunicationClient({
   // Dismissed pending invites
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
 
+  // Live batches state (for real-time timer updates)
+  const [liveBatches, setLiveBatches] = useState<BatchRow[]>(teamBatches);
+  const [tick, setTick] = useState(0);
+  const [collapsedBatches, setCollapsedBatches] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    setLiveBatches(teamBatches);
+  }, [teamBatches]);
+
+  useEffect(() => {
+    const hasActive = liveBatches.some((b) =>
+      Object.values(b.timers ?? {}).some((t) => t.startedAt && getRemaining(t) > 0)
+    );
+    if (!hasActive) return;
+    const id = setInterval(() => setTick((n) => n + 1), 1000);
+    return () => clearInterval(id);
+  }, [liveBatches, tick]);
+
+  // Subscribe to batch updates for shared batches
+  useEffect(() => {
+    if (liveBatches.length === 0) return;
+    const supabase = createClient();
+    const batchIds = liveBatches.map((b) => b.id);
+    const ch = supabase.channel('team-batches')
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'batches' }, (payload) => {
+        if (!batchIds.includes((payload.new as BatchRow).id)) return;
+        setLiveBatches((prev) => prev.map((b) => b.id === (payload.new as BatchRow).id ? payload.new as BatchRow : b));
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [liveBatches.length]);
+
+  async function toggleBatchChecked(batchId: string, itemKey: string) {
+    const batch = liveBatches.find((b) => b.id === batchId);
+    if (!batch) return;
+    const current = batch.checked ?? [];
+    const updated = current.includes(itemKey)
+      ? current.filter((k) => k !== itemKey)
+      : [...current, itemKey];
+    setLiveBatches((prev) => prev.map((b) => b.id === batchId ? { ...b, checked: updated } : b));
+    const supabase = createClient();
+    await supabase.from('batches').update({ checked: updated, updated_at: new Date().toISOString() }).eq('id', batchId);
+  }
+
+  async function toggleBatchTimer(batchId: string, timerKey: string) {
+    const batch = liveBatches.find((b) => b.id === batchId);
+    if (!batch) return;
+    const entry = batch.timers[timerKey];
+    if (!entry) return;
+    const remaining = getRemaining(entry);
+    let newEntry: typeof entry;
+    if (remaining <= 0) {
+      newEntry = { ...entry, startedAt: null };
+    } else if (entry.startedAt) {
+      const elapsed = Math.floor((Date.now() - new Date(entry.startedAt).getTime()) / 1000);
+      newEntry = { ...entry, durationSec: Math.max(0, entry.durationSec - elapsed), startedAt: null };
+    } else {
+      newEntry = { ...entry, startedAt: new Date().toISOString() };
+    }
+    const supabase = createClient();
+    await supabase.from('batches').update({ timers: { ...batch.timers, [timerKey]: newEntry }, updated_at: new Date().toISOString() }).eq('id', batchId);
+  }
+
   const myRole: TeamRole = useMemo(() => {
     if (!activeTeam) return 'user';
     const me = members.find((m) => m.team_id === activeTeam.id && m.user_id === userId);
@@ -97,6 +185,7 @@ export default function CommunicationClient({
   const teamMembers = activeTeam ? members.filter((m) => m.team_id === activeTeam.id) : [];
   const teamInvites = activeTeam ? invitations.filter((i) => i.team_id === activeTeam.id) : [];
   const teamShared = activeTeam ? sharedItems.filter((s) => s.team_id === activeTeam.id) : [];
+  const teamBatchesForActiveTeam = activeTeam ? liveBatches.filter((b) => b.team_id === activeTeam.id) : [];
 
   const counts = {
     recipe: teamShared.filter((s) => s.item_type === 'recipe').length,
@@ -430,11 +519,35 @@ export default function CommunicationClient({
         )}
       </div>
 
+      {/* Bar stock shortcut */}
+      <Link
+        href={`/communication/bar?team=${activeTeam.id}`}
+        className="flex items-center gap-3 px-4 py-3 card hover:border-[var(--gold-dim)] transition-colors"
+      >
+        <div className="w-9 h-9 rounded-lg bg-[var(--gold)]/10 flex items-center justify-center shrink-0">
+          <Package size={18} className="text-[var(--gold)]" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold text-[var(--text)]">Stock du bar</p>
+          <p className="text-xs text-[var(--text-dim)]">Gérer les ingrédients de l&apos;équipe</p>
+        </div>
+        <ChevronRight size={16} className="text-[var(--text-dim)] shrink-0" />
+      </Link>
+
       {/* Main tabs */}
       <div className="flex rounded-lg bg-[var(--surface2)] p-0.5 gap-0.5">
         <button type="button" onClick={() => setMainTab('shares')}
           className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-md text-sm font-medium transition-colors ${mainTab === 'shares' ? 'bg-[var(--surface)] text-[var(--text)] shadow-sm' : 'text-[var(--text-dim)]'}`}>
           <BookOpen size={14} /> Partages
+        </button>
+        <button type="button" onClick={() => setMainTab('batches')}
+          className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-md text-sm font-medium transition-colors ${mainTab === 'batches' ? 'bg-[var(--surface)] text-[var(--text)] shadow-sm' : 'text-[var(--text-dim)]'}`}>
+          <Timer size={14} /> Batch
+          {teamBatchesForActiveTeam.length > 0 && (
+            <span className={`text-[10px] rounded-full px-1.5 py-px leading-none ${mainTab === 'batches' ? 'bg-[var(--gold)]/20 text-[var(--gold)]' : 'bg-[var(--surface)] text-[var(--text-dim)]'}`}>
+              {teamBatchesForActiveTeam.length}
+            </span>
+          )}
         </button>
         <button type="button" onClick={() => setMainTab('members')}
           className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-md text-sm font-medium transition-colors ${mainTab === 'members' ? 'bg-[var(--surface)] text-[var(--text)] shadow-sm' : 'text-[var(--text-dim)]'}`}>
@@ -550,6 +663,161 @@ export default function CommunicationClient({
               Quitter l&apos;équipe
             </button>
           )}
+        </div>
+      )}
+
+      {/* ── BATCHES TAB ── */}
+      {mainTab === 'batches' && (
+        <div className="space-y-3">
+          {teamBatchesForActiveTeam.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 gap-3 text-center">
+              <Timer size={36} className="text-[var(--text-dim)] opacity-30" />
+              <p className="text-sm text-[var(--text-dim)]">Aucun batch actif partagé</p>
+              <p className="text-xs text-[var(--text-dim)] opacity-70">Partage un batch depuis l'outil Batch</p>
+            </div>
+          ) : teamBatchesForActiveTeam.map((batch) => {
+            const totalItems = batch.items?.length ?? 0;
+            const checkedCount = (batch.checked ?? []).filter((k) => batch.items?.some((i) => i.key === k)).length;
+            const batchMode = activeTeam?.settings?.batch_mode ?? 'readonly';
+            const canInteract = batch.user_id === userId || batchMode === 'collaborative' || batchMode === 'assigned';
+
+            const isOpen = !collapsedBatches.has(batch.id);
+            return (
+              <div key={batch.id} className="card p-0 overflow-hidden">
+                {/* Clickable header */}
+                <button type="button"
+                  onClick={() => setCollapsedBatches((prev) => { const n = new Set(prev); n.has(batch.id) ? n.delete(batch.id) : n.add(batch.id); return n; })}
+                  className="w-full px-4 pt-3 pb-3 text-left hover:bg-[var(--surface2)]/30 transition-colors">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-[var(--text)]">{batch.name || 'Batch sans titre'}</p>
+                      <p className="text-xs text-[var(--text-dim)] mt-0.5">
+                        {checkedCount}/{totalItems} recette{totalItems !== 1 ? 's' : ''} préparée{checkedCount !== 1 ? 's' : ''}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${canInteract ? 'bg-emerald-400/10 text-emerald-400' : 'bg-[var(--surface2)] text-[var(--text-dim)]'}`}>
+                        {canInteract ? 'Actif' : 'Lecture'}
+                      </span>
+                      <ChevronDown size={15} className={`text-[var(--text-dim)] transition-transform ${isOpen ? '' : '-rotate-90'}`} />
+                    </div>
+                  </div>
+                  {totalItems > 0 && (
+                    <div className="mt-2 h-1 bg-[var(--surface2)] rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-[var(--gold)] rounded-full transition-all"
+                        style={{ width: `${Math.min(100, (checkedCount / totalItems) * 100)}%` }}
+                      />
+                    </div>
+                  )}
+                </button>
+
+                {isOpen && (
+                  <>
+                    {/* Recipes list */}
+                    {batch.items && batch.items.length > 0 && (
+                      <div className="border-b border-[var(--border)]">
+                        {batch.items.map((item) => {
+                          const isDone = batch.checked?.includes(item.key);
+                          const hasIngredients = (item.ingredients?.length ?? 0) > 0;
+                          const portions = (() => {
+                            if (item.qtyUnit === 'portions') return item.qty;
+                            if (!item.ingredients?.length) return item.qty;
+                            const vol = item.ingredients.reduce((s, i) => {
+                              const u = i.unit.toLowerCase();
+                              return s + (u === 'cl' ? i.qty : u === 'ml' ? i.qty / 10 : u === 'l' ? i.qty * 100 : i.qty);
+                            }, 0);
+                            if (vol <= 0) return item.qty;
+                            const target = item.qtyUnit === 'cl' ? item.qty : item.qtyUnit === 'L' ? item.qty * 100
+                              : item.qtyUnit === 'btl70' ? item.qty * 70 : item.qty * 100;
+                            return target / vol;
+                          })();
+                          return (
+                            <div key={item.key} className={`border-t border-[var(--border)] ${isDone ? 'opacity-50' : ''}`}>
+                              <div className="flex items-center gap-3 px-4 py-2.5">
+                                {canInteract ? (
+                                  <button type="button" onClick={() => toggleBatchChecked(batch.id, item.key)}
+                                    className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 transition-colors ${isDone ? 'bg-[var(--gold)] border-[var(--gold)]' : 'border-[var(--border)]'}`}>
+                                    {isDone && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#0A0E1A" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                                  </button>
+                                ) : (
+                                  <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${isDone ? 'bg-emerald-400' : 'bg-[var(--border)]'}`} />
+                                )}
+                                <span className={`flex-1 text-sm font-medium text-[var(--text)] truncate ${isDone ? 'line-through' : ''}`}>{item.recipeName}</span>
+                                <span className="text-xs text-[var(--text-dim)] tabular-nums shrink-0">{item.qty} {item.qtyUnit}</span>
+                              </div>
+                              {hasIngredients && (
+                                <div className="px-4 pb-3">
+                                  <div className="space-y-1 pl-8">
+                                    {item.ingredients!.map((ing, idx) => (
+                                      <div key={idx} className="flex justify-between gap-2">
+                                        <span className="text-xs text-[var(--text-dim)] truncate">{ing.name}</span>
+                                        <span className="text-xs font-mono text-[var(--text-dim)] shrink-0 tabular-nums">
+                                          {Math.round(ing.qty * portions * 100) / 100} {ing.unit}
+                                        </span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                  {item.steps && (
+                                    <p className="text-xs text-[var(--text-dim)] italic mt-1.5 pl-8 leading-relaxed whitespace-pre-line">{item.steps}</p>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {/* Timers */}
+                    {Object.entries(batch.timers ?? {}).length > 0 && (
+                      <div className="px-4 py-3 space-y-2 border-b border-[var(--border)]">
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-dim)]">Timers</p>
+                        {Object.entries(batch.timers).map(([key, timer]) => {
+                          const remaining = getRemaining(timer);
+                          const isActive = !!timer.startedAt && remaining > 0;
+                          const isDone = remaining <= 0;
+                          return (
+                            <div key={key} className="flex items-center justify-between gap-3">
+                              <div className="flex items-center gap-2">
+                                <Timer size={12} className={isDone ? 'text-emerald-400' : isActive ? 'text-[var(--gold)]' : 'text-[var(--text-dim)]'} />
+                                <span className="text-xs text-[var(--text-dim)]">{timer.label}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className={`font-mono text-sm font-semibold tabular-nums ${isDone ? 'text-emerald-400' : isActive ? 'text-[var(--gold)]' : 'text-[var(--text)]'}`}>
+                                  {isDone ? '✓' : fmtTime(remaining)}
+                                </span>
+                                {canInteract && (
+                                  <button type="button" onClick={() => toggleBatchTimer(batch.id, key)}
+                                    className={`p-1.5 rounded-lg transition-colors ${isActive ? 'bg-orange-400/10 text-orange-400' : isDone ? 'bg-emerald-400/10 text-emerald-400' : 'bg-[var(--gold)]/10 text-[var(--gold)]'}`}>
+                                    {isActive ? <Square size={12} /> : isDone ? <RotateCcw size={12} /> : <Play size={12} />}
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {/* Stop sharing — creator only */}
+                    {batch.user_id === userId && (
+                      <button type="button"
+                        onClick={async () => {
+                          if (!confirm('Arrêter le partage de ce batch ?')) return;
+                          const sb = createClient();
+                          await sb.from('batches').update({ team_id: null }).eq('id', batch.id);
+                          setLiveBatches((prev) => prev.filter((b) => b.id !== batch.id));
+                        }}
+                        className="w-full px-4 py-2.5 flex items-center justify-center gap-1.5 text-xs text-[var(--text-dim)] hover:text-red-400 hover:bg-red-400/5 transition-colors">
+                        <X size={13} /> Arrêter le partage
+                      </button>
+                    )}
+                  </>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
 
