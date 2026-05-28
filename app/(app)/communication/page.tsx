@@ -80,6 +80,23 @@ export default async function CommunicationPage() {
     metadata: (r.metadata ?? {}) as Record<string, unknown>,
   }));
 
+  // Active batches shared with user's teams
+  interface BatchRow {
+    id: string; user_id: string; team_id: string | null; name: string;
+    items: unknown[]; timers: Record<string, unknown>; checked: string[];
+    status: string; created_at: string; updated_at: string;
+  }
+  let teamBatches: BatchRow[] = [];
+  if (teamIds.length > 0) {
+    const { data: batchRows } = await supabase
+      .from('batches')
+      .select('*')
+      .in('team_id', teamIds)
+      .eq('status', 'active')
+      .order('updated_at', { ascending: false });
+    teamBatches = (batchRows ?? []) as BatchRow[];
+  }
+
   return (
     <>
       <TopBar title="Équipe" />
@@ -97,6 +114,7 @@ export default async function CommunicationPage() {
           notes={notes}
           myRecipes={myRecipes}
           pendingInvites={pendingInvites}
+          teamBatches={teamBatches}
         />
       </main>
     </>

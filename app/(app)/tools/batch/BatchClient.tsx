@@ -1,9 +1,10 @@
 'use client';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import {
   Search, ChevronDown, Minus, Plus, FlaskConical, Package,
-  CheckCircle2, Loader2, X, List, BookOpen,
+  CheckCircle2, Loader2, X, List, BookOpen, Timer, Play, Square,
+  RotateCcw, Share2, Users, ChevronRight,
 } from 'lucide-react';
 
 type BatchQtyUnit = 'portions' | 'cl' | 'L' | 'btl70' | 'btl100';
@@ -22,6 +23,7 @@ interface RecipeIngredient {
 
 interface Recipe {
   id: string; name: string; type: string; ingredients: RecipeIngredient[];
+  steps?: string; timerSeconds?: number; method?: string;
 }
 
 interface BatchItem {
@@ -33,10 +35,17 @@ interface ConsolidatedLine {
   sources: string[]; ingredientId?: string; stockInfo?: IngredientStock;
 }
 
+interface TimerEntry {
+  durationSec: number;
+  startedAt: string | null;
+  label: string;
+}
+
 interface Props {
   recipes: Recipe[];
   stockMap: Record<string, IngredientStock>;
   userId: string;
+  teams: Array<{ id: string; name: string; batchMode: string }>;
 }
 
 const CATEGORY_GROUPS: Record<string, { label: string; bar: string; text: string }> = {
@@ -84,6 +93,21 @@ function fmt(qty: number, unit: string): string {
   return `${Math.round(qty * 100) / 100} ${unit}`;
 }
 
+function fmtTime(totalSec: number): string {
+  const sec = Math.max(0, totalSec);
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  const s = sec % 60;
+  if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+}
+
+function getRemaining(entry: TimerEntry): number {
+  if (!entry.startedAt) return entry.durationSec;
+  const elapsed = Math.floor((Date.now() - new Date(entry.startedAt).getTime()) / 1000);
+  return Math.max(0, entry.durationSec - elapsed);
+}
+
 function stockStatus(line: ConsolidatedLine): 'ok' | 'low' | 'insufficient' | 'unknown' {
   if (!line.ingredientId || line.stockInfo?.stock === undefined) return 'unknown';
   const a = line.stockInfo.stock;
@@ -111,8 +135,9 @@ function groupByCategory(ings: RecipeIngredient[], stockMap: Record<string, Ingr
 }
 
 let counter = 0;
+const GLOBAL_TIMER_KEY = '__global';
 
-export default function BatchClient({ recipes, stockMap, userId }: Props) {
+export default function BatchClient({ recipes, stockMap, userId, teams }: Props) {
   const [batchName, setBatchName]   = useState('');
   const [items, setItems]           = useState<BatchItem[]>([]);
   const [search, setSearch]         = useState('');
@@ -120,9 +145,24 @@ export default function BatchClient({ recipes, stockMap, userId }: Props) {
   const [view, setView]             = useState<'recipes' | 'total'>('recipes');
   const [checked, setChecked]       = useState<Set<string>>(new Set());
   const [expanded, setExpanded]     = useState<Set<string>>(new Set());
+  const [timers, setTimers]         = useState<Record<string, TimerEntry>>({});
+  const [globalInput, setGlobalInput] = useState(''); // "HH:MM" or "MM:SS"
   const [producing, setProducing]   = useState(false);
   const [error, setError]           = useState('');
   const [done, setDone]             = useState(false);
+  const [batchId, setBatchId]       = useState<string | null>(null);
+  const [sharing, setSharing]       = useState(false);
+  const [shareTeamId, setShareTeamId] = useState(teams[0]?.id ?? '');
+  const [sharedTeamId, setSharedTeamId] = useState<string | null>(null);
+  const [tick, setTick]             = useState(0);
+
+  // Clock tick every second when any timer is active
+  useEffect(() => {
+    const hasActive = Object.values(timers).some((t) => t.startedAt !== null && getRemaining(t) > 0);
+    if (!hasActive) return;
+    const id = setInterval(() => setTick((n) => n + 1), 1000);
+    return () => clearInterval(id);
+  }, [timers, tick]);
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase().trim();
@@ -131,11 +171,21 @@ export default function BatchClient({ recipes, stockMap, userId }: Props) {
 
   function addItem(recipe: Recipe) {
     counter++;
-    setItems((p) => [...p, { key: `i${counter}`, recipe, qty: 1, qtyUnit: 'portions' }]);
+    const key = `i${counter}`;
+    setItems((p) => [...p, { key, recipe, qty: 1, qtyUnit: 'portions' }]);
+    if (recipe.timerSeconds && recipe.timerSeconds > 0) {
+      setTimers((p) => ({
+        ...p,
+        [key]: { durationSec: recipe.timerSeconds!, startedAt: null, label: recipe.method ?? 'Technique' },
+      }));
+    }
     setSearch(''); setOpen(false);
   }
 
-  function removeItem(key: string) { setItems((p) => p.filter((i) => i.key !== key)); }
+  function removeItem(key: string) {
+    setItems((p) => p.filter((i) => i.key !== key));
+    setTimers((p) => { const n = { ...p }; delete n[key]; return n; });
+  }
 
   function updateQty(key: string, delta: number | null, val?: number) {
     setItems((p) => p.map((i) => i.key !== key ? i : {
@@ -147,12 +197,54 @@ export default function BatchClient({ recipes, stockMap, userId }: Props) {
     setItems((p) => p.map((i) => i.key === key ? { ...i, qtyUnit: unit } : i));
   }
 
+  function toggleTimer(key: string) {
+    setTimers((p) => {
+      const entry = p[key];
+      if (!entry) return p;
+      const remaining = getRemaining(entry);
+      if (remaining <= 0) {
+        return { ...p, [key]: { ...entry, startedAt: null } };
+      }
+      if (entry.startedAt) {
+        const elapsed = Math.floor((Date.now() - new Date(entry.startedAt).getTime()) / 1000);
+        return { ...p, [key]: { ...entry, durationSec: Math.max(0, entry.durationSec - elapsed), startedAt: null } };
+      }
+      const newEntry = { ...entry, startedAt: new Date().toISOString() };
+      if (batchId && sharedTeamId) syncTimerToDb(batchId, key, newEntry);
+      return { ...p, [key]: newEntry };
+    });
+  }
+
+  function resetTimer(key: string) {
+    setTimers((p) => {
+      const entry = p[key];
+      if (!entry) return p;
+      const recipe = items.find((i) => i.key === key)?.recipe;
+      const dur = recipe?.timerSeconds ?? entry.durationSec;
+      return { ...p, [key]: { ...entry, durationSec: dur, startedAt: null } };
+    });
+  }
+
+  function addGlobalTimer() {
+    const parts = globalInput.trim().split(':').map(Number);
+    if (parts.some(isNaN)) return;
+    let sec = 0;
+    if (parts.length === 3) sec = parts[0] * 3600 + parts[1] * 60 + parts[2];
+    else if (parts.length === 2) sec = parts[0] * 3600 + parts[1] * 60;
+    else sec = parts[0] * 60;
+    if (sec <= 0) return;
+    setTimers((p) => ({ ...p, [GLOBAL_TIMER_KEY]: { durationSec: sec, startedAt: null, label: 'Timer global' } }));
+    setGlobalInput('');
+  }
+
   const lines = useMemo((): ConsolidatedLine[] => {
     const map = new Map<string, ConsolidatedLine>();
     for (const item of items) {
       const portions = effectivePortions(item.qty, item.qtyUnit, item.recipe);
       for (const ing of item.recipe.ingredients) {
-        const info = ing.ingredientId ? stockMap[ing.ingredientId] : undefined;
+        const byName: Record<string, IngredientStock> = {};
+        for (const s of Object.values(stockMap)) { if (s.name) byName[s.name.toLowerCase()] = s; }
+        const info = ing.ingredientId ? stockMap[ing.ingredientId] : byName[ing.name.toLowerCase()];
         const k = ing.ingredientId ? `id:${ing.ingredientId}` : `n:${ing.name.toLowerCase()}`;
         const ex = map.get(k);
         if (ex) {
@@ -173,6 +265,58 @@ export default function BatchClient({ recipes, stockMap, userId }: Props) {
     setExpanded((p) => { const n = new Set(p); n.has(key) ? n.delete(key) : n.add(key); return n; });
   }
 
+  const saveBatch = useCallback(async (opts?: { teamId?: string }) => {
+    const supabase = createClient();
+    const payload = {
+      name: batchName || 'Batch sans titre',
+      items: items.map((i) => ({ key: i.key, recipeId: i.recipe.id, recipeName: i.recipe.name, qty: i.qty, qtyUnit: i.qtyUnit })),
+      timers,
+      checked: [...checked],
+      status: 'active' as const,
+      updated_at: new Date().toISOString(),
+    };
+    if (opts?.teamId) Object.assign(payload, { team_id: opts.teamId });
+
+    if (batchId) {
+      await supabase.from('batches').update(payload).eq('id', batchId);
+    } else {
+      const { data } = await supabase.from('batches').insert({ user_id: userId, ...payload }).select('id').single();
+      if (data?.id) setBatchId(data.id as string);
+    }
+  }, [batchName, items, timers, checked, batchId, userId]);
+
+  async function syncTimerToDb(id: string, key: string, entry: TimerEntry) {
+    const supabase = createClient();
+    const { data } = await supabase.from('batches').select('timers').eq('id', id).single();
+    const current = (data?.timers ?? {}) as Record<string, TimerEntry>;
+    await supabase.from('batches').update({ timers: { ...current, [key]: entry } }).eq('id', id);
+  }
+
+  async function handleShare() {
+    if (!shareTeamId) return;
+    setSharing(true);
+    await saveBatch({ teamId: shareTeamId });
+    setSharedTeamId(shareTeamId);
+    setSharing(false);
+  }
+
+  // Real-time subscription when batch is shared
+  useEffect(() => {
+    if (!batchId || !sharedTeamId) return;
+    const supabase = createClient();
+    const ch = supabase.channel(`batch:${batchId}`)
+      .on('postgres_changes', {
+        event: 'UPDATE', schema: 'public', table: 'batches',
+        filter: `id=eq.${batchId}`,
+      }, (payload) => {
+        const row = payload.new as { timers?: Record<string, TimerEntry>; checked?: string[] };
+        if (row.timers) setTimers(row.timers);
+        if (row.checked) setChecked(new Set(row.checked));
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [batchId, sharedTeamId]);
+
   async function handleProduce() {
     setProducing(true); setError('');
     const supabase = createClient();
@@ -184,7 +328,10 @@ export default function BatchClient({ recipes, stockMap, userId }: Props) {
         }).eq('id', l.ingredientId!).eq('user_id', userId))
     );
     if (results.find((r) => r.error)) setError('Erreur lors de la mise à jour du stock.');
-    else setDone(true);
+    else {
+      if (batchId) await createClient().from('batches').update({ status: 'done' }).eq('id', batchId);
+      setDone(true);
+    }
     setProducing(false);
   }
 
@@ -195,7 +342,7 @@ export default function BatchClient({ recipes, stockMap, userId }: Props) {
         <CheckCircle2 size={48} className="text-emerald-400" />
         <p className="text-lg font-semibold text-[var(--text)]">Production validée</p>
         <p className="text-sm text-[var(--text-dim)]">Le stock a été mis à jour.</p>
-        <button type="button" onClick={() => { setItems([]); setChecked(new Set()); setBatchName(''); setDone(false); }} className="btn-primary mt-2">
+        <button type="button" onClick={() => { setItems([]); setChecked(new Set()); setBatchName(''); setTimers({}); setDone(false); setBatchId(null); setSharedTeamId(null); }} className="btn-primary mt-2">
           Nouveau batch
         </button>
       </div>
@@ -203,6 +350,8 @@ export default function BatchClient({ recipes, stockMap, userId }: Props) {
   }
 
   const allChecked = lines.length > 0 && checked.size === lines.length;
+  const globalTimer = timers[GLOBAL_TIMER_KEY];
+  const sharedTeam = teams.find((t) => t.id === sharedTeamId);
 
   return (
     <div className="space-y-3 max-w-xl mx-auto">
@@ -226,7 +375,7 @@ export default function BatchClient({ recipes, stockMap, userId }: Props) {
           onChange={(e) => { setSearch(e.target.value); setOpen(true); }}
           onFocus={() => setOpen(true)}
           onBlur={() => setTimeout(() => setOpen(false), 150)}
-          className="field-input pl-10 w-full"
+          className="field-input !pl-10 w-full"
         />
         {open && (
           <div className="absolute top-full mt-1 left-0 right-0 z-50 card p-1 shadow-xl max-h-64 overflow-y-auto">
@@ -244,6 +393,14 @@ export default function BatchClient({ recipes, stockMap, userId }: Props) {
           </div>
         )}
       </div>
+
+      {/* ── Shared badge ── */}
+      {sharedTeam && (
+        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-400/10 border border-blue-400/20">
+          <Users size={13} className="text-blue-400 shrink-0" />
+          <p className="text-xs text-blue-400">Partagé avec <strong>{sharedTeam.name}</strong> · en direct</p>
+        </div>
+      )}
 
       {/* ── Empty state ── */}
       {items.length === 0 ? (
@@ -277,6 +434,10 @@ export default function BatchClient({ recipes, stockMap, userId }: Props) {
                 const portions = effectivePortions(item.qty, item.qtyUnit, item.recipe);
                 const groups   = groupByCategory(item.recipe.ingredients, stockMap);
                 const cats     = CATEGORY_ORDER.filter((c) => groups[c]);
+                const recipeTimer = timers[item.key];
+                const remaining = recipeTimer ? getRemaining(recipeTimer) : 0;
+                const timerActive = !!recipeTimer?.startedAt && remaining > 0;
+                const timerDone = !!recipeTimer && remaining <= 0;
 
                 return (
                   <div key={item.key} className="card p-0 overflow-hidden">
@@ -289,7 +450,6 @@ export default function BatchClient({ recipes, stockMap, userId }: Props) {
                           <X size={15} />
                         </button>
                       </div>
-                      {/* Stepper row */}
                       <div className="flex items-center gap-2">
                         <div className="flex items-center gap-1 bg-[var(--surface2)] rounded-lg p-1">
                           <button type="button" onClick={() => updateQty(item.key, -1)}
@@ -358,9 +518,7 @@ export default function BatchClient({ recipes, stockMap, userId }: Props) {
                                             </div>
                                           ))}
                                           {info?.steps && (
-                                            <p className="text-xs text-[var(--text-dim)] italic leading-relaxed pt-1">
-                                              → {info.steps}
-                                            </p>
+                                            <p className="text-xs text-[var(--text-dim)] italic leading-relaxed pt-1">→ {info.steps}</p>
                                           )}
                                         </div>
                                       )}
@@ -373,6 +531,42 @@ export default function BatchClient({ recipes, stockMap, userId }: Props) {
                         );
                       })}
                     </div>
+
+                    {/* Steps + Timer */}
+                    {(item.recipe.steps || recipeTimer) && (
+                      <div className="px-4 pb-3 border-t border-[var(--border)] pt-3 space-y-3">
+                        {item.recipe.steps && (
+                          <div>
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-dim)] mb-1.5">Préparation</p>
+                            <p className="text-sm text-[var(--text-dim)] leading-relaxed whitespace-pre-line">{item.recipe.steps}</p>
+                          </div>
+                        )}
+
+                        {recipeTimer && (
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-2">
+                              <Timer size={13} className={timerActive ? 'text-[var(--gold)]' : timerDone ? 'text-emerald-400' : 'text-[var(--text-dim)]'} />
+                              <span className="text-xs text-[var(--text-dim)]">{recipeTimer.label}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className={`font-mono text-lg font-semibold tabular-nums ${timerDone ? 'text-emerald-400' : timerActive ? 'text-[var(--gold)]' : 'text-[var(--text)]'}`}>
+                                {timerDone ? '✓' : fmtTime(remaining)}
+                              </span>
+                              <button type="button" onClick={() => toggleTimer(item.key)}
+                                className={`p-2 rounded-lg transition-colors ${timerActive ? 'bg-orange-400/10 text-orange-400 hover:bg-orange-400/20' : timerDone ? 'bg-emerald-400/10 text-emerald-400' : 'bg-[var(--gold)]/10 text-[var(--gold)] hover:bg-[var(--gold)]/20'}`}>
+                                {timerActive ? <Square size={14} /> : timerDone ? <CheckCircle2 size={14} /> : <Play size={14} />}
+                              </button>
+                              {(timerActive || timerDone) && (
+                                <button type="button" onClick={() => resetTimer(item.key)}
+                                  className="p-2 rounded-lg text-[var(--text-dim)] hover:bg-[var(--surface2)] transition-colors">
+                                  <RotateCcw size={14} />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -408,7 +602,7 @@ export default function BatchClient({ recipes, stockMap, userId }: Props) {
                         <p className="text-xs text-[var(--text-dim)] truncate mt-0.5">{line.sources.join(' · ')}</p>
                         {line.stockInfo?.stock !== undefined && (
                           <p className={`text-xs mt-0.5 ${status === 'ok' ? 'text-emerald-400' : status === 'low' ? 'text-orange-400' : status === 'insufficient' ? 'text-red-400' : 'text-[var(--text-dim)]'}`}>
-                            Stock {line.stockInfo.stock} {line.stockInfo.unit}
+                            Stock: {line.stockInfo.stock} {line.stockInfo.unit}
                             {status === 'insufficient' && ' · insuffisant'}
                             {status === 'low' && ' · juste'}
                           </p>
@@ -421,6 +615,72 @@ export default function BatchClient({ recipes, stockMap, userId }: Props) {
                   );
                 })}
               </div>
+            </div>
+          )}
+
+          {/* ── Global timer ── */}
+          <div className="card p-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <Timer size={14} className="text-[var(--gold)]" />
+              <p className="text-sm font-semibold text-[var(--text)]">Timer global</p>
+            </div>
+            {globalTimer ? (
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className={`font-mono text-2xl font-bold tabular-nums ${getRemaining(globalTimer) <= 0 ? 'text-emerald-400' : globalTimer.startedAt ? 'text-[var(--gold)]' : 'text-[var(--text)]'}`}>
+                    {getRemaining(globalTimer) <= 0 ? '✓ Terminé' : fmtTime(getRemaining(globalTimer))}
+                  </p>
+                  <p className="text-xs text-[var(--text-dim)] mt-0.5">{globalTimer.label}</p>
+                </div>
+                <div className="flex gap-2">
+                  <button type="button" onClick={() => toggleTimer(GLOBAL_TIMER_KEY)}
+                    className={`p-2.5 rounded-lg transition-colors ${globalTimer.startedAt && getRemaining(globalTimer) > 0 ? 'bg-orange-400/10 text-orange-400' : 'bg-[var(--gold)]/10 text-[var(--gold)]'}`}>
+                    {globalTimer.startedAt && getRemaining(globalTimer) > 0 ? <Square size={16} /> : <Play size={16} />}
+                  </button>
+                  <button type="button" onClick={() => setTimers((p) => { const n = { ...p }; delete n[GLOBAL_TIMER_KEY]; return n; })}
+                    className="p-2.5 rounded-lg text-[var(--text-dim)] hover:bg-[var(--surface2)]">
+                    <X size={16} />
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="1:30 (h:mm) ou 45:00 (mm:ss)"
+                  value={globalInput}
+                  onChange={(e) => setGlobalInput(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && addGlobalTimer()}
+                  className="field-input text-sm flex-1"
+                />
+                <button type="button" onClick={addGlobalTimer}
+                  className="btn-primary px-4 shrink-0">
+                  <Plus size={14} />
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* ── Share with team ── */}
+          {teams.length > 0 && !sharedTeamId && (
+            <div className="card p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <Share2 size={14} className="text-[var(--gold)]" />
+                <p className="text-sm font-semibold text-[var(--text)]">Partager avec l'équipe</p>
+              </div>
+              {teams.length > 1 && (
+                <select value={shareTeamId} onChange={(e) => setShareTeamId(e.target.value)} className="field-input text-sm">
+                  {teams.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                </select>
+              )}
+              {teams.length === 1 && (
+                <p className="text-xs text-[var(--text-dim)]">{teams[0].name}</p>
+              )}
+              <button type="button" onClick={handleShare} disabled={sharing}
+                className="btn-primary w-full flex items-center justify-center gap-2">
+                {sharing ? <Loader2 size={14} className="animate-spin" /> : <Share2 size={14} />}
+                Partager en direct
+              </button>
             </div>
           )}
 

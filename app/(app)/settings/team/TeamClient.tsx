@@ -775,6 +775,47 @@ export default function TeamClient({
               })()}
             </div>
 
+            {/* Batch settings (managers only) */}
+            {canManage && (
+              <div className="card space-y-3">
+                <h3 className="font-semibold text-[var(--text)] text-sm">Réglages Batch</h3>
+                <p className="text-xs text-[var(--text-dim)]">Mode d'interaction des membres sur les batches partagés</p>
+                <div className="space-y-2">
+                  {([
+                    { value: 'readonly',     label: 'Lecture seule',  desc: 'Les membres voient le batch et les timers' },
+                    { value: 'collaborative', label: 'Collaboratif',   desc: 'Tout le monde peut cocher et démarrer les timers' },
+                    { value: 'assigned',     label: 'Avec assignation', desc: 'Le manager assigne les étapes à des membres' },
+                  ] as const).map((opt) => {
+                    const current = (activeTeam?.settings?.batch_mode ?? 'readonly');
+                    const isSelected = current === opt.value;
+                    return (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={async () => {
+                          if (!activeTeam) return;
+                          const supabase = createClient();
+                          await supabase.from('teams').update({
+                            settings: { ...(activeTeam.settings ?? {}), batch_mode: opt.value },
+                          }).eq('id', activeTeam.id);
+                          router.refresh();
+                        }}
+                        className={`w-full flex items-start gap-3 px-3 py-2.5 rounded-lg border text-left transition-colors ${isSelected ? 'border-[var(--gold)] bg-[var(--gold)]/5' : 'border-[var(--border)] hover:border-[var(--gold-dim)]'}`}
+                      >
+                        <div className={`mt-0.5 w-3.5 h-3.5 rounded-full border-2 shrink-0 flex items-center justify-center ${isSelected ? 'border-[var(--gold)] bg-[var(--gold)]' : 'border-[var(--border)]'}`}>
+                          {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-[#0A0E1A]" />}
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-[var(--text)]">{opt.label}</p>
+                          <p className="text-xs text-[var(--text-dim)]">{opt.desc}</p>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             {/* Join another / Danger zone */}
             <div className="card space-y-3">
               <h3 className="font-semibold text-[var(--text)] text-sm">Autres actions</h3>

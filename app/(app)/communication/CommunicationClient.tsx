@@ -1,12 +1,12 @@
 'use client';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import {
   Users, BookOpen, FlaskConical, ClipboardList, Download, MessageSquare,
   Send, Trash2, Loader2, X, Plus, Check, Search, ChevronDown, Eye,
   UserPlus, Copy, QrCode, Mail, LogIn, Lock, Crown, Shield,
-  User as UserIcon, ShieldCheck, LogOut, Link2,
+  User as UserIcon, ShieldCheck, LogOut, Link2, Timer, Play, Square, RotateCcw,
 } from 'lucide-react';
 import QRCode from 'react-qr-code';
 import {
@@ -19,6 +19,13 @@ import Link from 'next/link';
 interface MyRecipe {
   id: string; type: string; name: string;
   data: Record<string, unknown>; metadata: Record<string, unknown>;
+}
+
+interface BatchRow {
+  id: string; user_id: string; team_id: string | null; name: string;
+  items: Array<{ key: string; recipeName: string; qty: number; qtyUnit: string }>;
+  timers: Record<string, { durationSec: number; startedAt: string | null; label: string }>;
+  checked: string[]; status: string; created_at: string; updated_at: string;
 }
 
 interface Props {
@@ -34,14 +41,31 @@ interface Props {
   notes: TeamNote[];
   myRecipes: MyRecipe[];
   pendingInvites: Array<TeamInvitation & { team_name: string }>;
+  teamBatches?: BatchRow[];
 }
 
-type MainTab = 'shares' | 'members';
+type MainTab = 'shares' | 'members' | 'batches';
 type ShareTab = 'recipe' | 'ingredient' | 'menu';
+
+function fmtTime(totalSec: number): string {
+  const sec = Math.max(0, totalSec);
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  const s = sec % 60;
+  if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+}
+
+function getRemaining(entry: { durationSec: number; startedAt: string | null }): number {
+  if (!entry.startedAt) return entry.durationSec;
+  const elapsed = Math.floor((Date.now() - new Date(entry.startedAt).getTime()) / 1000);
+  return Math.max(0, entry.durationSec - elapsed);
+}
 
 export default function CommunicationClient({
   userId, userEmail, myName, canCreateTeam, teamPlanName,
   teams, members, invitations, sharedItems, notes, myRecipes, pendingInvites,
+  teamBatches = [],
 }: Props) {
   const router = useRouter();
   const supabase = createClient();
@@ -81,6 +105,56 @@ export default function CommunicationClient({
   // Dismissed pending invites
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
 
+  // Live batches state (for real-time timer updates)
+  const [liveBatches, setLiveBatches] = useState<BatchRow[]>(teamBatches);
+  const [tick, setTick] = useState(0);
+
+  useEffect(() => {
+    setLiveBatches(teamBatches);
+  }, [teamBatches]);
+
+  useEffect(() => {
+    const hasActive = liveBatches.some((b) =>
+      Object.values(b.timers ?? {}).some((t) => t.startedAt && getRemaining(t) > 0)
+    );
+    if (!hasActive) return;
+    const id = setInterval(() => setTick((n) => n + 1), 1000);
+    return () => clearInterval(id);
+  }, [liveBatches, tick]);
+
+  // Subscribe to batch updates for shared batches
+  useEffect(() => {
+    if (liveBatches.length === 0) return;
+    const supabase = createClient();
+    const batchIds = liveBatches.map((b) => b.id);
+    const ch = supabase.channel('team-batches')
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'batches' }, (payload) => {
+        if (!batchIds.includes((payload.new as BatchRow).id)) return;
+        setLiveBatches((prev) => prev.map((b) => b.id === (payload.new as BatchRow).id ? payload.new as BatchRow : b));
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [liveBatches.length]);
+
+  async function toggleBatchTimer(batchId: string, timerKey: string) {
+    const batch = liveBatches.find((b) => b.id === batchId);
+    if (!batch) return;
+    const entry = batch.timers[timerKey];
+    if (!entry) return;
+    const remaining = getRemaining(entry);
+    let newEntry: typeof entry;
+    if (remaining <= 0) {
+      newEntry = { ...entry, startedAt: null };
+    } else if (entry.startedAt) {
+      const elapsed = Math.floor((Date.now() - new Date(entry.startedAt).getTime()) / 1000);
+      newEntry = { ...entry, durationSec: Math.max(0, entry.durationSec - elapsed), startedAt: null };
+    } else {
+      newEntry = { ...entry, startedAt: new Date().toISOString() };
+    }
+    const supabase = createClient();
+    await supabase.from('batches').update({ timers: { ...batch.timers, [timerKey]: newEntry }, updated_at: new Date().toISOString() }).eq('id', batchId);
+  }
+
   const myRole: TeamRole = useMemo(() => {
     if (!activeTeam) return 'user';
     const me = members.find((m) => m.team_id === activeTeam.id && m.user_id === userId);
@@ -97,6 +171,7 @@ export default function CommunicationClient({
   const teamMembers = activeTeam ? members.filter((m) => m.team_id === activeTeam.id) : [];
   const teamInvites = activeTeam ? invitations.filter((i) => i.team_id === activeTeam.id) : [];
   const teamShared = activeTeam ? sharedItems.filter((s) => s.team_id === activeTeam.id) : [];
+  const teamBatchesForActiveTeam = activeTeam ? liveBatches.filter((b) => b.team_id === activeTeam.id) : [];
 
   const counts = {
     recipe: teamShared.filter((s) => s.item_type === 'recipe').length,
@@ -436,6 +511,15 @@ export default function CommunicationClient({
           className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-md text-sm font-medium transition-colors ${mainTab === 'shares' ? 'bg-[var(--surface)] text-[var(--text)] shadow-sm' : 'text-[var(--text-dim)]'}`}>
           <BookOpen size={14} /> Partages
         </button>
+        <button type="button" onClick={() => setMainTab('batches')}
+          className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-md text-sm font-medium transition-colors ${mainTab === 'batches' ? 'bg-[var(--surface)] text-[var(--text)] shadow-sm' : 'text-[var(--text-dim)]'}`}>
+          <Timer size={14} /> Batch
+          {teamBatchesForActiveTeam.length > 0 && (
+            <span className={`text-[10px] rounded-full px-1.5 py-px leading-none ${mainTab === 'batches' ? 'bg-[var(--gold)]/20 text-[var(--gold)]' : 'bg-[var(--surface)] text-[var(--text-dim)]'}`}>
+              {teamBatchesForActiveTeam.length}
+            </span>
+          )}
+        </button>
         <button type="button" onClick={() => setMainTab('members')}
           className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-md text-sm font-medium transition-colors ${mainTab === 'members' ? 'bg-[var(--surface)] text-[var(--text)] shadow-sm' : 'text-[var(--text-dim)]'}`}>
           <Users size={14} /> Membres
@@ -550,6 +634,99 @@ export default function CommunicationClient({
               Quitter l&apos;équipe
             </button>
           )}
+        </div>
+      )}
+
+      {/* ── BATCHES TAB ── */}
+      {mainTab === 'batches' && (
+        <div className="space-y-3">
+          {teamBatchesForActiveTeam.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 gap-3 text-center">
+              <Timer size={36} className="text-[var(--text-dim)] opacity-30" />
+              <p className="text-sm text-[var(--text-dim)]">Aucun batch actif partagé</p>
+              <p className="text-xs text-[var(--text-dim)] opacity-70">Partage un batch depuis l'outil Batch</p>
+            </div>
+          ) : teamBatchesForActiveTeam.map((batch) => {
+            const totalItems = batch.items?.length ?? 0;
+            const checkedCount = batch.checked?.length ?? 0;
+            const activeTimers = Object.entries(batch.timers ?? {}).filter(([, t]) => t.startedAt && getRemaining(t) > 0);
+            const batchMode = activeTeam?.settings?.batch_mode ?? 'readonly';
+            const canInteract = batchMode === 'collaborative' || batchMode === 'assigned';
+
+            return (
+              <div key={batch.id} className="card p-0 overflow-hidden">
+                <div className="px-4 pt-3 pb-3 border-b border-[var(--border)]">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <p className="font-semibold text-[var(--text)]">{batch.name || 'Batch sans titre'}</p>
+                      <p className="text-xs text-[var(--text-dim)] mt-0.5">
+                        {totalItems} recette{totalItems !== 1 ? 's' : ''} ·{' '}
+                        {checkedCount}/{Object.keys(batch.timers ?? {}).filter((k) => k !== '__global').length + totalItems} éléments
+                      </p>
+                    </div>
+                    {canInteract && (
+                      <span className="shrink-0 text-[10px] px-2 py-0.5 rounded-full bg-emerald-400/10 text-emerald-400 font-medium">
+                        Collaboratif
+                      </span>
+                    )}
+                  </div>
+                  {/* Progress bar */}
+                  {totalItems > 0 && (
+                    <div className="mt-2 h-1 bg-[var(--surface2)] rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-[var(--gold)] rounded-full transition-all"
+                        style={{ width: `${Math.min(100, (checkedCount / totalItems) * 100)}%` }}
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {/* Recipes list */}
+                {batch.items && batch.items.length > 0 && (
+                  <div className="px-4 py-2 space-y-1 border-b border-[var(--border)]">
+                    {batch.items.map((item) => (
+                      <div key={item.key} className="flex items-center gap-2 py-1">
+                        <div className={`w-1.5 h-1.5 rounded-full ${batch.checked?.includes(item.key) ? 'bg-emerald-400' : 'bg-[var(--border)]'}`} />
+                        <span className="flex-1 text-sm text-[var(--text)] truncate">{item.recipeName}</span>
+                        <span className="text-xs text-[var(--text-dim)] tabular-nums">{item.qty} {item.qtyUnit}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Timers */}
+                {Object.entries(batch.timers ?? {}).length > 0 && (
+                  <div className="px-4 py-3 space-y-2">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-dim)]">Timers</p>
+                    {Object.entries(batch.timers).map(([key, timer]) => {
+                      const remaining = getRemaining(timer);
+                      const isActive = !!timer.startedAt && remaining > 0;
+                      const isDone = remaining <= 0;
+                      return (
+                        <div key={key} className="flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-2">
+                            <Timer size={12} className={isDone ? 'text-emerald-400' : isActive ? 'text-[var(--gold)]' : 'text-[var(--text-dim)]'} />
+                            <span className="text-xs text-[var(--text-dim)]">{timer.label}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className={`font-mono text-sm font-semibold tabular-nums ${isDone ? 'text-emerald-400' : isActive ? 'text-[var(--gold)]' : 'text-[var(--text)]'}`}>
+                              {isDone ? '✓' : fmtTime(remaining)}
+                            </span>
+                            {canInteract && (
+                              <button type="button" onClick={() => toggleBatchTimer(batch.id, key)}
+                                className={`p-1.5 rounded-lg transition-colors ${isActive ? 'bg-orange-400/10 text-orange-400' : isDone ? 'bg-emerald-400/10 text-emerald-400' : 'bg-[var(--gold)]/10 text-[var(--gold)]'}`}>
+                                {isActive ? <Square size={12} /> : isDone ? <RotateCcw size={12} /> : <Play size={12} />}
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
 
