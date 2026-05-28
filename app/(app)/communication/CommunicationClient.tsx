@@ -108,7 +108,7 @@ export default function CommunicationClient({
   // Live batches state (for real-time timer updates)
   const [liveBatches, setLiveBatches] = useState<BatchRow[]>(teamBatches);
   const [tick, setTick] = useState(0);
-  const [expandedBatchItems, setExpandedBatchItems] = useState<Set<string>>(new Set());
+  const [collapsedBatches, setCollapsedBatches] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     setLiveBatches(teamBatches);
@@ -665,21 +665,27 @@ export default function CommunicationClient({
             const batchMode = activeTeam?.settings?.batch_mode ?? 'readonly';
             const canInteract = batch.user_id === userId || batchMode === 'collaborative' || batchMode === 'assigned';
 
+            const isOpen = !collapsedBatches.has(batch.id);
             return (
               <div key={batch.id} className="card p-0 overflow-hidden">
-                <div className="px-4 pt-3 pb-3 border-b border-[var(--border)]">
+                {/* Clickable header */}
+                <button type="button"
+                  onClick={() => setCollapsedBatches((prev) => { const n = new Set(prev); n.has(batch.id) ? n.delete(batch.id) : n.add(batch.id); return n; })}
+                  className="w-full px-4 pt-3 pb-3 text-left hover:bg-[var(--surface2)]/30 transition-colors">
                   <div className="flex items-start justify-between gap-2">
-                    <div>
+                    <div className="flex-1 min-w-0">
                       <p className="font-semibold text-[var(--text)]">{batch.name || 'Batch sans titre'}</p>
                       <p className="text-xs text-[var(--text-dim)] mt-0.5">
                         {checkedCount}/{totalItems} recette{totalItems !== 1 ? 's' : ''} préparée{checkedCount !== 1 ? 's' : ''}
                       </p>
                     </div>
-                    <span className={`shrink-0 text-[10px] px-2 py-0.5 rounded-full font-medium ${canInteract ? 'bg-emerald-400/10 text-emerald-400' : 'bg-[var(--surface2)] text-[var(--text-dim)]'}`}>
-                      {canInteract ? 'Actif' : 'Lecture'}
-                    </span>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${canInteract ? 'bg-emerald-400/10 text-emerald-400' : 'bg-[var(--surface2)] text-[var(--text-dim)]'}`}>
+                        {canInteract ? 'Actif' : 'Lecture'}
+                      </span>
+                      <ChevronDown size={15} className={`text-[var(--text-dim)] transition-transform ${isOpen ? '' : '-rotate-90'}`} />
+                    </div>
                   </div>
-                  {/* Progress bar */}
                   {totalItems > 0 && (
                     <div className="mt-2 h-1 bg-[var(--surface2)] rounded-full overflow-hidden">
                       <div
@@ -688,106 +694,110 @@ export default function CommunicationClient({
                       />
                     </div>
                   )}
-                </div>
+                </button>
 
-                {/* Recipes list */}
-                {batch.items && batch.items.length > 0 && (
-                  <div className="divide-y divide-[var(--border)] border-b border-[var(--border)]">
-                    {batch.items.map((item) => {
-                      const isDone = batch.checked?.includes(item.key);
-                      const expandKey = `${batch.id}:${item.key}`;
-                      const isExpanded = expandedBatchItems.has(expandKey);
-                      const hasDetail = (item.ingredients?.length ?? 0) > 0 || !!item.steps;
-                      const portions = (() => {
-                        if (item.qtyUnit === 'portions') return item.qty;
-                        if (!item.ingredients?.length) return item.qty;
-                        const vol = item.ingredients.reduce((s, i) => {
-                          const u = i.unit.toLowerCase();
-                          return s + (u === 'cl' ? i.qty : u === 'ml' ? i.qty / 10 : u === 'l' ? i.qty * 100 : i.qty);
-                        }, 0);
-                        if (vol <= 0) return item.qty;
-                        const target = item.qtyUnit === 'cl' ? item.qty : item.qtyUnit === 'L' ? item.qty * 100
-                          : item.qtyUnit === 'btl70' ? item.qty * 70 : item.qty * 100;
-                        return target / vol;
-                      })();
-                      return (
-                        <div key={item.key}>
-                          <div className={`flex items-center gap-3 px-4 py-2.5 ${isDone ? 'opacity-50' : ''}`}>
-                            {canInteract ? (
-                              <button type="button" onClick={() => toggleBatchChecked(batch.id, item.key)}
-                                className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 transition-colors ${isDone ? 'bg-[var(--gold)] border-[var(--gold)]' : 'border-[var(--border)]'}`}>
-                                {isDone && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#0A0E1A" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>}
-                              </button>
-                            ) : (
-                              <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${isDone ? 'bg-emerald-400' : 'bg-[var(--border)]'}`} />
-                            )}
-                            <span className={`flex-1 text-sm text-[var(--text)] truncate ${isDone ? 'line-through' : ''}`}>{item.recipeName}</span>
-                            <span className="text-xs text-[var(--text-dim)] tabular-nums shrink-0">{item.qty} {item.qtyUnit}</span>
-                            {hasDetail && (
-                              <button type="button"
-                                onClick={() => setExpandedBatchItems((prev) => { const n = new Set(prev); n.has(expandKey) ? n.delete(expandKey) : n.add(expandKey); return n; })}
-                                className="p-1 text-[var(--text-dim)] hover:text-[var(--text)] transition-colors shrink-0">
-                                <ChevronDown size={13} className={`transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
-                              </button>
-                            )}
-                          </div>
-                          {isExpanded && (
-                            <div className="mx-4 mb-2 rounded-lg bg-[var(--surface2)]/50 border border-[var(--border)] overflow-hidden">
-                              {item.ingredients && item.ingredients.length > 0 && (
-                                <div className="p-3 space-y-1.5">
-                                  {item.ingredients.map((ing, idx) => (
-                                    <div key={idx} className="flex justify-between gap-2">
-                                      <span className="text-xs text-[var(--text)] truncate">{ing.name}</span>
-                                      <span className="text-xs font-mono text-[var(--text-dim)] shrink-0 tabular-nums">
-                                        {Math.round(ing.qty * portions * 100) / 100} {ing.unit}
-                                      </span>
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
-                              {item.steps && (
-                                <div className={`px-3 pb-3 ${item.ingredients?.length ? 'pt-2 border-t border-[var(--border)]' : 'pt-3'}`}>
-                                  <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-dim)] mb-1">Préparation</p>
-                                  <p className="text-xs text-[var(--text-dim)] leading-relaxed whitespace-pre-line">{item.steps}</p>
+                {isOpen && (
+                  <>
+                    {/* Recipes list */}
+                    {batch.items && batch.items.length > 0 && (
+                      <div className="border-b border-[var(--border)]">
+                        {batch.items.map((item) => {
+                          const isDone = batch.checked?.includes(item.key);
+                          const hasIngredients = (item.ingredients?.length ?? 0) > 0;
+                          const portions = (() => {
+                            if (item.qtyUnit === 'portions') return item.qty;
+                            if (!item.ingredients?.length) return item.qty;
+                            const vol = item.ingredients.reduce((s, i) => {
+                              const u = i.unit.toLowerCase();
+                              return s + (u === 'cl' ? i.qty : u === 'ml' ? i.qty / 10 : u === 'l' ? i.qty * 100 : i.qty);
+                            }, 0);
+                            if (vol <= 0) return item.qty;
+                            const target = item.qtyUnit === 'cl' ? item.qty : item.qtyUnit === 'L' ? item.qty * 100
+                              : item.qtyUnit === 'btl70' ? item.qty * 70 : item.qty * 100;
+                            return target / vol;
+                          })();
+                          return (
+                            <div key={item.key} className={`border-t border-[var(--border)] ${isDone ? 'opacity-50' : ''}`}>
+                              <div className="flex items-center gap-3 px-4 py-2.5">
+                                {canInteract ? (
+                                  <button type="button" onClick={() => toggleBatchChecked(batch.id, item.key)}
+                                    className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 transition-colors ${isDone ? 'bg-[var(--gold)] border-[var(--gold)]' : 'border-[var(--border)]'}`}>
+                                    {isDone && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#0A0E1A" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                                  </button>
+                                ) : (
+                                  <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${isDone ? 'bg-emerald-400' : 'bg-[var(--border)]'}`} />
+                                )}
+                                <span className={`flex-1 text-sm font-medium text-[var(--text)] truncate ${isDone ? 'line-through' : ''}`}>{item.recipeName}</span>
+                                <span className="text-xs text-[var(--text-dim)] tabular-nums shrink-0">{item.qty} {item.qtyUnit}</span>
+                              </div>
+                              {hasIngredients && (
+                                <div className="px-4 pb-3">
+                                  <div className="space-y-1 pl-8">
+                                    {item.ingredients!.map((ing, idx) => (
+                                      <div key={idx} className="flex justify-between gap-2">
+                                        <span className="text-xs text-[var(--text-dim)] truncate">{ing.name}</span>
+                                        <span className="text-xs font-mono text-[var(--text-dim)] shrink-0 tabular-nums">
+                                          {Math.round(ing.qty * portions * 100) / 100} {ing.unit}
+                                        </span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                  {item.steps && (
+                                    <p className="text-xs text-[var(--text-dim)] italic mt-1.5 pl-8 leading-relaxed whitespace-pre-line">{item.steps}</p>
+                                  )}
                                 </div>
                               )}
                             </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
+                          );
+                        })}
+                      </div>
+                    )}
 
-                {/* Timers */}
-                {Object.entries(batch.timers ?? {}).length > 0 && (
-                  <div className="px-4 py-3 space-y-2">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-dim)]">Timers</p>
-                    {Object.entries(batch.timers).map(([key, timer]) => {
-                      const remaining = getRemaining(timer);
-                      const isActive = !!timer.startedAt && remaining > 0;
-                      const isDone = remaining <= 0;
-                      return (
-                        <div key={key} className="flex items-center justify-between gap-3">
-                          <div className="flex items-center gap-2">
-                            <Timer size={12} className={isDone ? 'text-emerald-400' : isActive ? 'text-[var(--gold)]' : 'text-[var(--text-dim)]'} />
-                            <span className="text-xs text-[var(--text-dim)]">{timer.label}</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <span className={`font-mono text-sm font-semibold tabular-nums ${isDone ? 'text-emerald-400' : isActive ? 'text-[var(--gold)]' : 'text-[var(--text)]'}`}>
-                              {isDone ? '✓' : fmtTime(remaining)}
-                            </span>
-                            {canInteract && (
-                              <button type="button" onClick={() => toggleBatchTimer(batch.id, key)}
-                                className={`p-1.5 rounded-lg transition-colors ${isActive ? 'bg-orange-400/10 text-orange-400' : isDone ? 'bg-emerald-400/10 text-emerald-400' : 'bg-[var(--gold)]/10 text-[var(--gold)]'}`}>
-                                {isActive ? <Square size={12} /> : isDone ? <RotateCcw size={12} /> : <Play size={12} />}
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
+                    {/* Timers */}
+                    {Object.entries(batch.timers ?? {}).length > 0 && (
+                      <div className="px-4 py-3 space-y-2 border-b border-[var(--border)]">
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-dim)]">Timers</p>
+                        {Object.entries(batch.timers).map(([key, timer]) => {
+                          const remaining = getRemaining(timer);
+                          const isActive = !!timer.startedAt && remaining > 0;
+                          const isDone = remaining <= 0;
+                          return (
+                            <div key={key} className="flex items-center justify-between gap-3">
+                              <div className="flex items-center gap-2">
+                                <Timer size={12} className={isDone ? 'text-emerald-400' : isActive ? 'text-[var(--gold)]' : 'text-[var(--text-dim)]'} />
+                                <span className="text-xs text-[var(--text-dim)]">{timer.label}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className={`font-mono text-sm font-semibold tabular-nums ${isDone ? 'text-emerald-400' : isActive ? 'text-[var(--gold)]' : 'text-[var(--text)]'}`}>
+                                  {isDone ? '✓' : fmtTime(remaining)}
+                                </span>
+                                {canInteract && (
+                                  <button type="button" onClick={() => toggleBatchTimer(batch.id, key)}
+                                    className={`p-1.5 rounded-lg transition-colors ${isActive ? 'bg-orange-400/10 text-orange-400' : isDone ? 'bg-emerald-400/10 text-emerald-400' : 'bg-[var(--gold)]/10 text-[var(--gold)]'}`}>
+                                    {isActive ? <Square size={12} /> : isDone ? <RotateCcw size={12} /> : <Play size={12} />}
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {/* Stop sharing — creator only */}
+                    {batch.user_id === userId && (
+                      <button type="button"
+                        onClick={async () => {
+                          if (!confirm('Arrêter le partage de ce batch ?')) return;
+                          const sb = createClient();
+                          await sb.from('batches').update({ team_id: null }).eq('id', batch.id);
+                          setLiveBatches((prev) => prev.filter((b) => b.id !== batch.id));
+                        }}
+                        className="w-full px-4 py-2.5 flex items-center justify-center gap-1.5 text-xs text-[var(--text-dim)] hover:text-red-400 hover:bg-red-400/5 transition-colors">
+                        <X size={13} /> Arrêter le partage
+                      </button>
+                    )}
+                  </>
                 )}
               </div>
             );
