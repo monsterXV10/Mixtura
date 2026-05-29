@@ -17,23 +17,36 @@ export function TopBar({ title, backHref, actions, className }: TopBarProps) {
   return (
     <header
       className={cn(
-        'flex items-center justify-between px-4 h-14 border-b border-[var(--border)]',
-        'bg-[var(--surface)] sticky top-0 z-30',
+        'flex items-center justify-between px-4 h-14',
+        'sticky top-0 z-30',
         className
       )}
+      style={{
+        background: 'linear-gradient(180deg, var(--surface) 0%, color-mix(in srgb, var(--surface) 92%, transparent) 100%)',
+        backdropFilter: 'blur(12px)',
+        WebkitBackdropFilter: 'blur(12px)',
+        borderBottom: '1px solid var(--border)',
+        boxShadow: '0 1px 0 var(--border), 0 2px 16px rgba(0,0,0,0.15)',
+      }}
     >
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 min-w-0">
         {backHref && (
           <button
             onClick={() => router.push(backHref)}
-            className="text-[var(--text-dim)] hover:text-[var(--text)] transition-colors"
+            className="shrink-0 w-8 h-8 flex items-center justify-center rounded-lg text-[var(--text-dim)] hover:text-[var(--text)] hover:bg-[var(--surface2)] transition-all duration-150"
+            aria-label="Retour"
           >
-            <ArrowLeft size={20} />
+            <ArrowLeft size={18} />
           </button>
         )}
-        <h1 className="font-semibold text-[var(--text)] text-base">{title}</h1>
+        <h1
+          className="font-semibold text-[var(--text)] text-[15px] truncate"
+          style={{ letterSpacing: '-0.01em' }}
+        >
+          {title}
+        </h1>
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 shrink-0">
         {actions}
         <ThemeToggle />
       </div>
