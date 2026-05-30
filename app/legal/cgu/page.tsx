@@ -11,7 +11,7 @@ export default function CguPage() {
       <section className="space-y-3">
         <h2 className="text-base font-semibold" style={{ color: 'var(--text)' }}>1. Objet</h2>
         <p className="text-sm" style={{ color: 'var(--text-dim)' }}>
-          Les présentes Conditions Générales d&apos;Utilisation (CGU) régissent l&apos;accès et l&apos;utilisation de la plateforme Mixtura, service SaaS de gestion de bar et de cocktails accessible sur mixtura.buzz, édité par [NOM DE LA SOCIÉTÉ] (ci-après « Mixtura »).
+          Les présentes Conditions Générales d&apos;Utilisation (CGU) régissent l&apos;accès et l&apos;utilisation de la plateforme Mixtura, service SaaS de gestion de bar et de cocktails accessible sur mixtura.buzz (ci-après « Mixtura »).
         </p>
         <p className="text-sm" style={{ color: 'var(--text-dim)' }}>
           En créant un compte ou en utilisant le service, vous acceptez pleinement et sans réserve les présentes CGU.

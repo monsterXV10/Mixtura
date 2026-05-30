@@ -12,8 +12,8 @@ export default function ConfidentialitePage() {
         <h2 className="text-base font-semibold" style={{ color: 'var(--text)' }}>1. Responsable du traitement</h2>
         <p className="text-sm" style={{ color: 'var(--text-dim)' }}>
           Le responsable du traitement des données personnelles collectées via mixtura.buzz est :<br />
-          <strong style={{ color: 'var(--text)' }}>[NOM DE LA SOCIÉTÉ]</strong>, [ADRESSE], Luxembourg.<br />
-          Contact DPO / responsable : <a href="mailto:privacy@mixtura.buzz" className="underline">privacy@mixtura.buzz</a>
+          <strong style={{ color: 'var(--text)' }}>Mixtura</strong> (projet en cours d&apos;immatriculation au Grand-Duché de Luxembourg).<br />
+          Contact : <a href="mailto:privacy@mixtura.buzz" className="underline">privacy@mixtura.buzz</a>
         </p>
       </section>
 

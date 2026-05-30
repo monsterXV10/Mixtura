@@ -86,9 +86,12 @@ export default function RegisterPage() {
 
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <div className="w-12 h-12 rounded-xl bg-[var(--gold)] flex items-center justify-center mx-auto mb-4">
-            <span className="text-[#0A0E1A] font-bold text-xl">M</span>
-          </div>
+          <img
+            src="/icons/icon.svg"
+            alt="Mixtura"
+            className="w-12 h-12 rounded-xl mx-auto mb-4"
+            style={{ boxShadow: '0 4px 20px rgba(200,169,110,0.25)' }}
+          />
           <h1 className="text-2xl font-bold text-[var(--text)]">Créer un compte</h1>
           <p className="text-[var(--text-dim)] text-sm mt-1">Gratuit, sans carte bancaire</p>
         </div>

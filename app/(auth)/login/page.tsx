@@ -66,15 +66,12 @@ export default function LoginPage() {
       <div className="w-full max-w-sm animate-fade-up">
         {/* Logo */}
         <div className="text-center mb-10">
-          <div
-            className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-5"
-            style={{
-              background: 'linear-gradient(145deg, #D4B47C 0%, #C8A96E 60%, #A8823E 100%)',
-              boxShadow: '0 4px 20px rgba(200,169,110,0.35), inset 0 1px 0 rgba(255,255,255,0.2)',
-            }}
-          >
-            <span className="text-[#0A0C14] font-bold text-2xl" style={{ letterSpacing: '-0.03em' }}>M</span>
-          </div>
+          <img
+            src="/icons/icon.svg"
+            alt="Mixtura"
+            className="w-14 h-14 rounded-2xl mx-auto mb-5"
+            style={{ boxShadow: '0 4px 20px rgba(200,169,110,0.35)' }}
+          />
           <h1 className="text-2xl font-bold text-[var(--text)]" style={{ letterSpacing: '-0.03em' }}>
             Mixtura
           </h1>
