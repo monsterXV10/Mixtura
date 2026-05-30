@@ -1,8 +1,9 @@
 'use client';
 import { useState, useMemo } from 'react';
+import { PLANS, type PlanId } from '@/config/plans';
 import { TopBar } from '@/components/layout/TopBar';
 import Link from 'next/link';
-import { Plus, Search, Package, FlaskConical } from 'lucide-react';
+import { Plus, Search, Package, FlaskConical, Lock } from 'lucide-react';
 
 interface IngredientData {
   name?: string;
@@ -35,6 +36,7 @@ interface IngredientRow {
 interface Props {
   initialIngredients: IngredientRow[];
   userId: string;
+  userPlan: PlanId;
 }
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -78,7 +80,10 @@ const STOCK_DOT: Record<string, string> = {
   empty: 'bg-red-400',
 };
 
-export default function IngredientsClient({ initialIngredients }: Props) {
+export default function IngredientsClient({ initialIngredients, userPlan }: Props) {
+  const ingredientLimit = PLANS[userPlan].limits.ingredients;
+  const isReadOnly = ingredientLimit !== Infinity && initialIngredients.length > ingredientLimit;
+
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
 
@@ -109,14 +114,26 @@ export default function IngredientsClient({ initialIngredients }: Props) {
       <TopBar
         title="Stocks"
         actions={
-          <Link href="/ingredients/new" className="btn-primary h-9 px-3 text-sm gap-1">
-            <Plus size={15} />
-            Ajouter
-          </Link>
+          !isReadOnly ? (
+            <Link href="/ingredients/new" className="btn-primary h-9 px-3 text-sm gap-1">
+              <Plus size={15} />
+              Ajouter
+            </Link>
+          ) : undefined
         }
       />
 
       <main className="px-4 py-4 pb-safe space-y-4">
+        {isReadOnly && (
+          <div className="flex items-start gap-2.5 px-3 py-2.5 rounded-lg text-xs" style={{ background: 'rgba(200,164,92,0.10)', border: '1px solid rgba(200,164,92,0.25)' }}>
+            <Lock size={13} className="shrink-0 mt-0.5" style={{ color: 'var(--gold)' }} />
+            <p style={{ color: 'var(--text-dim)' }}>
+              Votre plan Free inclut {ingredientLimit} ingrédients. Vos données sont en lecture seule —{' '}
+              <Link href="/settings/plan" className="underline" style={{ color: 'var(--gold)' }}>passez à un plan supérieur</Link> pour modifier.
+            </p>
+          </div>
+        )}
+
         <div className="relative">
           <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--text-dim)]" />
           <input
@@ -153,10 +170,12 @@ export default function IngredientsClient({ initialIngredients }: Props) {
                 Ajoutez vos premiers ingrédients pour suivre vos stocks
               </p>
             </div>
-            <Link href="/ingredients/new" className="btn-primary px-4 py-2 text-sm">
-              <Plus size={14} />
-              Ajouter un ingrédient
-            </Link>
+            {!isReadOnly && (
+              <Link href="/ingredients/new" className="btn-primary px-4 py-2 text-sm">
+                <Plus size={14} />
+                Ajouter un ingrédient
+              </Link>
+            )}
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
