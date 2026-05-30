@@ -124,7 +124,7 @@ export default function PlanClient({ currentPlan }: { currentPlan: PlanId }) {
                   <p className="text-lg font-bold text-[var(--text)]">Gratuit</p>
                 ) : (
                   <>
-                    <p className="text-lg font-bold text-[var(--text)]">{fmt(displayPrice)}€</p>
+                    <p className="text-lg font-bold text-[var(--text)]">{fmt(displayPrice)}€ <span className="text-xs font-normal text-[var(--text-dim)]">HT</span></p>
                     <p className="text-[10px] text-[var(--text-dim)]">/mois</p>
                     {annual && saving > 0 && (
                       <p className="text-[10px] font-medium" style={{ color: 'var(--gold)' }}>
@@ -132,7 +132,7 @@ export default function PlanClient({ currentPlan }: { currentPlan: PlanId }) {
                       </p>
                     )}
                     {annual && prices.annualTotal > 0 && (
-                      <p className="text-[10px] text-[var(--text-dim)]">facturé {fmt(prices.annualTotal)}€/an</p>
+                      <p className="text-[10px] text-[var(--text-dim)]">facturé {fmt(prices.annualTotal)}€ HT/an</p>
                     )}
                   </>
                 )}
@@ -226,6 +226,10 @@ export default function PlanClient({ currentPlan }: { currentPlan: PlanId }) {
       <p className="text-xs text-center px-4" style={{ color: 'var(--text-dim)' }}>
         Paiements disponibles prochainement —{' '}
         <a href="mailto:contact@mixtura.buzz" className="underline">accès anticipé</a>
+      </p>
+
+      <p className="text-xs text-center px-4" style={{ color: 'var(--text-dim)' }}>
+        Prix HT — TVA applicable selon votre pays (17 % au Luxembourg).
       </p>
 
       <div className="flex justify-center gap-4 text-xs" style={{ color: 'var(--text-dim)' }}>

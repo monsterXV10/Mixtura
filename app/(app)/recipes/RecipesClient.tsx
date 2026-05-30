@@ -2,9 +2,10 @@
 import { useState, useMemo, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { ensureIngredients } from '@/lib/utils/ingredients';
+import { PLANS, type PlanId } from '@/config/plans';
 import { TopBar } from '@/components/layout/TopBar';
 import Link from 'next/link';
-import { Plus, Search, BookOpen, Package, Download, Check, Pencil, FlaskConical } from 'lucide-react';
+import { Plus, Search, BookOpen, Package, Download, Check, Pencil, FlaskConical, Lock } from 'lucide-react';
 
 interface RecipeRow {
   id: string;
@@ -69,6 +70,7 @@ interface Props {
   initialRecipes: RecipeRow[];
   homemadeIngredients: HomemadeIngredient[];
   userId: string;
+  userPlan: PlanId;
 }
 
 const TYPE_LABELS: Record<string, string> = {
@@ -102,7 +104,10 @@ const SPIRIT_LABELS: Record<string, string> = Object.fromEntries(
   SPIRIT_FILTER_TABS.filter((t) => t.key !== 'all').map((t) => [t.key, t.label])
 );
 
-export default function RecipesClient({ initialRecipes, homemadeIngredients, userId }: Props) {
+export default function RecipesClient({ initialRecipes, homemadeIngredients, userId, userPlan }: Props) {
+  const recipeLimit = PLANS[userPlan].limits.recipes;
+  const isReadOnly = recipeLimit !== Infinity && initialRecipes.length > recipeLimit;
+
   const [activeTab, setActiveTab] = useState<'mine' | 'homemade' | 'catalog'>(() => {
     if (typeof window !== 'undefined') {
       const p = new URLSearchParams(window.location.search).get('tab');
@@ -186,8 +191,6 @@ export default function RecipesClient({ initialRecipes, homemadeIngredients, use
     setImporting((prev) => new Set(prev).add(cocktail.id));
     try {
       const supabase = createClient();
-
-      // Auto-create the cocktail's ingredients in stocks, then link by id
       const linkedIngredients = await ensureIngredients(
         supabase,
         userId,
@@ -197,7 +200,6 @@ export default function RecipesClient({ initialRecipes, homemadeIngredients, use
           qty: ing.qty,
         }))
       );
-
       const { data, error } = await supabase
         .from('recipes')
         .insert({
@@ -217,7 +219,6 @@ export default function RecipesClient({ initialRecipes, homemadeIngredients, use
         })
         .select()
         .single();
-
       if (!error && data) {
         setRecipes((prev) => [data as RecipeRow, ...prev]);
         setImported((prev) => new Set(prev).add(cocktail.name.toLowerCase()));
@@ -231,17 +232,41 @@ export default function RecipesClient({ initialRecipes, homemadeIngredients, use
     }
   }
 
+  const [importingAll, setImportingAll] = useState(false);
+  async function handleImportAll() {
+    const toImport = filteredCatalog.filter((c) => !imported.has(c.name.toLowerCase()));
+    if (toImport.length === 0) return;
+    if (!confirm(`Importer ${toImport.length} recette(s) du catalogue dans vos recettes ?`)) return;
+    setImportingAll(true);
+    for (const cocktail of toImport) {
+      await handleImport(cocktail);
+    }
+    setImportingAll(false);
+  }
+
   return (
     <>
       <TopBar
         title="Recettes"
         actions={
-          <Link href="/recipes/new" className="btn-primary h-9 px-3 text-sm gap-1">
-            <Plus size={15} />
-            Ajouter
-          </Link>
+          !isReadOnly ? (
+            <Link href="/recipes/new" className="btn-primary h-9 px-3 text-sm gap-1">
+              <Plus size={15} />
+              Ajouter
+            </Link>
+          ) : undefined
         }
       />
+
+      {isReadOnly && (
+        <div className="mx-4 mt-3 flex items-start gap-2.5 px-3 py-2.5 rounded-lg text-xs" style={{ background: 'rgba(200,164,92,0.10)', border: '1px solid rgba(200,164,92,0.25)' }}>
+          <Lock size={13} className="shrink-0 mt-0.5" style={{ color: 'var(--gold)' }} />
+          <p style={{ color: 'var(--text-dim)' }}>
+            Votre plan Free inclut {recipeLimit} recettes. Vos données sont en lecture seule —{' '}
+            <Link href="/settings/plan" className="underline" style={{ color: 'var(--gold)' }}>passez à un plan supérieur</Link> pour modifier.
+          </p>
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="flex border-b border-[var(--border)] bg-[var(--surface)] sticky top-14 z-20">
@@ -329,10 +354,12 @@ export default function RecipesClient({ initialRecipes, homemadeIngredients, use
                   >
                     Voir le catalogue
                   </button>
-                  <Link href="/recipes/new" className="btn-primary px-4 py-2 text-sm">
-                    <Plus size={14} />
-                    Nouvelle recette
-                  </Link>
+                  {!isReadOnly && (
+                    <Link href="/recipes/new" className="btn-primary px-4 py-2 text-sm">
+                      <Plus size={14} />
+                      Nouvelle recette
+                    </Link>
+                  )}
                 </div>
               </div>
             ) : (
@@ -376,13 +403,15 @@ export default function RecipesClient({ initialRecipes, homemadeIngredients, use
                           <span>{recipe.data.ingredients.length} ingrédient{recipe.data.ingredients.length !== 1 ? 's' : ''}</span>
                         </div>
                       </Link>
-                      <Link
-                        href={`/recipes/${recipe.id}/edit`}
-                        className="absolute top-3 right-3 p-1.5 text-[var(--text-dim)] hover:text-[var(--gold)] transition-colors"
-                        aria-label="Modifier"
-                      >
-                        <Pencil size={14} />
-                      </Link>
+                      {!isReadOnly && (
+                        <Link
+                          href={`/recipes/${recipe.id}/edit`}
+                          className="absolute top-3 right-3 p-1.5 text-[var(--text-dim)] hover:text-[var(--gold)] transition-colors"
+                          aria-label="Modifier"
+                        >
+                          <Pencil size={14} />
+                        </Link>
+                      )}
                     </div>
                   );
                 })}
@@ -502,6 +531,18 @@ export default function RecipesClient({ initialRecipes, homemadeIngredients, use
 
             {!catalogLoading && filteredCatalog.length > 0 && (
               <div className="space-y-2">
+                {filteredCatalog.some((c) => !imported.has(c.name.toLowerCase())) && (
+                  <button
+                    onClick={handleImportAll}
+                    disabled={importingAll}
+                    className="w-full flex items-center justify-center gap-2 py-2 text-sm btn-ghost border border-dashed border-[var(--border)] rounded-lg"
+                  >
+                    {importingAll
+                      ? <><div className="w-3.5 h-3.5 border border-current border-t-transparent rounded-full animate-spin" />Importation en cours…</>
+                      : <><Download size={14} />Tout importer ({filteredCatalog.filter(c => !imported.has(c.name.toLowerCase())).length})</>
+                    }
+                  </button>
+                )}
                 {filteredCatalog.map((cocktail) => {
                   const isImported = imported.has(cocktail.name.toLowerCase());
                   const isImporting = importing.has(cocktail.id);

@@ -5,11 +5,10 @@ import { createClient } from '@/lib/supabase/client';
 import {
   Users, BookOpen, FlaskConical, ClipboardList, Download, MessageSquare,
   Send, Trash2, Loader2, X, Plus, Check, Search, ChevronDown, Eye,
-  UserPlus, Copy, QrCode, Mail, LogIn, Lock, Crown, Shield,
+  UserPlus, Copy, Mail, LogIn, Lock, Crown, Shield,
   User as UserIcon, ShieldCheck, LogOut, Link2, Timer, Play, Square, RotateCcw,
   Package, ChevronRight,
 } from 'lucide-react';
-import QRCode from 'react-qr-code';
 import {
   ROLE_LABELS, ROLE_COLORS, memberRole, generateTeamCode, randomToken,
 } from '@/lib/team';
@@ -87,10 +86,8 @@ export default function CommunicationClient({
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<'user' | 'admin'>('user');
 
-  // Code/link copy
-  const [copied, setCopied] = useState(false);
+  // Link copy
   const [copiedLink, setCopiedLink] = useState(false);
-  const [showQR, setShowQR] = useState(false);
 
   // Notes & preview
   const [openNotes, setOpenNotes] = useState<Set<string>>(new Set());
@@ -353,12 +350,6 @@ export default function CommunicationClient({
     setFn(next);
   }
 
-  function copyCode() {
-    if (!activeTeam) return;
-    navigator.clipboard?.writeText(activeTeam.code);
-    setCopied(true); setTimeout(() => setCopied(false), 1500);
-  }
-
   function copyLink() {
     if (!joinUrl) return;
     navigator.clipboard?.writeText(joinUrl);
@@ -490,33 +481,6 @@ export default function CommunicationClient({
             {ROLE_LABELS[myRole]}
           </span>
         </div>
-
-        {/* Code + copy + link + QR */}
-        <div className="flex items-center gap-2">
-          <div className="flex-1 flex items-center gap-2 bg-[var(--surface2)] rounded-lg px-3 py-2">
-            <span className="text-xs text-[var(--text-dim)]">Code</span>
-            <span className="font-mono font-bold tracking-widest text-[var(--text)]">{activeTeam.code}</span>
-          </div>
-          <button onClick={copyCode} className="p-2.5 rounded-lg bg-[var(--surface2)] text-[var(--text-dim)] hover:text-[var(--text)] transition-colors" aria-label="Copier le code">
-            {copied ? <Check size={16} className="text-emerald-400" /> : <Copy size={16} />}
-          </button>
-          <button onClick={copyLink} className="p-2.5 rounded-lg bg-[var(--surface2)] text-[var(--text-dim)] hover:text-[var(--text)] transition-colors" aria-label="Copier le lien">
-            {copiedLink ? <Check size={16} className="text-emerald-400" /> : <Link2 size={16} />}
-          </button>
-          <button onClick={() => setShowQR((v) => !v)}
-            className={`p-2.5 rounded-lg transition-colors ${showQR ? 'bg-[var(--gold)] text-[#0A0E1A]' : 'bg-[var(--surface2)] text-[var(--text-dim)] hover:text-[var(--text)]'}`}>
-            <QrCode size={16} />
-          </button>
-        </div>
-
-        {showQR && (
-          <div className="flex flex-col items-center gap-2 py-2">
-            <div className="bg-white p-3 rounded-lg">
-              <QRCode value={joinUrl} size={150} />
-            </div>
-            <p className="text-xs text-[var(--text-dim)]">Scannez pour rejoindre l&apos;équipe</p>
-          </div>
-        )}
       </div>
 
       {/* Bar stock shortcut */}

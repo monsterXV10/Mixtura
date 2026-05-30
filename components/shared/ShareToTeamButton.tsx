@@ -11,10 +11,12 @@ interface ShareToTeamButtonProps {
   itemName: string;
   /** jsonb snapshot stored in team_shared_items.data */
   payload: Record<string, unknown>;
+  /** When sharing a recipe, also share its ingredients */
+  ingredientsToShare?: Array<{ name: string; ingredientData: Record<string, unknown> }>;
 }
 
 export function ShareToTeamButton({
-  userId, sharerName, teams, itemType, itemName, payload,
+  userId, sharerName, teams, itemType, itemName, payload, ingredientsToShare,
 }: ShareToTeamButtonProps) {
   const supabase = createClient();
   const [open, setOpen] = useState(false);
@@ -34,14 +36,30 @@ export function ShareToTeamButton({
 
   async function shareTo(teamId: string) {
     setBusy(teamId);
-    const { error } = await supabase.from('team_shared_items').insert({
-      team_id: teamId,
-      shared_by: userId,
-      sharer_name: sharerName,
-      item_type: itemType,
-      share_mode: 'copy',
-      data: { name: itemName, ...payload },
-    });
+    const rows: Array<Record<string, unknown>> = [
+      {
+        team_id: teamId,
+        shared_by: userId,
+        sharer_name: sharerName,
+        item_type: itemType,
+        share_mode: 'copy',
+        data: { name: itemName, ...payload },
+      },
+    ];
+    if (itemType === 'recipe' && ingredientsToShare?.length) {
+      for (const ing of ingredientsToShare) {
+        if (!ing.name) continue;
+        rows.push({
+          team_id: teamId,
+          shared_by: userId,
+          sharer_name: sharerName,
+          item_type: 'ingredient',
+          share_mode: 'copy',
+          data: { name: ing.name, ingredientData: ing.ingredientData },
+        });
+      }
+    }
+    const { error } = await supabase.from('team_shared_items').insert(rows);
     setBusy(null);
     if (!error) {
       setSharedTeams((p) => new Set(p).add(teamId));

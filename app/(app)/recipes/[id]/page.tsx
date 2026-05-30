@@ -110,6 +110,7 @@ export default async function RecipeDetailPage({
     .filter((id): id is string => Boolean(id));
 
   const stockMap = new Map<string, { homemade?: boolean }>();
+  const ingredientSharePayloads: Array<{ name: string; ingredientData: Record<string, unknown> }> = [];
   if (linkedIds.length > 0) {
     const { data: stockRows } = await supabase
       .from('ingredients')
@@ -117,8 +118,14 @@ export default async function RecipeDetailPage({
       .eq('user_id', user.id)
       .in('id', linkedIds);
     for (const row of stockRows ?? []) {
-      const d = row.data as { homemade?: boolean } | null;
-      stockMap.set(row.id as string, { homemade: d?.homemade });
+      const d = row.data as Record<string, unknown> | null;
+      stockMap.set(row.id as string, { homemade: (d?.homemade as boolean | undefined) });
+      if (d) {
+        ingredientSharePayloads.push({
+          name: (d.name as string | undefined) ?? '',
+          ingredientData: d,
+        });
+      }
     }
   }
 
@@ -174,6 +181,7 @@ export default async function RecipeDetailPage({
               itemType="recipe"
               itemName={name}
               payload={{ type: recipeType, recipeData: recipe.data, metadata: recipe.metadata ?? {} }}
+              ingredientsToShare={ingredientSharePayloads}
             />
             <Link
               href={`/recipes/${id}/edit`}
