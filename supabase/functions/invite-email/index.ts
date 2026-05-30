@@ -7,29 +7,40 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-};
+const ALLOWED_ORIGINS = new Set([
+  'https://mixtura.buzz',
+  'https://www.mixtura.buzz',
+  'http://localhost:3000',
+]);
 
-function json(body: unknown, status = 200) {
+function corsHeaders(origin: string | null) {
+  const allowed = origin && ALLOWED_ORIGINS.has(origin) ? origin : 'https://mixtura.buzz';
+  return {
+    'Access-Control-Allow-Origin': allowed,
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Vary': 'Origin',
+  };
+}
+
+function json(body: unknown, status = 200, origin: string | null = null) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    headers: { ...corsHeaders(origin), 'Content-Type': 'application/json' },
   });
 }
 
 Deno.serve(async (req: Request) => {
-  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
-  if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
+  const origin = req.headers.get('Origin');
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders(origin) });
+  if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405, origin);
 
   try {
     const authHeader = req.headers.get('Authorization');
-    if (!authHeader) return json({ error: 'Unauthorized' }, 401);
+    if (!authHeader) return json({ error: 'Unauthorized' }, 401, origin);
 
     const { teamId, inviteeEmail, joinUrl } = await req.json();
-    if (!teamId || !inviteeEmail) return json({ error: 'Missing teamId or inviteeEmail' }, 400);
+    if (!teamId || !inviteeEmail) return json({ error: 'Missing teamId or inviteeEmail' }, 400, origin);
 
     // Caller-scoped client (RLS applies, identity from JWT)
     const supabase = createClient(
@@ -41,7 +52,7 @@ Deno.serve(async (req: Request) => {
     const {
       data: { user },
     } = await supabase.auth.getUser();
-    if (!user) return json({ error: 'Unauthorized' }, 401);
+    if (!user) return json({ error: 'Unauthorized' }, 401, origin);
 
     // Authorization: caller must own or manage the team
     const { data: team } = await supabase
@@ -49,7 +60,7 @@ Deno.serve(async (req: Request) => {
       .select('id, name, code, owner_id')
       .eq('id', teamId)
       .single();
-    if (!team) return json({ error: 'Team not found' }, 404);
+    if (!team) return json({ error: 'Team not found' }, 404, origin);
 
     const { data: me } = await supabase
       .from('team_members')
@@ -60,10 +71,10 @@ Deno.serve(async (req: Request) => {
 
     const isManager =
       team.owner_id === user.id || (me && ['admin', 'manager'].includes(me.role));
-    if (!isManager) return json({ error: 'Forbidden' }, 403);
+    if (!isManager) return json({ error: 'Forbidden' }, 403, origin);
 
     const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
-    if (!RESEND_API_KEY) return json({ error: 'RESEND_API_KEY not configured' }, 500);
+    if (!RESEND_API_KEY) return json({ error: 'RESEND_API_KEY not configured' }, 500, origin);
 
     const inviterName =
       (user.user_metadata?.full_name as string) ?? user.email ?? 'Un collègue';
@@ -106,11 +117,11 @@ Deno.serve(async (req: Request) => {
 
     if (!res.ok) {
       const detail = await res.text();
-      return json({ error: 'Resend send failed', detail }, 502);
+      return json({ error: 'Resend send failed', detail }, 502, origin);
     }
 
-    return json({ ok: true });
+    return json({ ok: true }, 200, origin);
   } catch (e) {
-    return json({ error: String(e) }, 500);
+    return json({ error: String(e) }, 500, origin);
   }
 });
