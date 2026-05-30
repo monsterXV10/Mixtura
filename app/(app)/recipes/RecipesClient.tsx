@@ -191,8 +191,6 @@ export default function RecipesClient({ initialRecipes, homemadeIngredients, use
     setImporting((prev) => new Set(prev).add(cocktail.id));
     try {
       const supabase = createClient();
-
-      // Auto-create the cocktail's ingredients in stocks, then link by id
       const linkedIngredients = await ensureIngredients(
         supabase,
         userId,
@@ -202,7 +200,6 @@ export default function RecipesClient({ initialRecipes, homemadeIngredients, use
           qty: ing.qty,
         }))
       );
-
       const { data, error } = await supabase
         .from('recipes')
         .insert({
@@ -222,7 +219,6 @@ export default function RecipesClient({ initialRecipes, homemadeIngredients, use
         })
         .select()
         .single();
-
       if (!error && data) {
         setRecipes((prev) => [data as RecipeRow, ...prev]);
         setImported((prev) => new Set(prev).add(cocktail.name.toLowerCase()));
@@ -234,6 +230,18 @@ export default function RecipesClient({ initialRecipes, homemadeIngredients, use
         return next;
       });
     }
+  }
+
+  const [importingAll, setImportingAll] = useState(false);
+  async function handleImportAll() {
+    const toImport = filteredCatalog.filter((c) => !imported.has(c.name.toLowerCase()));
+    if (toImport.length === 0) return;
+    if (!confirm(`Importer ${toImport.length} recette(s) du catalogue dans vos recettes ?`)) return;
+    setImportingAll(true);
+    for (const cocktail of toImport) {
+      await handleImport(cocktail);
+    }
+    setImportingAll(false);
   }
 
   return (
@@ -523,6 +531,18 @@ export default function RecipesClient({ initialRecipes, homemadeIngredients, use
 
             {!catalogLoading && filteredCatalog.length > 0 && (
               <div className="space-y-2">
+                {filteredCatalog.some((c) => !imported.has(c.name.toLowerCase())) && (
+                  <button
+                    onClick={handleImportAll}
+                    disabled={importingAll}
+                    className="w-full flex items-center justify-center gap-2 py-2 text-sm btn-ghost border border-dashed border-[var(--border)] rounded-lg"
+                  >
+                    {importingAll
+                      ? <><div className="w-3.5 h-3.5 border border-current border-t-transparent rounded-full animate-spin" />Importation en cours…</>
+                      : <><Download size={14} />Tout importer ({filteredCatalog.filter(c => !imported.has(c.name.toLowerCase())).length})</>
+                    }
+                  </button>
+                )}
                 {filteredCatalog.map((cocktail) => {
                   const isImported = imported.has(cocktail.name.toLowerCase());
                   const isImporting = importing.has(cocktail.id);
