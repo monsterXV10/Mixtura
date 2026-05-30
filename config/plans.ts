@@ -104,6 +104,81 @@ export function hasFeature(planId: PlanId, feature: keyof Plan['features']): boo
   return PLANS[planId].features[feature] as boolean;
 }
 
+// Role-based permissions — what each role can do within a team
+export const ROLE_PERMISSIONS = {
+  owner: {
+    canManageTeam: true,
+    canInviteMembers: true,
+    canRemoveMembers: true,
+    canPromoteMembers: true,
+    canShareRecipes: true,
+    canShareIngredients: true,
+    canShareMenus: true,
+    canEditSharedItems: true,
+    canDeleteSharedItems: true,
+    canManageEstablishments: true,
+    canViewAnalytics: true,
+    canExportData: true,
+    canUseBatch: true,
+    canAddNotes: true,
+  },
+  admin: {
+    canManageTeam: true,
+    canInviteMembers: true,
+    canRemoveMembers: false,
+    canPromoteMembers: false,
+    canShareRecipes: true,
+    canShareIngredients: true,
+    canShareMenus: true,
+    canEditSharedItems: true,
+    canDeleteSharedItems: false,
+    canManageEstablishments: false,
+    canViewAnalytics: true,
+    canExportData: true,
+    canUseBatch: true,
+    canAddNotes: true,
+  },
+  barman: {
+    canManageTeam: false,
+    canInviteMembers: false,
+    canRemoveMembers: false,
+    canPromoteMembers: false,
+    canShareRecipes: false,
+    canShareIngredients: false,
+    canShareMenus: false,
+    canEditSharedItems: false,
+    canDeleteSharedItems: false,
+    canManageEstablishments: false,
+    canViewAnalytics: false,
+    canExportData: false,
+    canUseBatch: true,
+    canAddNotes: true,
+  },
+  viewer: {
+    canManageTeam: false,
+    canInviteMembers: false,
+    canRemoveMembers: false,
+    canPromoteMembers: false,
+    canShareRecipes: false,
+    canShareIngredients: false,
+    canShareMenus: false,
+    canEditSharedItems: false,
+    canDeleteSharedItems: false,
+    canManageEstablishments: false,
+    canViewAnalytics: false,
+    canExportData: false,
+    canUseBatch: false,
+    canAddNotes: false,
+  },
+} as const;
+
+export type UserRole = keyof typeof ROLE_PERMISSIONS;
+export type Permission = keyof typeof ROLE_PERMISSIONS.owner;
+
+export function hasPermission(role: UserRole, permission: Permission): boolean {
+  return ROLE_PERMISSIONS[role][permission];
+}
+
 // Demo access codes — these simulate different plan/role combinations in the demo
 export const DEMO_CODES = {
   OWNER: { plan: 'team_plus' as PlanId, role: 'owner', label: 'Propriétaire' },

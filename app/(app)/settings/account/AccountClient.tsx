@@ -2,8 +2,9 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import Link from 'next/link';
 import {
-  User, Mail, Crown, Lock, LogOut, Loader2, Check, Eye, EyeOff,
+  User, Mail, Crown, Lock, LogOut, Loader2, Check, Eye, EyeOff, ChevronRight,
 } from 'lucide-react';
 
 interface Props {
@@ -122,12 +123,15 @@ export default function AccountClient({ userId, email, displayName, planName, pr
           </div>
         </div>
 
-        <div className="flex items-center justify-between pt-1">
+        <Link href="/settings/plan" className="flex items-center justify-between pt-1 hover:opacity-80 transition-opacity">
           <span className="text-xs text-[var(--text-dim)]">Plan actuel</span>
-          <span className="text-xs px-2.5 py-1 rounded-full font-medium text-[var(--gold)] bg-[var(--gold)]/10 flex items-center gap-1">
-            <Crown size={11} /> {planName}
-          </span>
-        </div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs px-2.5 py-1 rounded-full font-medium text-[var(--gold)] bg-[var(--gold)]/10 flex items-center gap-1">
+              <Crown size={11} /> {planName}
+            </span>
+            <ChevronRight size={13} className="text-[var(--text-dim)]" />
+          </div>
+        </Link>
       </div>
 
       {/* Password */}

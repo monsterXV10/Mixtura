@@ -30,7 +30,7 @@ export async function middleware(request: NextRequest) {
 
   // Public routes that don't need auth
   const publicRoutes = ['/', '/login', '/register', '/demo', '/callback'];
-  const isPublicRoute = publicRoutes.some(r => pathname === r || pathname.startsWith('/demo') || pathname.startsWith('/callback'));
+  const isPublicRoute = publicRoutes.some(r => pathname === r || pathname.startsWith('/demo') || pathname.startsWith('/callback') || pathname.startsWith('/legal'));
 
   if (!user && !isPublicRoute) {
     const url = request.nextUrl.clone();
