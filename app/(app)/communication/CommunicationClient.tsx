@@ -481,6 +481,7 @@ export default function CommunicationClient({
             {ROLE_LABELS[myRole]}
           </span>
         </div>
+      </div>
 
       {/* Bar stock shortcut */}
       <Link
