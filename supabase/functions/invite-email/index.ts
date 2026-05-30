@@ -65,32 +65,29 @@ Deno.serve(async (req: Request) => {
     const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
     if (!RESEND_API_KEY) return json({ error: 'RESEND_API_KEY not configured' }, 500);
 
-    const from = Deno.env.get('RESEND_FROM') ?? 'Mixtura <noreply@mixtura.buzz>';
     const inviterName =
       (user.user_metadata?.full_name as string) ?? user.email ?? 'Un collègue';
+    const from = `${inviterName} via Mixtura <invitations@mixtura.buzz>`;
     const url = typeof joinUrl === 'string' ? joinUrl : '';
 
     const html = `
-      <div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:480px;margin:0 auto;padding:32px 24px;color:#0A0E1A">
-        <div style="text-align:center;margin-bottom:24px">
-          <div style="display:inline-flex;width:48px;height:48px;border-radius:12px;background:#C8A45C;align-items:center;justify-content:center">
-            <span style="color:#0A0E1A;font-weight:700;font-size:22px;line-height:48px">M</span>
-          </div>
-        </div>
-        <h1 style="font-size:20px;text-align:center;margin:0 0 8px">Rejoignez l'équipe ${team.name}</h1>
-        <p style="text-align:center;color:#555;margin:0 0 24px">${inviterName} vous invite sur Mixtura.</p>
-        <div style="background:#f4f1ea;border-radius:12px;padding:16px;text-align:center;margin-bottom:24px">
-          <p style="margin:0 0 4px;font-size:12px;color:#888;text-transform:uppercase;letter-spacing:1px">Code d'équipe</p>
-          <p style="margin:0;font-size:28px;font-weight:700;letter-spacing:6px;font-family:monospace">${team.code}</p>
-        </div>
+      <div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:520px;margin:0 auto;padding:32px 24px;color:#1a1a1a;background:#ffffff">
+        <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#1a1a1a">Bonjour,</p>
+        <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#1a1a1a">
+          <strong>${inviterName}</strong> vous invite à rejoindre l'équipe <strong>${team.name}</strong> sur Mixtura, l'outil de gestion de bar et de cocktails.
+        </p>
+        <p style="margin:0 0 8px;font-size:14px;color:#555">Votre code d'équipe :</p>
+        <p style="margin:0 0 24px;font-size:32px;font-weight:700;letter-spacing:8px;font-family:monospace;color:#1a1a1a">${team.code}</p>
         ${
           url
-            ? `<div style="text-align:center;margin-bottom:24px"><a href="${url}" style="display:inline-block;background:#C8A45C;color:#0A0E1A;text-decoration:none;font-weight:600;padding:12px 28px;border-radius:10px">Rejoindre l'équipe</a></div>`
+            ? `<p style="margin:0 0 24px"><a href="${url}" style="display:inline-block;background:#C8A45C;color:#0A0E1A;text-decoration:none;font-weight:600;padding:10px 24px;border-radius:8px;font-size:14px">Rejoindre l'équipe →</a></p>`
             : ''
         }
-        <p style="text-align:center;color:#888;font-size:13px;margin:0">
+        <p style="margin:0 0 32px;font-size:13px;line-height:1.6;color:#777">
           Ou ouvrez Mixtura → Réglages → Équipe → Rejoindre, et entrez le code ci-dessus.
         </p>
+        <hr style="border:none;border-top:1px solid #e5e5e5;margin:0 0 16px">
+        <p style="margin:0;font-size:12px;color:#999">Mixtura — mixtura.buzz</p>
       </div>`;
 
     const res = await fetch('https://api.resend.com/emails', {
