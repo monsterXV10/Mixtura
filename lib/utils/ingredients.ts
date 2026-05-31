@@ -61,9 +61,21 @@ export function matchesIngredient(opt: UserIngredientOption, query: string): boo
 }
 
 /**
+ * Extract ordered alternatives from "A or B", "A (or B)", "A or B or C" names.
+ * Returns [name] unchanged for ingredients without alternatives.
+ */
+function parseAlternatives(name: string): string[] {
+  const cleaned = name.replace(/\(\s*or\s+/i, ' or ').replace(/[()]/g, '');
+  const parts = cleaned.split(/\s+or\s+/i).map(s => s.replace(/\*/g, '').trim()).filter(Boolean);
+  return parts.length > 1 ? parts : [name];
+}
+
+/**
  * Ensures every named ingredient row exists in the user's `ingredients` table.
  * - Rows already carrying an ingredientId are left as-is.
  * - Rows whose name matches an existing ingredient (case-insensitive) get linked.
+ * - Rows with "A or B" alternatives try each option in order against the user's
+ *   stock; the first match wins. If none match, the first alternative is created.
  * - Remaining rows are created as type "other" (price/stock/format = 0).
  * Returns the same rows with ingredientId filled in wherever possible.
  */
@@ -86,13 +98,18 @@ export async function ensureIngredients(
     if (n) byName.set(n, e.id as string);
   }
 
-  // Figure out which named rows still need an ingredient row created
+  // Figure out which rows need a new ingredient created
   const toCreate = new Map<string, IngredientRef>();
   for (const r of named) {
     if (r.ingredientId) continue;
-    const key = r.name.toLowerCase();
-    if (byName.has(key)) continue;
-    if (!toCreate.has(key)) toCreate.set(key, r);
+    const alts = parseAlternatives(r.name);
+    // Already in stock under any alternative?
+    const matched = alts.some(a => byName.has(a.toLowerCase()));
+    if (matched) continue;
+    // Create using the primary (first) alternative name
+    const primaryName = alts[0];
+    const key = primaryName.toLowerCase();
+    if (!toCreate.has(key)) toCreate.set(key, { ...r, name: primaryName });
   }
 
   if (toCreate.size > 0) {
@@ -121,8 +138,14 @@ export async function ensureIngredients(
     }
   }
 
-  return named.map((r) => ({
-    ...r,
-    ingredientId: r.ingredientId ?? byName.get(r.name.toLowerCase()),
-  }));
+  return named.map((r) => {
+    if (r.ingredientId) return r;
+    const alts = parseAlternatives(r.name);
+    // Link to first alternative found in stock
+    for (const alt of alts) {
+      const id = byName.get(alt.toLowerCase());
+      if (id) return { ...r, ingredientId: id };
+    }
+    return r;
+  });
 }
