@@ -5,7 +5,7 @@ import { ensureIngredients } from '@/lib/utils/ingredients';
 import { PLANS, type PlanId } from '@/config/plans';
 import { TopBar } from '@/components/layout/TopBar';
 import Link from 'next/link';
-import { Plus, Search, BookOpen, Package, Download, Check, Pencil, FlaskConical, Lock } from 'lucide-react';
+import { Plus, Search, BookOpen, Package, Download, Check, Pencil, FlaskConical, Lock, X, GlassWater } from 'lucide-react';
 
 interface RecipeRow {
   id: string;
@@ -104,6 +104,13 @@ const SPIRIT_LABELS: Record<string, string> = Object.fromEntries(
   SPIRIT_FILTER_TABS.filter((t) => t.key !== 'all').map((t) => [t.key, t.label])
 );
 
+/** Split "Gin or Vodka" / "A (or B)" into clean alternatives for display */
+function splitAlts(name: string): string[] {
+  const cleaned = name.replace(/\(\s*or\s+/i, ' or ').replace(/[()]/g, '');
+  const parts = cleaned.split(/\s+or\s+/i).map(s => s.replace(/\*/g, '').trim()).filter(Boolean);
+  return parts.length > 1 ? parts : [name];
+}
+
 function getCatalogFamily(ingredients: CatalogCocktail['ingredients']): string {
   const n = ingredients.map(i => i.name.toLowerCase()).join(' ');
   if (/whisky|whiskey|bourbon|rye|scotch/.test(n)) return 'whisky';
@@ -143,6 +150,7 @@ export default function RecipesClient({ initialRecipes, homemadeIngredients, use
   const [catalogFamilyFilter, setCatalogFamilyFilter] = useState('all');
   const [importing, setImporting] = useState<Set<string>>(new Set());
   const [imported, setImported] = useState<Set<string>>(new Set());
+  const [previewCocktail, setPreviewCocktail] = useState<CatalogCocktail | null>(null);
 
   // Seed imported set from existing recipes by name
   useEffect(() => {
@@ -585,7 +593,10 @@ export default function RecipesClient({ initialRecipes, homemadeIngredients, use
                   const isImporting = importing.has(cocktail.id);
                   return (
                     <div key={cocktail.id} className="card flex items-center gap-3">
-                      <div className="flex-1 min-w-0">
+                      <button
+                        className="flex-1 min-w-0 text-left"
+                        onClick={() => setPreviewCocktail(cocktail)}
+                      >
                         <h3 className="font-semibold text-[var(--text)] text-sm truncate">
                           {cocktail.name}
                         </h3>
@@ -594,7 +605,7 @@ export default function RecipesClient({ initialRecipes, homemadeIngredients, use
                           {cocktail.method && <span className="truncate max-w-[80px]">{cocktail.method}</span>}
                           <span>{cocktail.ingredients.length} ing.</span>
                         </div>
-                      </div>
+                      </button>
                       <button
                         onClick={() => handleImport(cocktail)}
                         disabled={isImported || isImporting}
@@ -626,6 +637,118 @@ export default function RecipesClient({ initialRecipes, homemadeIngredients, use
           </div>
         )}
       </main>
+
+      {/* ── Catalog preview modal ── */}
+      {previewCocktail && (
+        <div
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
+          style={{ background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(4px)' }}
+          onClick={() => setPreviewCocktail(null)}
+        >
+          <div
+            className="w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl max-h-[88vh] overflow-y-auto"
+            style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-start justify-between p-4 pb-3" style={{ borderBottom: '1px solid var(--border)' }}>
+              <div className="flex-1 min-w-0 pr-3">
+                <h2 className="font-bold text-[var(--text)] text-base">{previewCocktail.name}</h2>
+                <div className="flex flex-wrap gap-1.5 mt-2">
+                  {previewCocktail.glass && (
+                    <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-[var(--surface2)] text-[var(--text-dim)]">
+                      <GlassWater size={10} />{previewCocktail.glass}
+                    </span>
+                  )}
+                  {previewCocktail.method && (
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-[var(--surface2)] text-[var(--text-dim)]">
+                      {previewCocktail.method}
+                    </span>
+                  )}
+                  {previewCocktail.garnish && (
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-[var(--surface2)] text-[var(--text-dim)] italic">
+                      {previewCocktail.garnish}
+                    </span>
+                  )}
+                </div>
+              </div>
+              <button
+                onClick={() => setPreviewCocktail(null)}
+                className="shrink-0 p-1.5 rounded-lg text-[var(--text-dim)] hover:text-[var(--text)] hover:bg-[var(--surface2)] transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Ingredients */}
+            <div className="px-4 pt-4 pb-2">
+              <p className="text-xs font-medium uppercase tracking-wide text-[var(--text-dim)] mb-3">
+                Ingrédients ({previewCocktail.ingredients.length})
+              </p>
+              <ul className="space-y-0">
+                {previewCocktail.ingredients.map((ing, i) => {
+                  const alts = splitAlts(ing.name);
+                  return (
+                    <li
+                      key={i}
+                      className="flex items-center gap-3 py-2.5"
+                      style={{ borderBottom: i < previewCocktail.ingredients.length - 1 ? '1px solid var(--border)' : 'none' }}
+                    >
+                      <span className="w-1.5 h-1.5 rounded-full shrink-0 bg-[var(--border)]" />
+                      <span className="flex-1 text-sm text-[var(--text)]">
+                        {alts[0]}
+                        {alts.slice(1).map(a => (
+                          <span key={a} className="text-[var(--text-dim)] text-xs"> ou {a}</span>
+                        ))}
+                      </span>
+                      <span className="text-[var(--gold)] text-sm font-medium tabular-nums">
+                        {ing.qty} {ing.unit}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+
+            {/* Steps */}
+            {previewCocktail.steps && (
+              <div className="px-4 py-3" style={{ borderTop: '1px solid var(--border)' }}>
+                <p className="text-xs font-medium uppercase tracking-wide text-[var(--text-dim)] mb-2">Préparation</p>
+                <p className="text-sm text-[var(--text-dim)] leading-relaxed whitespace-pre-line">
+                  {previewCocktail.steps}
+                </p>
+              </div>
+            )}
+
+            {/* Actions */}
+            <div className="p-4 flex gap-3" style={{ borderTop: '1px solid var(--border)' }}>
+              <button
+                onClick={() => setPreviewCocktail(null)}
+                className="btn-ghost flex-1 py-2.5 text-sm"
+              >
+                Fermer
+              </button>
+              {!imported.has(previewCocktail.name.toLowerCase()) ? (
+                <button
+                  onClick={() => { handleImport(previewCocktail); setPreviewCocktail(null); }}
+                  disabled={importing.has(previewCocktail.id)}
+                  className="btn-primary flex-1 py-2.5 text-sm flex items-center justify-center gap-2"
+                >
+                  {importing.has(previewCocktail.id)
+                    ? <div className="w-3.5 h-3.5 border border-current border-t-transparent rounded-full animate-spin" />
+                    : <><Download size={14} />Importer</>
+                  }
+                </button>
+              ) : (
+                <div className="flex-1 py-2.5 text-sm flex items-center justify-center gap-2 rounded-lg bg-emerald-400/10 text-emerald-400 font-semibold">
+                  <Check size={14} />
+                  Déjà importée
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
