@@ -36,7 +36,12 @@ interface CatalogCocktail {
   method: string | null;
   garnish: string | null;
   ice: string | null;
-  ingredients: Array<{ qty: number; name: string; unit: string }>;
+  ingredients: Array<{
+    qty: number;
+    name: string;
+    unit: string;
+    alternatives?: Array<{ name: string }>;
+  }>;
   steps: string | null;
   source: string;
 }
@@ -226,6 +231,7 @@ export default function RecipesClient({ initialRecipes, homemadeIngredients, use
           name: ing.name,
           unit: ing.unit,
           qty: ing.qty,
+          alternatives: ing.alternatives,
         }))
       );
       const { data, error } = await supabase
@@ -687,7 +693,8 @@ export default function RecipesClient({ initialRecipes, homemadeIngredients, use
               </p>
               <ul className="space-y-0">
                 {previewCocktail.ingredients.map((ing, i) => {
-                  const alts = splitAlts(ing.name);
+                  // Use structured alternatives from DB, fall back to parsing legacy names
+                  const altNames = ing.alternatives?.map(a => a.name) ?? splitAlts(ing.name).slice(1);
                   return (
                     <li
                       key={i}
@@ -696,8 +703,8 @@ export default function RecipesClient({ initialRecipes, homemadeIngredients, use
                     >
                       <span className="w-1.5 h-1.5 rounded-full shrink-0 bg-[var(--border)]" />
                       <span className="flex-1 text-sm text-[var(--text)]">
-                        {alts[0]}
-                        {alts.slice(1).map(a => (
+                        {ing.name}
+                        {altNames.map(a => (
                           <span key={a} className="text-[var(--text-dim)] text-xs"> ou {a}</span>
                         ))}
                       </span>
