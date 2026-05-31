@@ -1,5 +1,5 @@
 import { TopBar } from '@/components/layout/TopBar';
-import { Users, User, Crown, FileText } from 'lucide-react';
+import { Users, User, Crown, FileText, Zap } from 'lucide-react';
 import Link from 'next/link';
 
 const SETTINGS_ITEMS = [
@@ -34,6 +34,19 @@ export default function SettingsPage() {
             </div>
           </Link>
         ))}
+
+        <div className="card space-y-2">
+          <div className="flex items-center gap-2 mb-1">
+            <Zap size={14} className="text-[var(--text-dim)]" />
+            <p className="text-xs font-medium text-[var(--text-dim)] uppercase tracking-wide">Application</p>
+          </div>
+          <Link href="/" className="block text-sm text-[var(--text-dim)] hover:text-[var(--text)] transition-colors py-0.5">
+            Page d&apos;accueil →
+          </Link>
+          <Link href="/features" className="block text-sm text-[var(--text-dim)] hover:text-[var(--text)] transition-colors py-0.5">
+            Fonctionnalités →
+          </Link>
+        </div>
 
         <div className="card space-y-2">
           <div className="flex items-center gap-2 mb-1">
