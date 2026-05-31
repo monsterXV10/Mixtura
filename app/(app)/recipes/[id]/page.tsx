@@ -80,7 +80,13 @@ export default async function RecipeDetailPage({
     name?: string;
     steps?: string;
     timerSeconds?: number;
-    ingredients?: Array<{ ingredientId?: string; qty: number; name: string; unit: string }>;
+    ingredients?: Array<{
+      ingredientId?: string;
+      qty: number;
+      name: string;
+      unit: string;
+      alternatives?: Array<{ ingredientId?: string; name: string }>;
+    }>;
   } | null;
 
   const recipeMetadata = recipe.metadata as {
@@ -106,7 +112,10 @@ export default async function RecipeDetailPage({
 
   // Fetch stock info to color-code ingredients
   const linkedIds = ingredients
-    .map((i) => i.ingredientId)
+    .flatMap((i) => [
+      i.ingredientId,
+      ...(i.alternatives ?? []).map((a) => a.ingredientId),
+    ])
     .filter((id): id is string => Boolean(id));
 
   const stockMap = new Map<string, { homemade?: boolean }>();
@@ -249,12 +258,15 @@ export default async function RecipeDetailPage({
             <ul className="space-y-0">
               {ingredients.map(
                 (ing, i) => {
-                  const info = ing.ingredientId ? stockMap.get(ing.ingredientId) : undefined;
-                  const dotColor = ing.ingredientId
+                  const primaryInfo = ing.ingredientId ? stockMap.get(ing.ingredientId) : undefined;
+                  const linkedAltId = !primaryInfo
+                    ? ing.alternatives?.find((a) => a.ingredientId && stockMap.has(a.ingredientId))?.ingredientId
+                    : undefined;
+                  const info = primaryInfo ?? (linkedAltId ? stockMap.get(linkedAltId) : undefined);
+                  const hasLink = ing.ingredientId ?? linkedAltId;
+                  const dotColor = hasLink
                     ? info
-                      ? info.homemade
-                        ? 'bg-blue-400'
-                        : 'bg-emerald-400'
+                      ? info.homemade ? 'bg-blue-400' : 'bg-emerald-400'
                       : 'bg-orange-400'
                     : 'bg-[var(--border)]';
                   const isHomemade = info?.homemade;
@@ -265,10 +277,13 @@ export default async function RecipeDetailPage({
                       className="flex items-center gap-3 py-2.5 border-b border-[var(--border)] last:border-0"
                     >
                       <span className={`w-2 h-2 rounded-full shrink-0 ${dotColor}`} />
-                      <span className="flex-1 text-[var(--text)] text-sm flex items-center gap-1.5">
+                      <span className="flex-1 text-[var(--text)] text-sm">
                         {ing.name}
+                        {(ing.alternatives ?? []).filter(a => a.name).map((alt, ai) => (
+                          <span key={ai} className="text-[var(--text-dim)] text-xs"> ou {alt.name}</span>
+                        ))}
                         {isHomemade && (
-                          <FlaskConical size={11} className="text-blue-400 shrink-0" />
+                          <FlaskConical size={11} className="text-blue-400 shrink-0 inline ml-1" />
                         )}
                       </span>
                       <span className="text-[var(--gold)] text-sm font-medium tabular-nums">

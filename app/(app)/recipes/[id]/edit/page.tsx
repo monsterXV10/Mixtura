@@ -35,7 +35,13 @@ export default async function EditRecipePage({
     name?: string;
     steps?: string;
     timerSeconds?: number;
-    ingredients?: Array<{ ingredientId?: string; qty: number; name: string; unit: string }>;
+    ingredients?: Array<{
+      ingredientId?: string;
+      qty: number;
+      name: string;
+      unit: string;
+      alternatives?: Array<{ ingredientId?: string; name: string }>;
+    }>;
   } | null;
 
   const recipeMetadata = recipe.metadata as {
@@ -51,6 +57,7 @@ export default async function EditRecipePage({
     qty: ing.qty,
     name: ing.name,
     unit: ing.unit,
+    alternatives: ing.alternatives,
   }));
 
   const initialData = {

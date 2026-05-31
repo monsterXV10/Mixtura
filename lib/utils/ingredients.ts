@@ -7,6 +7,7 @@ export interface IngredientRef {
   name: string;
   unit: string;
   qty?: number;
+  alternatives?: Array<{ ingredientId?: string; name: string }>;
 }
 
 /** Autocomplete option shown when linking an ingredient in a recipe/composition. */
@@ -101,15 +102,24 @@ export async function ensureIngredients(
   // Figure out which rows need a new ingredient created
   const toCreate = new Map<string, IngredientRef>();
   for (const r of named) {
-    if (r.ingredientId) continue;
-    const alts = parseAlternatives(r.name);
-    // Already in stock under any alternative?
-    const matched = alts.some(a => byName.has(a.toLowerCase()));
-    if (matched) continue;
-    // Create using the primary (first) alternative name
-    const primaryName = alts[0];
-    const key = primaryName.toLowerCase();
-    if (!toCreate.has(key)) toCreate.set(key, { ...r, name: primaryName });
+    // Primary ingredient
+    if (!r.ingredientId) {
+      const alts = parseAlternatives(r.name);
+      const matched = alts.some(a => byName.has(a.toLowerCase()));
+      if (!matched) {
+        const primaryName = alts[0];
+        const key = primaryName.toLowerCase();
+        if (!toCreate.has(key)) toCreate.set(key, { ...r, name: primaryName });
+      }
+    }
+    // Explicit alternatives
+    for (const alt of r.alternatives ?? []) {
+      if (!alt.ingredientId && alt.name.trim()) {
+        const key = alt.name.toLowerCase();
+        if (!byName.has(key) && !toCreate.has(key))
+          toCreate.set(key, { name: alt.name, unit: r.unit, qty: r.qty });
+      }
+    }
   }
 
   if (toCreate.size > 0) {
@@ -139,13 +149,30 @@ export async function ensureIngredients(
   }
 
   return named.map((r) => {
-    if (r.ingredientId) return r;
-    const alts = parseAlternatives(r.name);
-    // Link to first alternative found in stock
-    for (const alt of alts) {
-      const id = byName.get(alt.toLowerCase());
-      if (id) return { ...r, ingredientId: id };
+    let result = r;
+
+    if (!r.ingredientId) {
+      const alts = parseAlternatives(r.name);
+      for (const alt of alts) {
+        const id = byName.get(alt.toLowerCase());
+        if (id) { result = { ...r, ingredientId: id }; break; }
+      }
+      if (!result.ingredientId) {
+        const primaryName = parseAlternatives(r.name)[0];
+        result = { ...r, ingredientId: byName.get(primaryName.toLowerCase()) };
+      }
     }
-    return r;
+
+    // Link explicit alternatives
+    if (result.alternatives?.length) {
+      const linkedAlts = result.alternatives.map(alt => {
+        if (alt.ingredientId) return alt;
+        const id = byName.get(alt.name.toLowerCase());
+        return id ? { ...alt, ingredientId: id } : alt;
+      });
+      result = { ...result, alternatives: linkedAlts };
+    }
+
+    return result;
   });
 }

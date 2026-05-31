@@ -1,9 +1,9 @@
 'use client';
-import { useState, useRef, useEffect } from 'react';
+import { useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { ensureIngredients, matchesIngredient } from '@/lib/utils/ingredients';
 import type { UserIngredientOption } from '@/lib/utils/ingredients';
-import { Plus, Trash2, Loader2, FlaskConical, Timer } from 'lucide-react';
+import { Plus, Trash2, Loader2, FlaskConical, Timer, X } from 'lucide-react';
 
 const METHOD_TIMER_DEFAULTS: Record<string, number> = {
   'Shake': 10,
@@ -22,6 +22,7 @@ interface RecipeIngredientRow {
   unit: string;
   type?: string;
   homemade?: boolean;
+  alternatives?: Array<{ ingredientId?: string; name: string }>;
 }
 
 const SPIRIT_CATEGORIES = [
@@ -89,58 +90,82 @@ export default function RecipeForm({ initialData, userIngredients, userId }: Rec
   const [error, setError] = useState('');
 
   const [suggestions, setSuggestions] = useState<UserIngredientOption[]>([]);
-  const [activeIndex, setActiveIndex] = useState<number | null>(null);
-  const dropdownRef = useRef<HTMLDivElement>(null);
+  const [activeTarget, setActiveTarget] = useState<{ row: number; alt: number | null } | null>(null);
 
-  useEffect(() => {
-    function onClickOutside(e: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setSuggestions([]);
-        setActiveIndex(null);
-      }
-    }
-    document.addEventListener('mousedown', onClickOutside);
-    return () => document.removeEventListener('mousedown', onClickOutside);
-  }, []);
+  function handleBlur() {
+    setTimeout(() => { setSuggestions([]); setActiveTarget(null); }, 150);
+  }
+
+  function filterSuggestions(value: string) {
+    return userIngredients
+      .filter((ing) => matchesIngredient(ing, value))
+      .filter((ing) => !ing.isPreparation)
+      .slice(0, 8);
+  }
 
   function handleNameChange(index: number, value: string) {
     setIngredients((prev) => {
       const updated = [...prev];
-      // Clear the linked id if user is editing the name manually
       updated[index] = { ...updated[index], name: value, ingredientId: undefined };
       return updated;
     });
-
-    if (!value.trim()) {
-      setSuggestions([]);
-      setActiveIndex(null);
-      return;
-    }
-
-    const filtered = userIngredients
-      .filter((ing) => matchesIngredient(ing, value))
-      .filter((ing) => !ing.isPreparation) // exclure les prépa-conteneurs multi-sortie
-      .slice(0, 8);
-
-    setSuggestions(filtered);
-    setActiveIndex(index);
+    if (!value.trim()) { setSuggestions([]); setActiveTarget(null); return; }
+    setSuggestions(filterSuggestions(value));
+    setActiveTarget({ row: index, alt: null });
   }
 
-  function handleSuggestionPick(rowIndex: number, option: UserIngredientOption) {
+  function handleAlternativeNameChange(rowIndex: number, altIndex: number, value: string) {
     setIngredients((prev) => {
       const updated = [...prev];
-      updated[rowIndex] = {
-        ...updated[rowIndex],
-        ingredientId: option.id,
-        name: option.name,
-        unit: option.unit,
-        type: option.type,
-        homemade: option.homemade,
-      };
+      const alts = [...(updated[rowIndex].alternatives ?? [])];
+      alts[altIndex] = { ...alts[altIndex], name: value, ingredientId: undefined };
+      updated[rowIndex] = { ...updated[rowIndex], alternatives: alts };
+      return updated;
+    });
+    if (!value.trim()) { setSuggestions([]); setActiveTarget(null); return; }
+    setSuggestions(filterSuggestions(value));
+    setActiveTarget({ row: rowIndex, alt: altIndex });
+  }
+
+  function handleSuggestionPick(rowIndex: number, altIndex: number | null, option: UserIngredientOption) {
+    setIngredients((prev) => {
+      const updated = [...prev];
+      if (altIndex === null) {
+        updated[rowIndex] = {
+          ...updated[rowIndex],
+          ingredientId: option.id,
+          name: option.name,
+          unit: option.unit,
+          type: option.type,
+          homemade: option.homemade,
+        };
+      } else {
+        const alts = [...(updated[rowIndex].alternatives ?? [])];
+        alts[altIndex] = { ingredientId: option.id, name: option.name };
+        updated[rowIndex] = { ...updated[rowIndex], alternatives: alts };
+      }
       return updated;
     });
     setSuggestions([]);
-    setActiveIndex(null);
+    setActiveTarget(null);
+  }
+
+  function addAlternative(rowIndex: number) {
+    setIngredients((prev) => {
+      const updated = [...prev];
+      const alts = [...(updated[rowIndex].alternatives ?? []), { name: '' }];
+      updated[rowIndex] = { ...updated[rowIndex], alternatives: alts };
+      return updated;
+    });
+  }
+
+  function removeAlternative(rowIndex: number, altIndex: number) {
+    setIngredients((prev) => {
+      const updated = [...prev];
+      const alts = (updated[rowIndex].alternatives ?? []).filter((_, i) => i !== altIndex);
+      updated[rowIndex] = { ...updated[rowIndex], alternatives: alts.length ? alts : undefined };
+      return updated;
+    });
   }
 
   function updateRow<K extends keyof RecipeIngredientRow>(
@@ -157,8 +182,21 @@ export default function RecipeForm({ initialData, userIngredients, userId }: Rec
     if (!row.name.trim()) return '';
     if (row.ingredientId) {
       const opt = userIngredients.find((i) => i.id === row.ingredientId);
-      if (opt?.homemade) return 'bg-blue-400';
-      return 'bg-emerald-400';
+      return opt?.homemade ? 'bg-blue-400' : 'bg-emerald-400';
+    }
+    const linkedAlt = row.alternatives?.find(a => a.ingredientId);
+    if (linkedAlt) {
+      const opt = userIngredients.find((i) => i.id === linkedAlt.ingredientId);
+      return opt?.homemade ? 'bg-blue-400' : 'bg-emerald-400';
+    }
+    return 'bg-orange-400';
+  }
+
+  function altDotColor(alt: { ingredientId?: string; name: string }): string {
+    if (!alt.name.trim()) return '';
+    if (alt.ingredientId) {
+      const opt = userIngredients.find((i) => i.id === alt.ingredientId);
+      return opt?.homemade ? 'bg-blue-400' : 'bg-emerald-400';
     }
     return 'bg-orange-400';
   }
@@ -170,7 +208,6 @@ export default function RecipeForm({ initialData, userIngredients, userId }: Rec
 
     const supabase = createClient();
 
-    // Auto-create any missing ingredients in stocks, then link by id
     const ingredientRows = await ensureIngredients(
       supabase,
       userId,
@@ -251,10 +288,10 @@ export default function RecipeForm({ initialData, userIngredients, userId }: Rec
         <div className="space-y-3">
           {ingredients.map((row, index) => {
             const dot = dotColor(row);
-            const showDrop = activeIndex === index && suggestions.length > 0;
+            const isMainActive = activeTarget?.row === index && activeTarget.alt === null;
 
             return (
-              <div key={index} className="card p-3 space-y-2 relative">
+              <div key={index} className="card p-3 space-y-2">
                 {/* Row 1: Name + delete */}
                 <div className="flex items-center gap-2">
                   <div className="relative flex-1">
@@ -263,11 +300,36 @@ export default function RecipeForm({ initialData, userIngredients, userId }: Rec
                       value={row.name}
                       onChange={(e) => handleNameChange(index, e.target.value)}
                       onFocus={() => row.name.trim() && handleNameChange(index, row.name)}
+                      onBlur={handleBlur}
                       placeholder="Nom de l'ingrédient"
                       className="field-input pr-7 w-full"
                     />
                     {row.name.trim() && dot && (
                       <span className={`absolute right-2.5 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full ${dot}`} />
+                    )}
+                    {isMainActive && suggestions.length > 0 && (
+                      <div className="absolute left-0 right-0 top-full mt-1 z-50 card p-1 shadow-lg">
+                        {suggestions.map((opt) => {
+                          const subtitle = [opt.brand, opt.family].filter(Boolean).join(' · ');
+                          return (
+                            <button
+                              key={opt.id}
+                              type="button"
+                              onMouseDown={(e) => { e.preventDefault(); handleSuggestionPick(index, null, opt); }}
+                              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-[var(--text)] hover:bg-[var(--surface2)] rounded-md transition-colors text-left"
+                            >
+                              <span className={`w-2 h-2 rounded-full shrink-0 ${opt.homemade ? 'bg-blue-400' : 'bg-emerald-400'}`} />
+                              <span className="flex-1 min-w-0">
+                                <span className="block truncate">{opt.name}</span>
+                                {subtitle && (
+                                  <span className="block text-xs text-[var(--text-dim)] truncate">{subtitle}</span>
+                                )}
+                              </span>
+                              {opt.homemade && <FlaskConical size={12} className="text-blue-400 shrink-0" />}
+                            </button>
+                          );
+                        })}
+                      </div>
                     )}
                   </div>
                   <button
@@ -278,6 +340,72 @@ export default function RecipeForm({ initialData, userIngredients, userId }: Rec
                     <Trash2 size={16} />
                   </button>
                 </div>
+
+                {/* Alternatives */}
+                {(row.alternatives ?? []).map((alt, altIdx) => {
+                  const aDot = altDotColor(alt);
+                  const isAltActive = activeTarget?.row === index && activeTarget.alt === altIdx;
+                  return (
+                    <div key={altIdx} className="flex items-center gap-2">
+                      <span className="text-xs font-medium text-[var(--text-dim)] shrink-0 pl-1 w-5 text-center">ou</span>
+                      <div className="relative flex-1">
+                        <input
+                          type="text"
+                          value={alt.name}
+                          onChange={(e) => handleAlternativeNameChange(index, altIdx, e.target.value)}
+                          onFocus={() => alt.name.trim() && handleAlternativeNameChange(index, altIdx, alt.name)}
+                          onBlur={handleBlur}
+                          placeholder="Ingrédient alternatif…"
+                          className="field-input pr-7 w-full text-sm"
+                        />
+                        {alt.name.trim() && aDot && (
+                          <span className={`absolute right-2.5 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full ${aDot}`} />
+                        )}
+                        {isAltActive && suggestions.length > 0 && (
+                          <div className="absolute left-0 right-0 top-full mt-1 z-50 card p-1 shadow-lg">
+                            {suggestions.map((opt) => {
+                              const subtitle = [opt.brand, opt.family].filter(Boolean).join(' · ');
+                              return (
+                                <button
+                                  key={opt.id}
+                                  type="button"
+                                  onMouseDown={(e) => { e.preventDefault(); handleSuggestionPick(index, altIdx, opt); }}
+                                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-[var(--text)] hover:bg-[var(--surface2)] rounded-md transition-colors text-left"
+                                >
+                                  <span className={`w-2 h-2 rounded-full shrink-0 ${opt.homemade ? 'bg-blue-400' : 'bg-emerald-400'}`} />
+                                  <span className="flex-1 min-w-0">
+                                    <span className="block truncate">{opt.name}</span>
+                                    {subtitle && (
+                                      <span className="block text-xs text-[var(--text-dim)] truncate">{subtitle}</span>
+                                    )}
+                                  </span>
+                                  {opt.homemade && <FlaskConical size={12} className="text-blue-400 shrink-0" />}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeAlternative(index, altIdx)}
+                        className="shrink-0 p-1.5 text-[var(--text-dim)] hover:text-red-400 transition-colors"
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  );
+                })}
+
+                {/* Add alternative */}
+                <button
+                  type="button"
+                  onClick={() => addAlternative(index)}
+                  className="text-xs text-[var(--text-dim)] hover:text-[var(--gold)] transition-colors flex items-center gap-1 pl-1"
+                >
+                  <Plus size={11} />
+                  ou…
+                </button>
 
                 {/* Row 2: Qty + Unit */}
                 <div className="flex gap-2">
@@ -304,32 +432,6 @@ export default function RecipeForm({ initialData, userIngredients, userId }: Rec
                     </select>
                   </div>
                 </div>
-
-                {/* Autocomplete dropdown */}
-                {showDrop && (
-                  <div ref={dropdownRef} className="absolute left-3 right-12 top-14 z-50 card p-1 shadow-lg">
-                    {suggestions.map((opt) => {
-                      const subtitle = [opt.brand, opt.family].filter(Boolean).join(' · ');
-                      return (
-                        <button
-                          key={opt.id}
-                          type="button"
-                          onMouseDown={(e) => { e.preventDefault(); handleSuggestionPick(index, opt); }}
-                          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-[var(--text)] hover:bg-[var(--surface2)] rounded-md transition-colors text-left"
-                        >
-                          <span className={`w-2 h-2 rounded-full shrink-0 ${opt.homemade ? 'bg-blue-400' : 'bg-emerald-400'}`} />
-                          <span className="flex-1 min-w-0">
-                            <span className="block truncate">{opt.name}</span>
-                            {subtitle && (
-                              <span className="block text-xs text-[var(--text-dim)] truncate">{subtitle}</span>
-                            )}
-                          </span>
-                          {opt.homemade && <FlaskConical size={12} className="text-blue-400 shrink-0" />}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
               </div>
             );
           })}
