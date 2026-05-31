@@ -104,6 +104,21 @@ const SPIRIT_LABELS: Record<string, string> = Object.fromEntries(
   SPIRIT_FILTER_TABS.filter((t) => t.key !== 'all').map((t) => [t.key, t.label])
 );
 
+function getCatalogFamily(ingredients: CatalogCocktail['ingredients']): string {
+  const n = ingredients.map(i => i.name.toLowerCase()).join(' ');
+  if (/whisky|whiskey|bourbon|rye|scotch/.test(n)) return 'whisky';
+  if (/\bgin\b|old tom gin|london dry gin/.test(n)) return 'gin';
+  if (/\bvodka\b/.test(n)) return 'vodka';
+  if (/\brum\b|\brhum\b|cachaça/.test(n)) return 'rhum';
+  if (/tequila|mezcal/.test(n)) return 'tequila';
+  if (/cognac|calvados|pisco|applejack/.test(n)) return 'cognac';
+  if (/champagne|prosecco|sparkling wine/.test(n)) return 'champagne';
+  if (/sherry|vermouth|porto|red wine|dry white wine|dubonnet|lillet/.test(n)) return 'wine';
+  const hasAlc = /absinthe|liqueur|amaretto|amaro|campari|aperol|cointreau|grand marnier|fernet|chartreuse|maraschino|drambuie|cura[çc]ao|midori|galliano|cynar|benedictine|frangelico|pimm|kirsch|pernod|brandy|armagnac/.test(n);
+  if (!hasAlc) return 'non-alc';
+  return 'other';
+}
+
 export default function RecipesClient({ initialRecipes, homemadeIngredients, userId, userPlan }: Props) {
   const recipeLimit = PLANS[userPlan].limits.recipes;
   const isReadOnly = recipeLimit !== Infinity && initialRecipes.length > recipeLimit;
@@ -125,6 +140,7 @@ export default function RecipesClient({ initialRecipes, homemadeIngredients, use
   const [catalogLoading, setCatalogLoading] = useState(false);
   const [catalogFetched, setCatalogFetched] = useState(false);
   const [catalogSearch, setCatalogSearch] = useState('');
+  const [catalogFamilyFilter, setCatalogFamilyFilter] = useState('all');
   const [importing, setImporting] = useState<Set<string>>(new Set());
   const [imported, setImported] = useState<Set<string>>(new Set());
 
@@ -147,10 +163,14 @@ export default function RecipesClient({ initialRecipes, homemadeIngredients, use
   }, [recipes, mySearch, spiritFilter]);
 
   const filteredCatalog = useMemo(() => {
-    if (!catalogSearch.trim()) return catalog;
+    let result = catalog;
+    if (catalogFamilyFilter !== 'all') {
+      result = result.filter(c => getCatalogFamily(c.ingredients) === catalogFamilyFilter);
+    }
+    if (!catalogSearch.trim()) return result;
     const q = catalogSearch.toLowerCase();
-    return catalog.filter((c) => c.name.toLowerCase().includes(q));
-  }, [catalog, catalogSearch]);
+    return result.filter((c) => c.name.toLowerCase().includes(q));
+  }, [catalog, catalogSearch, catalogFamilyFilter]);
 
   async function loadCatalog() {
     if (catalogFetched) return;
@@ -514,6 +534,23 @@ export default function RecipesClient({ initialRecipes, homemadeIngredients, use
                 onChange={(e) => setCatalogSearch(e.target.value)}
                 className="field-input pl-10"
               />
+            </div>
+
+            {/* Spirit family filter */}
+            <div className="flex gap-2 overflow-x-auto scrollbar-none pb-1 -mx-4 px-4">
+              {SPIRIT_FILTER_TABS.map((tab) => (
+                <button
+                  key={tab.key}
+                  onClick={() => setCatalogFamilyFilter(tab.key)}
+                  className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                    catalogFamilyFilter === tab.key
+                      ? 'bg-[var(--gold)] text-[#0A0E1A]'
+                      : 'bg-[var(--surface2)] text-[var(--text-dim)] border border-[var(--border)]'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
             </div>
 
             {catalogLoading && (
