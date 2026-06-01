@@ -2,7 +2,8 @@ import { createClient } from '@/lib/supabase/server';
 import { redirect, notFound } from 'next/navigation';
 import { TopBar } from '@/components/layout/TopBar';
 import Link from 'next/link';
-import { Pencil, GlassWater, FlaskConical } from 'lucide-react';
+import { Pencil, FlaskConical } from 'lucide-react';
+import { GlassIcon } from '@/components/ui/GlassIcon';
 import { RecipeDeleteButton } from '../RecipeDeleteButton';
 import { RecipeTimer } from '../RecipeTimer';
 import { ShareToTeamButton } from '@/components/shared/ShareToTeamButton';
@@ -214,7 +215,7 @@ export default async function RecipeDetailPage({
           </span>
           {glass && (
             <span className="text-xs px-2 py-1 rounded-full bg-[var(--surface2)] text-[var(--text-dim)] flex items-center gap-1">
-              <GlassWater size={11} />
+              <GlassIcon glass={glass} size={11} />
               {glass}
             </span>
           )}

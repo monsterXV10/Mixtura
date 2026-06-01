@@ -1,11 +1,12 @@
 import { TopBar } from '@/components/layout/TopBar';
-import { Users, User, Crown, FileText, Zap } from 'lucide-react';
+import { Users, User, Crown, FileText, Zap, Bug } from 'lucide-react';
 import Link from 'next/link';
 
 const SETTINGS_ITEMS = [
   { href: '/settings/account', icon: User, label: 'Mon compte', desc: 'Profil, mot de passe' },
   { href: '/settings/plan', icon: Crown, label: 'Plan & abonnement', desc: 'Voir les plans, upgrade' },
   { href: '/settings/team', icon: Users, label: 'Équipe & permissions', desc: 'Membres, rôles, QR code' },
+  { href: '/settings/feedback', icon: Bug, label: 'Signaler un bug / Proposer', desc: 'Bug, idée, retour d\'expérience' },
 ];
 
 const LEGAL_ITEMS = [

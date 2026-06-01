@@ -5,7 +5,8 @@ import { ensureIngredients } from '@/lib/utils/ingredients';
 import { PLANS, type PlanId } from '@/config/plans';
 import { TopBar } from '@/components/layout/TopBar';
 import Link from 'next/link';
-import { Plus, Search, BookOpen, Package, Download, Check, Pencil, FlaskConical, Lock, X, GlassWater } from 'lucide-react';
+import { Plus, Search, BookOpen, Package, Download, Check, Pencil, FlaskConical, Lock, X } from 'lucide-react';
+import { GlassIcon } from '@/components/ui/GlassIcon';
 
 interface RecipeRow {
   id: string;
@@ -663,7 +664,7 @@ export default function RecipesClient({ initialRecipes, homemadeIngredients, use
                 <div className="flex flex-wrap gap-1.5 mt-2">
                   {previewCocktail.glass && (
                     <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-[var(--surface2)] text-[var(--text-dim)]">
-                      <GlassWater size={10} />{previewCocktail.glass}
+                      <GlassIcon glass={previewCocktail.glass} size={10} />{previewCocktail.glass}
                     </span>
                   )}
                   {previewCocktail.method && (
