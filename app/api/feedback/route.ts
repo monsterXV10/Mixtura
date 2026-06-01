@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
 
   // Send email via Resend if configured
   const RESEND_API_KEY = process.env.RESEND_API_KEY;
-  const FEEDBACK_EMAIL = process.env.FEEDBACK_EMAIL ?? 'kuhlichalexis@gmail.com';
+  const FEEDBACK_EMAIL = process.env.FEEDBACK_EMAIL ?? 'support.mixtura@gmail.com';
   if (RESEND_API_KEY) {
     const typeLabel = type === 'bug' ? '🐛 Bug' : '✨ Suggestion';
     await fetch('https://api.resend.com/emails', {
