@@ -80,7 +80,7 @@ export default function FeedbackPage() {
             <button
               type="button"
               onClick={() => setType('bug')}
-              className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+              className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-[12px] text-sm font-medium transition-colors ${
                 type === 'bug'
                   ? 'bg-[var(--gold)] text-[#0A0E1A]'
                   : 'text-[var(--text-dim)] hover:text-[var(--text)]'
@@ -92,7 +92,7 @@ export default function FeedbackPage() {
             <button
               type="button"
               onClick={() => setType('feature')}
-              className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+              className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-[12px] text-sm font-medium transition-colors ${
                 type === 'feature'
                   ? 'bg-[var(--gold)] text-[#0A0E1A]'
                   : 'text-[var(--text-dim)] hover:text-[var(--text)]'
@@ -150,6 +150,14 @@ export default function FeedbackPage() {
             className="btn-primary w-full py-3"
           >
             {loading ? 'Envoi…' : 'Envoyer'}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => router.push('/settings')}
+            className="btn-ghost w-full py-2.5 text-sm"
+          >
+            Retour
           </button>
 
         </form>

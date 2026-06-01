@@ -64,7 +64,7 @@ export default function PlanClient({ currentPlan }: { currentPlan: PlanId }) {
         <button
           type="button"
           onClick={() => setAnnual(v => !v)}
-          className="relative w-11 h-6 rounded-full transition-colors"
+          className="relative w-11 h-6 rounded-full overflow-hidden transition-colors"
           style={{ background: annual ? 'var(--gold)' : 'var(--surface2)' }}
           aria-label="Basculer annuel/mensuel"
         >
