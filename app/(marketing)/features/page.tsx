@@ -8,7 +8,7 @@ const FEATURES = [
     title: 'Votre carte complète, toujours à jour',
     desc: 'Centralisez l\'ensemble de vos recettes de cocktails, cafés et plats dans une interface conçue pour la rapidité en service. Chaque fiche recette embarque les quantités précises, les instructions pas à pas et les ingrédients liés à votre stock — avec leur statut en temps réel.',
     points: [
-      'Import direct depuis 250+ recettes du catalogue IBA',
+      'Import direct depuis 200+ recettes du catalogue IBA',
       'Ingrédients avec alternatives "ou…" (ex. Gin ou Vodka)',
       'Liaison automatique à votre stock au moment de l\'import',
       'Méthode, verre, garniture et spiritueux principal',
@@ -235,7 +235,7 @@ export default function FeaturesPage() {
                           <span className="text-sm font-bold" style={{ color: 'var(--gold)' }}>× 12</span>
                         </div>
                       </div>
-                      {[['Gin', '54 cl'], ['Campari', '36 cl'], ['Vermouth', '36 cl']].map(([n, q]) => (
+                      {[['Gin', '36 cl'], ['Campari', '36 cl'], ['Vermouth rosso', '36 cl']].map(([n, q]) => (
                         <div key={n} className="flex justify-between px-3 py-1.5 rounded-lg"
                           style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)' }}>
                           <span className="text-xs text-[var(--text-dim)]">{n}</span>
@@ -291,10 +291,6 @@ export default function FeaturesPage() {
             <Link href="/register" className="btn-primary px-8 py-3 gap-2">
               Commencer gratuitement
               <ArrowRight size={16} />
-            </Link>
-            <Link href="/demo" className="btn-ghost px-8 py-3 gap-2">
-              <Zap size={16} />
-              Voir la démo
             </Link>
           </div>
         </div>

@@ -102,7 +102,7 @@ function Tap({ top, left, delay = '0s' }: { top: string; left: string; delay?: s
 
 function RecipesMock() {
   const ings = [
-    { name: 'Gin', qty: '4.5 cl', dot: '#34d399', d: '1.0s' },
+    { name: 'Gin', qty: '3 cl', dot: '#34d399', d: '1.0s' },
     { name: 'Campari', qty: '3 cl',   dot: '#34d399', d: '1.15s' },
     { name: 'Vermouth', qty: '3 cl',  dot: '#fb923c', d: '1.3s' },
   ];
@@ -246,9 +246,9 @@ function StocksMock() {
 
 function BatchMock() {
   const quantities = [
-    { name: 'Gin',     qty: '54 cl', d: '1.0s' },
-    { name: 'Campari', qty: '36 cl', d: '1.15s' },
-    { name: 'Vermouth',qty: '36 cl', d: '1.3s' },
+    { name: 'Gin',            qty: '36 cl', d: '1.0s' },
+    { name: 'Campari',        qty: '36 cl', d: '1.15s' },
+    { name: 'Vermouth rosso', qty: '36 cl', d: '1.3s' },
   ];
   const counts = ['1', '4', '8', '12'];
   return (
@@ -461,7 +461,7 @@ const SLIDES = [
     title: 'Toutes vos recettes, toujours à portée',
     desc: 'Cocktails, cafés, cuisine — centralisez votre carte complète avec fiches ingrédients, alternatives et instructions de préparation.',
     bullets: [
-      'Import depuis 250+ recettes IBA',
+      'Import depuis 200+ recettes IBA',
       'Ingrédients liés à votre stock',
       'Alternatives "ou…" par ingrédient',
     ],

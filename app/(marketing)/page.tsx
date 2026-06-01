@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { ArrowRight, Zap } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import FeatureCarousel from './FeatureCarousel';
 
 export default function LandingPage() {
@@ -37,10 +37,6 @@ export default function LandingPage() {
           <Link href="/register" className="btn-primary px-8 py-3 text-base gap-2">
             Commencer gratuitement
             <ArrowRight size={18} />
-          </Link>
-          <Link href="/demo" className="btn-ghost px-8 py-3 text-base gap-2">
-            <Zap size={18} />
-            Voir la démo
           </Link>
         </div>
       </section>
