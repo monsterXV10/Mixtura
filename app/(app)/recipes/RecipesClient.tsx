@@ -160,6 +160,8 @@ export default function RecipesClient({ initialRecipes, homemadeIngredients, use
   const [catalogFamilyFilter, setCatalogFamilyFilter] = useState('all');
   const [importing, setImporting] = useState<Set<string>>(new Set());
   const [imported, setImported] = useState<Set<string>>(new Set());
+  const [catalogError, setCatalogError] = useState('');
+  const [importError, setImportError] = useState('');
   const [previewCocktail, setPreviewCocktail] = useState<CatalogCocktail | null>(null);
 
   // Seed imported set from existing recipes by name
@@ -193,18 +195,20 @@ export default function RecipesClient({ initialRecipes, homemadeIngredients, use
   async function loadCatalog() {
     if (catalogFetched) return;
     setCatalogLoading(true);
+    setCatalogError('');
     try {
       const supabase = createClient();
       const { data, error } = await supabase
         .from('catalog')
         .select('*')
         .order('name', { ascending: true });
-      if (!error && data) {
-        setCatalog(data as CatalogCocktail[]);
-      }
+      if (error) throw error;
+      setCatalog(data as CatalogCocktail[]);
+      setCatalogFetched(true);
+    } catch {
+      setCatalogError('Impossible de charger le catalogue.');
     } finally {
       setCatalogLoading(false);
-      setCatalogFetched(true);
     }
   }
 
@@ -230,6 +234,7 @@ export default function RecipesClient({ initialRecipes, homemadeIngredients, use
   async function handleImport(cocktail: CatalogCocktail) {
     if (imported.has(cocktail.name.toLowerCase())) return;
     setImporting((prev) => new Set(prev).add(cocktail.id));
+    setImportError('');
     try {
       const supabase = createClient();
       const linkedIngredients = await ensureIngredients(
@@ -261,10 +266,11 @@ export default function RecipesClient({ initialRecipes, homemadeIngredients, use
         })
         .select()
         .single();
-      if (!error && data) {
-        setRecipes((prev) => [data as RecipeRow, ...prev]);
-        setImported((prev) => new Set(prev).add(cocktail.name.toLowerCase()));
-      }
+      if (error) throw error;
+      setRecipes((prev) => [data as RecipeRow, ...prev]);
+      setImported((prev) => new Set(prev).add(cocktail.name.toLowerCase()));
+    } catch {
+      setImportError('Impossible d\'importer la recette.');
     } finally {
       setImporting((prev) => {
         const next = new Set(prev);
@@ -601,7 +607,14 @@ export default function RecipesClient({ initialRecipes, homemadeIngredients, use
               </div>
             )}
 
-            {!catalogLoading && catalogFetched && filteredCatalog.length === 0 && (
+            {!catalogLoading && catalogError && (
+              <div className="flex flex-col items-center justify-center py-16 gap-2 text-center">
+                <Package size={40} className="text-[var(--text-dim)] opacity-40" />
+                <p className="text-sm text-red-400">{catalogError}</p>
+              </div>
+            )}
+
+            {!catalogLoading && !catalogError && catalogFetched && filteredCatalog.length === 0 && (
               <div className="flex flex-col items-center justify-center py-16 gap-2 text-center">
                 <Package size={40} className="text-[var(--text-dim)] opacity-40" />
                 <p className="text-sm text-[var(--text-dim)]">Aucun résultat</p>
@@ -610,6 +623,9 @@ export default function RecipesClient({ initialRecipes, homemadeIngredients, use
 
             {!catalogLoading && filteredCatalog.length > 0 && (
               <div className="space-y-2">
+                {importError && (
+                  <p className="text-xs text-red-400 bg-red-400/10 rounded-lg px-3 py-2">{importError}</p>
+                )}
                 {filteredCatalog.some((c) => !imported.has(c.name.toLowerCase())) && (
                   <button
                     onClick={handleImportAll}
