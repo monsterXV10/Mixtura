@@ -1,5 +1,6 @@
 'use client';
 import { useState, useRef, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { matchesIngredient, ensureIngredients } from '@/lib/utils/ingredients';
 import { Plus, Trash2, Loader2, FlaskConical } from 'lucide-react';
@@ -81,6 +82,7 @@ const COMMON_FAMILIES = [
 const EMPTY_COMP: CompositionRow = { name: '', qty: 0, unit: 'cl' };
 
 export default function IngredientForm({ userId, userIngredients, initialData }: IngredientFormProps) {
+  const router = useRouter();
   const [name, setName] = useState(initialData?.name ?? '');
   const [type, setType] = useState(initialData?.type ?? 'spirit');
   const [unit, setUnit] = useState(initialData?.unit ?? 'cl');
@@ -200,7 +202,7 @@ export default function IngredientForm({ userId, userIngredients, initialData }:
         ? await supabase.from('ingredients').update(payload).eq('id', initialData.id).eq('user_id', userId)
         : await supabase.from('ingredients').insert(payload);
       if (result.error) { setError('Erreur lors de la sauvegarde.'); setSaving(false); }
-      else { window.location.href = '/ingredients'; }
+      else { router.push('/ingredients'); router.refresh(); }
       return;
     }
 
@@ -309,7 +311,7 @@ export default function IngredientForm({ userId, userIngredients, initialData }:
           .eq('user_id', userId);
       }
 
-      window.location.href = '/recipes?tab=homemade';
+      router.push('/recipes?tab=homemade'); router.refresh();
     } else {
       // === Sortie unique — comportement actuel ===
       const out = validOutputs[0];
@@ -327,7 +329,7 @@ export default function IngredientForm({ userId, userIngredients, initialData }:
         ? await supabase.from('ingredients').update(payload).eq('id', initialData.id).eq('user_id', userId)
         : await supabase.from('ingredients').insert(payload);
       if (result.error) { setError('Erreur lors de la sauvegarde.'); setSaving(false); }
-      else { window.location.href = '/recipes?tab=homemade'; }
+      else { router.push('/recipes?tab=homemade'); router.refresh(); }
     }
   };
 

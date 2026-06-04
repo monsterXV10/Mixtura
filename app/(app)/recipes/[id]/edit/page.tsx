@@ -16,7 +16,7 @@ export default async function EditRecipePage({
 
   const [{ data: recipe }, { data: ingredientRows }] = await Promise.all([
     supabase.from('recipes').select('*').eq('id', id).eq('user_id', user.id).single(),
-    supabase.from('ingredients').select('id, data').eq('user_id', user.id),
+    supabase.from('ingredients').select('id, data').eq('user_id', user.id).limit(500),
   ]);
 
   if (!recipe) notFound();

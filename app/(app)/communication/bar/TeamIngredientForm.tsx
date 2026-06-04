@@ -1,5 +1,6 @@
 'use client';
 import { useState, useRef, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { matchesIngredient } from '@/lib/utils/ingredients';
 import { Plus, Trash2, Loader2, FlaskConical } from 'lucide-react';
@@ -49,6 +50,7 @@ const COMMON_FAMILIES = [
 const EMPTY_COMP: CompositionRow = { name: '', qty: 0, unit: 'cl' };
 
 export default function TeamIngredientForm({ userId, teamId, teamIngredients, initialData }: Props) {
+  const router = useRouter();
   const [name, setName] = useState(initialData?.name ?? '');
   const [type, setType] = useState(initialData?.type ?? 'spirit');
   const [unit, setUnit] = useState(initialData?.unit ?? 'cl');
@@ -143,7 +145,7 @@ export default function TeamIngredientForm({ userId, teamId, teamIngredients, in
         ? await supabase.from('team_ingredients').update({ data, updated_at: updatedAt }).eq('id', initialData.id)
         : await supabase.from('team_ingredients').insert({ team_id: teamId, created_by: userId, data, updated_at: updatedAt });
       if (result.error) { setError('Erreur lors de la sauvegarde.'); setSaving(false); }
-      else { window.location.href = backUrl; }
+      else { router.push(backUrl); router.refresh(); }
       return;
     }
 
@@ -165,7 +167,7 @@ export default function TeamIngredientForm({ userId, teamId, teamIngredients, in
       ? await supabase.from('team_ingredients').update({ data, updated_at: updatedAt }).eq('id', initialData.id)
       : await supabase.from('team_ingredients').insert({ team_id: teamId, created_by: userId, data, updated_at: updatedAt });
     if (result.error) { setError('Erreur lors de la sauvegarde.'); setSaving(false); }
-    else { window.location.href = backUrl; }
+    else { router.push(backUrl); router.refresh(); }
   };
 
   const isAlcohol = ['spirit', 'liqueur', 'wine'].includes(type);
@@ -417,7 +419,7 @@ export default function TeamIngredientForm({ userId, teamId, teamIngredients, in
             setSaving(true);
             const supabase = createClient();
             await supabase.from('team_ingredients').delete().eq('id', initialData.id);
-            window.location.href = backUrl;
+            router.push(backUrl); router.refresh();
           }}
           className="w-full py-2.5 text-sm flex items-center justify-center gap-2 text-red-400 bg-red-400/10 rounded-lg hover:bg-red-400/20 transition-colors"
         >
