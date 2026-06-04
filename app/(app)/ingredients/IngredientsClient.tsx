@@ -156,10 +156,12 @@ export default function IngredientsClient({ initialIngredients, userId, userPlan
   const [ingCatalog, setIngCatalog] = useState<CatalogIngredient[]>([]);
   const [ingCatalogLoading, setIngCatalogLoading] = useState(false);
   const [ingCatalogFetched, setIngCatalogFetched] = useState(false);
+  const [ingCatalogError, setIngCatalogError] = useState('');
   const [ingCatalogSearch, setIngCatalogSearch] = useState('');
   const [ingCatalogCat, setIngCatalogCat] = useState('all');
   const [importingIng, setImportingIng] = useState<Set<string>>(new Set());
   const [importedIng, setImportedIng] = useState<Set<string>>(new Set());
+  const [importError, setImportError] = useState('');
 
   const PAGE_SIZE = 30;
   const [visibleIngCount, setVisibleIngCount] = useState(PAGE_SIZE);
@@ -222,22 +224,28 @@ export default function IngredientsClient({ initialIngredients, userId, userPlan
   async function loadIngCatalog() {
     if (ingCatalogFetched) return;
     setIngCatalogLoading(true);
+    setIngCatalogError('');
     try {
       const supabase = createClient();
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('catalog_ingredients')
         .select('id, name, category, type, default_unit')
-        .order('name', { ascending: true });
+        .order('name', { ascending: true })
+        .limit(2000);
+      if (error) { setIngCatalogError('Erreur de chargement. Réessayez.'); return; }
       if (data) setIngCatalog(data as CatalogIngredient[]);
+      setIngCatalogFetched(true);
+    } catch {
+      setIngCatalogError('Erreur de chargement. Réessayez.');
     } finally {
       setIngCatalogLoading(false);
-      setIngCatalogFetched(true);
     }
   }
 
   async function handleImportIngredient(ing: CatalogIngredient) {
     if (importedIng.has(ing.name.toLowerCase())) return;
     setImportingIng(prev => new Set(prev).add(ing.id));
+    setImportError('');
     try {
       const supabase = createClient();
       const { error } = await supabase.from('ingredients').insert({
@@ -253,7 +261,10 @@ export default function IngredientsClient({ initialIngredients, userId, userPlan
         },
         updated_at: new Date().toISOString(),
       });
-      if (!error) setImportedIng(prev => new Set(prev).add(ing.name.toLowerCase()));
+      if (error) setImportError('Erreur lors de l\'import. Réessayez.');
+      else setImportedIng(prev => new Set(prev).add(ing.name.toLowerCase()));
+    } catch {
+      setImportError('Erreur lors de l\'import. Réessayez.');
     } finally {
       setImportingIng(prev => { const n = new Set(prev); n.delete(ing.id); return n; });
     }
@@ -463,6 +474,13 @@ export default function IngredientsClient({ initialIngredients, userId, userPlan
                 </button>
               ))}
             </div>
+
+            {ingCatalogError && (
+              <p className="text-xs text-red-400 px-1">{ingCatalogError}</p>
+            )}
+            {importError && (
+              <p className="text-xs text-red-400 px-1">{importError}</p>
+            )}
 
             {/* Loading */}
             {ingCatalogLoading && (

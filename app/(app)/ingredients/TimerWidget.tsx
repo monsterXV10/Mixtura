@@ -29,21 +29,23 @@ export default function TimerWidget() {
   const audioRef = useRef<AudioContext | null>(null);
 
   useEffect(() => {
-    if (running && remaining > 0) {
-      intervalRef.current = setInterval(() => {
-        setRemaining((r) => {
-          if (r <= 1) {
-            setRunning(false);
-            setDone(true);
-            playBeep();
-            return 0;
-          }
-          return r - 1;
-        });
-      }, 1000);
+    if (!running) {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+      return;
     }
+    intervalRef.current = setInterval(() => {
+      setRemaining((r) => {
+        if (r <= 1) {
+          setRunning(false);
+          setDone(true);
+          playBeep();
+          return 0;
+        }
+        return r - 1;
+      });
+    }, 1000);
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
-  }, [running, remaining]);
+  }, [running]);
 
   function playBeep() {
     try {

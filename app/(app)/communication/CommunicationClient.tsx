@@ -112,14 +112,14 @@ export default function CommunicationClient({
     setLiveBatches(teamBatches);
   }, [teamBatches]);
 
+  const hasActiveTimers = liveBatches.some((b) =>
+    Object.values(b.timers ?? {}).some((t) => t.startedAt && getRemaining(t) > 0)
+  );
   useEffect(() => {
-    const hasActive = liveBatches.some((b) =>
-      Object.values(b.timers ?? {}).some((t) => t.startedAt && getRemaining(t) > 0)
-    );
-    if (!hasActive) return;
+    if (!hasActiveTimers) return;
     const id = setInterval(() => setTick((n) => n + 1), 1000);
     return () => clearInterval(id);
-  }, [liveBatches]);
+  }, [hasActiveTimers]);
 
   // Subscribe to batch updates for shared batches
   useEffect(() => {

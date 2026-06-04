@@ -56,7 +56,8 @@ export default async function CommunicationPage() {
       .from('team_invitations')
       .select('*')
       .eq('email', user.email)
-      .eq('accepted', false);
+      .eq('accepted', false)
+      .limit(50);
     const external = (myInvites ?? []).filter((i) => !teamIds.includes(i.team_id as string)) as TeamInvitation[];
     if (external.length > 0) {
       const invTeamIds = [...new Set(external.map((i) => i.team_id))];

@@ -78,7 +78,8 @@ export default async function TeamSettingsPage() {
       .from('team_invitations')
       .select('*')
       .eq('email', user.email)
-      .eq('accepted', false);
+      .eq('accepted', false)
+      .limit(50);
 
     const externalInvites = (myInvites ?? []).filter(
       (i) => !teamIds.includes(i.team_id as string)

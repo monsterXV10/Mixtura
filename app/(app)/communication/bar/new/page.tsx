@@ -25,7 +25,8 @@ export default async function NewTeamIngredientPage({
   const { data: ingredientRows } = await supabase
     .from('team_ingredients')
     .select('id, data')
-    .eq('team_id', teamId);
+    .eq('team_id', teamId)
+    .limit(200);
 
   const teamIngredients = (ingredientRows ?? []).map((i) => ({
     id: i.id as string,

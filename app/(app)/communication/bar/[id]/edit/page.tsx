@@ -46,7 +46,8 @@ export default async function EditTeamIngredientPage({
   const { data: ingredientRows } = await supabase
     .from('team_ingredients')
     .select('id, data')
-    .eq('team_id', teamId);
+    .eq('team_id', teamId)
+    .limit(200);
 
   const teamIngredients = (ingredientRows ?? [])
     .filter((i) => i.id !== id)
