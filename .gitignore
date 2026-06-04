@@ -13,6 +13,7 @@ package-lock.json
 out/
 
 # Variables d'environnement (ne jamais commiter)
+.env
 .env.local
 .env*.local
 

@@ -2,9 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 
 export async function GET(request: NextRequest) {
-  // Only works when NEXT_PUBLIC_TEST_LOGIN=true is set in env
-  if (process.env.NEXT_PUBLIC_TEST_LOGIN !== 'true') {
-    return NextResponse.redirect(new URL('/login', request.url));
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
 
   const email = process.env.TEST_LOGIN_EMAIL;

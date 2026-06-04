@@ -29,7 +29,7 @@ export default async function BarStockPage({
       supabase.from('teams').select('id, name, owner_id').eq('id', teamId).single(),
       supabase.from('teams').select('id, name').in('id', teamIds),
       supabase.from('team_members').select('role').eq('team_id', teamId).eq('user_id', user.id).maybeSingle(),
-      supabase.from('team_ingredients').select('*').eq('team_id', teamId).order('updated_at', { ascending: false }),
+      supabase.from('team_ingredients').select('*').eq('team_id', teamId).order('updated_at', { ascending: false }).limit(200),
     ]);
 
   if (!team) redirect('/communication');

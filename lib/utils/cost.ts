@@ -33,7 +33,7 @@ export function calcCostPerUnit(
   visited.add(ingredientId);
   let total = 0;
   for (const comp of ing.composition) {
-    const subCost = calcCostPerUnit(comp.ingredientId, map, new Set(visited));
+    const subCost = calcCostPerUnit(comp.ingredientId, map, visited);
     if (subCost === null) return null;
     total += subCost * comp.qty;
   }

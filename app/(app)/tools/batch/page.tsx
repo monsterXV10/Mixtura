@@ -15,8 +15,8 @@ export default async function BatchPage() {
     { data: ingredientRows },
     { data: memberships },
   ] = await Promise.all([
-    supabase.from('recipes').select('id, type, data, metadata').eq('user_id', user.id).order('updated_at', { ascending: false }),
-    supabase.from('ingredients').select('id, data').eq('user_id', user.id),
+    supabase.from('recipes').select('id, type, data, metadata').eq('user_id', user.id).order('updated_at', { ascending: false }).limit(500),
+    supabase.from('ingredients').select('id, data').eq('user_id', user.id).limit(500),
     supabase.from('team_members').select('team_id').eq('user_id', user.id),
   ]);
 
