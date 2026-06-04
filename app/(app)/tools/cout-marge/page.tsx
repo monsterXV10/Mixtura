@@ -13,11 +13,13 @@ export default async function CoutMargePage() {
       .from('recipes')
       .select('id, type, data, metadata')
       .eq('user_id', user.id)
-      .order('updated_at', { ascending: false }),
+      .order('updated_at', { ascending: false })
+      .limit(500),
     supabase
       .from('ingredients')
       .select('id, data')
-      .eq('user_id', user.id),
+      .eq('user_id', user.id)
+      .limit(500),
   ]);
 
   const recipes = (recipeRows ?? [])
