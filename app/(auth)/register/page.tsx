@@ -54,7 +54,7 @@ export default function RegisterPage() {
     });
 
     if (error) {
-      setError(error.message);
+      setError('Inscription impossible. Vérifiez vos informations ou essayez une autre adresse email.');
     } else {
       setSuccess(true);
     }
