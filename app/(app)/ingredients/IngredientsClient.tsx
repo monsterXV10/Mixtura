@@ -1,5 +1,5 @@
 'use client';
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { PLANS, type PlanId } from '@/config/plans';
 import { TopBar } from '@/components/layout/TopBar';
 import { createClient } from '@/lib/supabase/client';
@@ -163,6 +163,22 @@ export default function IngredientsClient({ initialIngredients, userId, userPlan
 
   const PAGE_SIZE = 30;
   const [visibleIngCount, setVisibleIngCount] = useState(PAGE_SIZE);
+  const sentinelRef = useRef<HTMLDivElement>(null);
+
+  const loadMore = useCallback(() => {
+    setVisibleIngCount(v => v + PAGE_SIZE);
+  }, []);
+
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      (entries) => { if (entries[0].isIntersecting) loadMore(); },
+      { rootMargin: '200px' }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [loadMore]);
 
   // Seed imported set from existing ingredients
   useEffect(() => {
@@ -406,12 +422,9 @@ export default function IngredientsClient({ initialIngredients, userId, userPlan
                 })}
               </div>
               {visibleIngCount < filtered.length && (
-                <button
-                  onClick={() => setVisibleIngCount(v => v + PAGE_SIZE)}
-                  className="w-full py-3 text-sm btn-ghost mt-2"
-                >
-                  Charger plus ({filtered.length - visibleIngCount} restants)
-                </button>
+                <div ref={sentinelRef} className="h-10 flex items-center justify-center">
+                  <div className="w-5 h-5 border-2 border-[var(--gold)] border-t-transparent rounded-full animate-spin" />
+                </div>
               )}
               </>
             )}
