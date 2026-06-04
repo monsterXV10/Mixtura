@@ -13,7 +13,8 @@ export default async function IngredientsPage() {
       .from('ingredients')
       .select('*')
       .eq('user_id', user.id)
-      .order('updated_at', { ascending: false }),
+      .order('updated_at', { ascending: false })
+      .limit(500),
     supabase
       .from('profiles')
       .select('plan')

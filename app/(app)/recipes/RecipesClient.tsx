@@ -201,7 +201,8 @@ export default function RecipesClient({ initialRecipes, homemadeIngredients, use
       const { data, error } = await supabase
         .from('catalog')
         .select('*')
-        .order('name', { ascending: true });
+        .order('name', { ascending: true })
+        .limit(2000);
       if (error) throw error;
       setCatalog(data as CatalogCocktail[]);
       setCatalogFetched(true);
