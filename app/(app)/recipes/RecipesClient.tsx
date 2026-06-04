@@ -217,8 +217,8 @@ export default function RecipesClient({ initialRecipes, homemadeIngredients, use
     return visible.filter((i) => i.data.name?.toLowerCase().includes(q));
   }, [homemadeIngredients, homemadeSearch]);
 
-  useEffect(() => { setVisibleCount(PAGE_SIZE); }, [mySearch, spiritFilter]);
-  useEffect(() => { setVisibleHomemadeCount(PAGE_SIZE); }, [homemadeSearch]);
+  useEffect(() => { setVisibleCount(PAGE_SIZE); }, [mySearch, spiritFilter, activeTab]);
+  useEffect(() => { setVisibleHomemadeCount(PAGE_SIZE); }, [homemadeSearch, activeTab]);
 
   function handleTabSwitch(tab: 'mine' | 'homemade' | 'catalog') {
     setActiveTab(tab);

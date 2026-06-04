@@ -1,5 +1,5 @@
 'use client';
-import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { PLANS, type PlanId } from '@/config/plans';
 import { TopBar } from '@/components/layout/TopBar';
 import { createClient } from '@/lib/supabase/client';
@@ -165,21 +165,6 @@ export default function IngredientsClient({ initialIngredients, userId, userPlan
   const [visibleIngCount, setVisibleIngCount] = useState(PAGE_SIZE);
   const sentinelRef = useRef<HTMLDivElement>(null);
 
-  const loadMore = useCallback(() => {
-    setVisibleIngCount(v => v + PAGE_SIZE);
-  }, []);
-
-  useEffect(() => {
-    const el = sentinelRef.current;
-    if (!el) return;
-    const observer = new IntersectionObserver(
-      (entries) => { if (entries[0].isIntersecting) loadMore(); },
-      { rootMargin: '200px' }
-    );
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [loadMore]);
-
   // Seed imported set from existing ingredients
   useEffect(() => {
     const names = new Set(initialIngredients.map(i => (i.data.name ?? '').toLowerCase()));
@@ -220,7 +205,19 @@ export default function IngredientsClient({ initialIngredients, userId, userPlan
     return result;
   }, [ingCatalog, ingCatalogCat, ingCatalogSearch]);
 
-  useEffect(() => { setVisibleIngCount(PAGE_SIZE); }, [search, categoryFilter]);
+  useEffect(() => { setVisibleIngCount(PAGE_SIZE); }, [search, categoryFilter, activeTab]);
+
+  useEffect(() => {
+    if (visibleIngCount >= filtered.length) return;
+    const el = sentinelRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      (entries) => { if (entries[0].isIntersecting) setVisibleIngCount(v => v + PAGE_SIZE); },
+      { rootMargin: '200px' }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [filtered.length, visibleIngCount]);
 
   async function loadIngCatalog() {
     if (ingCatalogFetched) return;

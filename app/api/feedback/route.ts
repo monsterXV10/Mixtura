@@ -1,6 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#x27;');
+}
+
+const VALID_TYPES = ['bug', 'suggestion'];
+
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -10,8 +21,28 @@ export async function POST(req: NextRequest) {
   if (!type || !location || !description?.trim()) {
     return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
   }
+  if (!VALID_TYPES.includes(type)) {
+    return NextResponse.json({ error: 'Invalid type' }, { status: 400 });
+  }
+  if (typeof location !== 'string' || location.length > 100) {
+    return NextResponse.json({ error: 'Invalid location' }, { status: 400 });
+  }
 
   const desc = description.trim();
+  if (desc.length > 5000) {
+    return NextResponse.json({ error: 'Description too long' }, { status: 400 });
+  }
+
+  // Rate limit: max 5 feedbacks per 10 minutes
+  const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+  const { count } = await supabase
+    .from('feedback')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', user.id)
+    .gte('created_at', tenMinutesAgo);
+  if ((count ?? 0) >= 5) {
+    return NextResponse.json({ error: 'Trop de demandes. Réessayez dans quelques minutes.' }, { status: 429 });
+  }
 
   const { error } = await supabase.from('feedback').insert({
     user_id: user.id,
@@ -44,7 +75,7 @@ export async function POST(req: NextRequest) {
         'X-GitHub-Api-Version': '2022-11-28',
       },
       body: JSON.stringify({
-        title: `[${type === 'bug' ? 'Bug' : 'Feature'}] ${location} — ${desc.slice(0, 60)}${desc.length > 60 ? '…' : ''}`,
+        title: `[${type === 'bug' ? 'Bug' : 'Feature'}] ${location.replace(/@/g, '@ ')} — ${desc.slice(0, 60).replace(/@/g, '@ ')}${desc.length > 60 ? '…' : ''}`,
         body: issueBody,
         labels: [type === 'bug' ? 'bug' : 'enhancement'],
       }),
@@ -67,11 +98,11 @@ export async function POST(req: NextRequest) {
         subject: `[Mixtura] ${typeLabel} — ${location}`,
         html: `
           <div style="font-family:sans-serif;max-width:520px;color:#1a1a1a">
-            <h2 style="margin:0 0 16px">${typeLabel} signalé</h2>
-            <p><strong>Section :</strong> ${location}</p>
+            <h2 style="margin:0 0 16px">${escapeHtml(typeLabel)} signalé</h2>
+            <p><strong>Section :</strong> ${escapeHtml(location)}</p>
             <p><strong>Description :</strong></p>
-            <p style="background:#f5f5f5;padding:12px;border-radius:6px;white-space:pre-wrap">${desc}</p>
-            <p style="color:#888;font-size:12px">Utilisateur : ${user.email}</p>
+            <p style="background:#f5f5f5;padding:12px;border-radius:6px;white-space:pre-wrap">${escapeHtml(desc)}</p>
+            <p style="color:#888;font-size:12px">Utilisateur : ${escapeHtml(user.email ?? '')}</p>
           </div>`,
       }),
     }).catch(() => {/* non-blocking */});

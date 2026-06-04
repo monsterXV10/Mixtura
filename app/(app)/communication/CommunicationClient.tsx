@@ -119,7 +119,7 @@ export default function CommunicationClient({
     if (!hasActive) return;
     const id = setInterval(() => setTick((n) => n + 1), 1000);
     return () => clearInterval(id);
-  }, [liveBatches, tick]);
+  }, [liveBatches]);
 
   // Subscribe to batch updates for shared batches
   useEffect(() => {
@@ -184,21 +184,25 @@ export default function CommunicationClient({
   const teamShared = activeTeam ? sharedItems.filter((s) => s.team_id === activeTeam.id) : [];
   const teamBatchesForActiveTeam = activeTeam ? liveBatches.filter((b) => b.team_id === activeTeam.id) : [];
 
-  const counts = {
-    recipe: teamShared.filter((s) => s.item_type === 'recipe').length,
-    ingredient: teamShared.filter((s) => s.item_type === 'ingredient').length,
-    menu: teamShared.filter((s) => s.item_type === 'menu').length,
-  };
-  const items = (() => {
-    const seen = new Set<string>();
-    return teamShared.filter((s) => {
-      if (s.item_type !== shareTab) return false;
+  const { counts, items } = useMemo(() => {
+    const seenByType: Record<string, Set<string>> = { recipe: new Set(), ingredient: new Set(), menu: new Set() };
+    const deduped: typeof teamShared = [];
+    for (const s of teamShared) {
       const name = ((s.data as { name?: string }).name ?? s.id).toLowerCase();
-      if (seen.has(name)) return false;
-      seen.add(name);
-      return true;
-    });
-  })();
+      const bucket = seenByType[s.item_type];
+      if (!bucket || bucket.has(name)) continue;
+      bucket.add(name);
+      deduped.push(s);
+    }
+    return {
+      counts: {
+        recipe: seenByType.recipe.size,
+        ingredient: seenByType.ingredient.size,
+        menu: seenByType.menu.size,
+      },
+      items: deduped.filter((s) => s.item_type === shareTab),
+    };
+  }, [teamShared, shareTab]);
 
   const filteredRecipes = useMemo(() => {
     if (!recipeSearch.trim()) return myRecipes;
@@ -325,7 +329,17 @@ export default function CommunicationClient({
   async function deleteItem(item: TeamSharedItem) {
     if (!confirm('Retirer cet élément du partage équipe ?')) return;
     setBusy(`del-${item.id}`);
-    await supabase.from('team_shared_items').delete().eq('id', item.id);
+    const name = (item.data as { name?: string }).name;
+    if (name) {
+      await supabase
+        .from('team_shared_items')
+        .delete()
+        .eq('team_id', item.team_id)
+        .eq('item_type', item.item_type)
+        .filter('data->>name', 'eq', name);
+    } else {
+      await supabase.from('team_shared_items').delete().eq('id', item.id);
+    }
     setBusy(null); router.refresh();
   }
 

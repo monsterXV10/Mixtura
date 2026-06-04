@@ -277,7 +277,17 @@ export default function TeamClient({
   async function deleteSharedItem(item: TeamSharedItem) {
     if (!confirm('Retirer cet élément du partage équipe ?')) return;
     setBusy(`dsi-${item.id}`);
-    await supabase.from('team_shared_items').delete().eq('id', item.id);
+    const name = (item.data as { name?: string }).name;
+    if (name) {
+      await supabase
+        .from('team_shared_items')
+        .delete()
+        .eq('team_id', item.team_id)
+        .eq('item_type', item.item_type)
+        .filter('data->>name', 'eq', name);
+    } else {
+      await supabase.from('team_shared_items').delete().eq('id', item.id);
+    }
     setBusy(null);
     router.refresh();
   }
