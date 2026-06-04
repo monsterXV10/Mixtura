@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { ensureIngredients, matchesIngredient } from '@/lib/utils/ingredients';
 import type { UserIngredientOption } from '@/lib/utils/ingredients';
@@ -75,6 +76,7 @@ const METHODS = [
 const EMPTY_ROW: RecipeIngredientRow = { qty: 0, name: '', unit: 'cl' };
 
 export default function RecipeForm({ initialData, userIngredients, userId }: RecipeFormProps) {
+  const router = useRouter();
   const [name, setName] = useState(initialData?.name ?? '');
   const [type, setType] = useState<'cocktail' | 'coffee' | 'cuisine'>(initialData?.type ?? 'cocktail');
   const [ingredients, setIngredients] = useState<RecipeIngredientRow[]>(
@@ -235,7 +237,8 @@ export default function RecipeForm({ initialData, userIngredients, userId }: Rec
       setError('Erreur lors de la sauvegarde.');
       setSaving(false);
     } else {
-      window.location.href = '/recipes';
+      router.push('/recipes');
+      router.refresh();
     }
   };
 
