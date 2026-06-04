@@ -148,6 +148,10 @@ export default function RecipesClient({ initialRecipes, homemadeIngredients, use
   const [spiritFilter, setSpiritFilter] = useState('all');
   const [homemadeSearch, setHomemadeSearch] = useState('');
 
+  const PAGE_SIZE = 30;
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const [visibleHomemadeCount, setVisibleHomemadeCount] = useState(PAGE_SIZE);
+
   // Catalog state
   const [catalog, setCatalog] = useState<CatalogCocktail[]>([]);
   const [catalogLoading, setCatalogLoading] = useState(false);
@@ -212,6 +216,9 @@ export default function RecipesClient({ initialRecipes, homemadeIngredients, use
     const q = homemadeSearch.toLowerCase();
     return visible.filter((i) => i.data.name?.toLowerCase().includes(q));
   }, [homemadeIngredients, homemadeSearch]);
+
+  useEffect(() => { setVisibleCount(PAGE_SIZE); }, [mySearch, spiritFilter]);
+  useEffect(() => { setVisibleHomemadeCount(PAGE_SIZE); }, [homemadeSearch]);
 
   function handleTabSwitch(tab: 'mine' | 'homemade' | 'catalog') {
     setActiveTab(tab);
@@ -398,8 +405,9 @@ export default function RecipesClient({ initialRecipes, homemadeIngredients, use
                 </div>
               </div>
             ) : (
+              <>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                {filteredRecipes.map((recipe) => {
+                {filteredRecipes.slice(0, visibleCount).map((recipe) => {
                   const method = recipe.metadata?.method;
                   const methodStr = Array.isArray(method) ? method.join(', ') : method;
                   const typeLabel = TYPE_LABELS[recipe.type] ?? recipe.type;
@@ -451,6 +459,15 @@ export default function RecipesClient({ initialRecipes, homemadeIngredients, use
                   );
                 })}
               </div>
+              {visibleCount < filteredRecipes.length && (
+                <button
+                  onClick={() => setVisibleCount(v => v + PAGE_SIZE)}
+                  className="w-full py-3 text-sm btn-ghost mt-2"
+                >
+                  Charger plus ({filteredRecipes.length - visibleCount} restantes)
+                </button>
+              )}
+              </>
             )}
           </div>
         )}
@@ -483,8 +500,9 @@ export default function RecipesClient({ initialRecipes, homemadeIngredients, use
                 </Link>
               </div>
             ) : (
+              <>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                {filteredHomemade.map((item) => {
+                {filteredHomemade.slice(0, visibleHomemadeCount).map((item) => {
                   const d = item.data;
                   const compCount = d.composition?.length ?? 0;
                   const stock = d.stock ?? 0;
@@ -533,6 +551,15 @@ export default function RecipesClient({ initialRecipes, homemadeIngredients, use
                   );
                 })}
               </div>
+              {visibleHomemadeCount < filteredHomemade.length && (
+                <button
+                  onClick={() => setVisibleHomemadeCount(v => v + PAGE_SIZE)}
+                  className="w-full py-3 text-sm btn-ghost mt-2"
+                >
+                  Charger plus ({filteredHomemade.length - visibleHomemadeCount} restantes)
+                </button>
+              )}
+              </>
             )}
           </div>
         )}

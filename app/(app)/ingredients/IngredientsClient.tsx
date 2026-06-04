@@ -161,6 +161,9 @@ export default function IngredientsClient({ initialIngredients, userId, userPlan
   const [importingIng, setImportingIng] = useState<Set<string>>(new Set());
   const [importedIng, setImportedIng] = useState<Set<string>>(new Set());
 
+  const PAGE_SIZE = 30;
+  const [visibleIngCount, setVisibleIngCount] = useState(PAGE_SIZE);
+
   // Seed imported set from existing ingredients
   useEffect(() => {
     const names = new Set(initialIngredients.map(i => (i.data.name ?? '').toLowerCase()));
@@ -200,6 +203,8 @@ export default function IngredientsClient({ initialIngredients, userId, userPlan
     }
     return result;
   }, [ingCatalog, ingCatalogCat, ingCatalogSearch]);
+
+  useEffect(() => { setVisibleIngCount(PAGE_SIZE); }, [search, categoryFilter]);
 
   async function loadIngCatalog() {
     if (ingCatalogFetched) return;
@@ -338,8 +343,9 @@ export default function IngredientsClient({ initialIngredients, userId, userPlan
                 )}
               </div>
             ) : (
+              <>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                {filtered.map((ing) => {
+                {filtered.slice(0, visibleIngCount).map((ing) => {
                   const d = ing.data;
                   const isHomemade = d.homemade === true;
                   const catKey = isHomemade ? 'homemade' : (d.type?.toLowerCase() ?? 'other');
@@ -399,6 +405,15 @@ export default function IngredientsClient({ initialIngredients, userId, userPlan
                   );
                 })}
               </div>
+              {visibleIngCount < filtered.length && (
+                <button
+                  onClick={() => setVisibleIngCount(v => v + PAGE_SIZE)}
+                  className="w-full py-3 text-sm btn-ghost mt-2"
+                >
+                  Charger plus ({filtered.length - visibleIngCount} restants)
+                </button>
+              )}
+              </>
             )}
           </>
         )}
