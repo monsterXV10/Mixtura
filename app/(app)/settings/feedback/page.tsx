@@ -33,7 +33,7 @@ export default function FeedbackPage() {
       const res = await fetch('/api/feedback', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type, location, description }),
+        body: JSON.stringify({ type: type === 'feature' ? 'suggestion' : type, location, description }),
       });
       if (!res.ok) throw new Error('Erreur réseau');
       setSent(true);
