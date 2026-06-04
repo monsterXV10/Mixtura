@@ -189,7 +189,16 @@ export default function CommunicationClient({
     ingredient: teamShared.filter((s) => s.item_type === 'ingredient').length,
     menu: teamShared.filter((s) => s.item_type === 'menu').length,
   };
-  const items = teamShared.filter((s) => s.item_type === shareTab);
+  const items = (() => {
+    const seen = new Set<string>();
+    return teamShared.filter((s) => {
+      if (s.item_type !== shareTab) return false;
+      const name = ((s.data as { name?: string }).name ?? s.id).toLowerCase();
+      if (seen.has(name)) return false;
+      seen.add(name);
+      return true;
+    });
+  })();
 
   const filteredRecipes = useMemo(() => {
     if (!recipeSearch.trim()) return myRecipes;

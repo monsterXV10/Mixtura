@@ -677,7 +677,14 @@ export default function TeamClient({
               </div>
 
               {(() => {
-                const items = teamShared.filter((s) => s.item_type === showSharedTab);
+                const seen = new Set<string>();
+                const items = teamShared.filter((s) => {
+                  if (s.item_type !== showSharedTab) return false;
+                  const name = ((s.data as { name?: string }).name ?? s.id).toLowerCase();
+                  if (seen.has(name)) return false;
+                  seen.add(name);
+                  return true;
+                });
                 if (items.length === 0) {
                   return (
                     <p className="text-sm text-[var(--text-dim)] py-2">

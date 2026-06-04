@@ -36,6 +36,23 @@ export function ShareToTeamButton({
 
   async function shareTo(teamId: string) {
     setBusy(teamId);
+
+    // Check if this item is already shared (prevents duplicates on page reload + re-click)
+    const { data: existingMain } = await supabase
+      .from('team_shared_items')
+      .select('id')
+      .eq('team_id', teamId)
+      .eq('item_type', itemType)
+      .filter('data->>name', 'eq', itemName)
+      .maybeSingle();
+
+    if (existingMain) {
+      setBusy(null);
+      setSharedTeams((p) => new Set(p).add(teamId));
+      if (teams.length === 1) setOpen(false);
+      return;
+    }
+
     const rows: Array<Record<string, unknown>> = [
       {
         team_id: teamId,
@@ -47,8 +64,17 @@ export function ShareToTeamButton({
       },
     ];
     if (itemType === 'recipe' && ingredientsToShare?.length) {
+      // Fetch already-shared ingredient names to avoid duplicates
+      const { data: existingIngs } = await supabase
+        .from('team_shared_items')
+        .select('data')
+        .eq('team_id', teamId)
+        .eq('item_type', 'ingredient');
+      const alreadyShared = new Set(
+        (existingIngs ?? []).map((e) => ((e.data as { name?: string }).name ?? '').toLowerCase())
+      );
       for (const ing of ingredientsToShare) {
-        if (!ing.name) continue;
+        if (!ing.name || alreadyShared.has(ing.name.toLowerCase())) continue;
         rows.push({
           team_id: teamId,
           shared_by: userId,
