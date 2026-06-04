@@ -22,6 +22,7 @@ export default function AccountClient({ userId, email, displayName, planName, pr
   const [name, setName] = useState(displayName);
   const [savingName, setSavingName] = useState(false);
   const [nameSaved, setNameSaved] = useState(false);
+  const [nameErr, setNameErr] = useState('');
 
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
@@ -43,8 +44,11 @@ export default function AccountClient({ userId, email, displayName, planName, pr
     setSavingName(false);
     if (!error) {
       setNameSaved(true);
+      setNameErr('');
       setTimeout(() => setNameSaved(false), 2000);
       router.refresh();
+    } else {
+      setNameErr('Impossible de sauvegarder le nom.');
     }
   }
 
@@ -62,7 +66,7 @@ export default function AccountClient({ userId, email, displayName, planName, pr
     const { error } = await supabase.auth.updateUser({ password });
     setSavingPwd(false);
     if (error) {
-      setPwdMsg({ type: 'err', text: 'Erreur : ' + error.message });
+      setPwdMsg({ type: 'err', text: 'Impossible de mettre à jour le mot de passe.' });
     } else {
       setPwdMsg({ type: 'ok', text: 'Mot de passe mis à jour.' });
       setPassword('');
@@ -111,6 +115,9 @@ export default function AccountClient({ userId, email, displayName, planName, pr
               )}
             </button>
           </div>
+          {nameErr && (
+            <p className="text-xs text-red-400">{nameErr}</p>
+          )}
         </div>
 
         <div className="space-y-1.5">

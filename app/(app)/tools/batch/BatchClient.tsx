@@ -162,7 +162,7 @@ export default function BatchClient({ recipes, stockMap, userId, teams }: Props)
     if (!hasActive) return;
     const id = setInterval(() => setTick((n) => n + 1), 1000);
     return () => clearInterval(id);
-  }, [timers, tick]);
+  }, [timers]);
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase().trim();
@@ -230,7 +230,7 @@ export default function BatchClient({ recipes, stockMap, userId, teams }: Props)
     if (parts.some(isNaN)) return;
     let sec = 0;
     if (parts.length === 3) sec = parts[0] * 3600 + parts[1] * 60 + parts[2];
-    else if (parts.length === 2) sec = parts[0] * 3600 + parts[1] * 60;
+    else if (parts.length === 2) sec = parts[0] * 60 + parts[1];
     else sec = parts[0] * 60;
     if (sec <= 0) return;
     setTimers((p) => ({ ...p, [GLOBAL_TIMER_KEY]: { durationSec: sec, startedAt: null, label: 'Timer global' } }));
@@ -265,7 +265,7 @@ export default function BatchClient({ recipes, stockMap, userId, teams }: Props)
     setExpanded((p) => { const n = new Set(p); n.has(key) ? n.delete(key) : n.add(key); return n; });
   }
 
-  const saveBatch = useCallback(async (opts?: { teamId?: string }) => {
+  const saveBatch = useCallback(async (opts?: { teamId?: string }): Promise<boolean> => {
     const supabase = createClient();
     const payload = {
       name: batchName || 'Batch sans titre',
@@ -278,10 +278,12 @@ export default function BatchClient({ recipes, stockMap, userId, teams }: Props)
     if (opts?.teamId) Object.assign(payload, { team_id: opts.teamId });
 
     if (batchId) {
-      await supabase.from('batches').update(payload).eq('id', batchId);
+      const { error } = await supabase.from('batches').update(payload).eq('id', batchId);
+      return !error;
     } else {
-      const { data } = await supabase.from('batches').insert({ user_id: userId, ...payload }).select('id').single();
-      if (data?.id) setBatchId(data.id as string);
+      const { data, error } = await supabase.from('batches').insert({ user_id: userId, ...payload }).select('id').single();
+      if (!error && data?.id) setBatchId(data.id as string);
+      return !error;
     }
   }, [batchName, items, timers, checked, batchId, userId]);
 
@@ -295,8 +297,10 @@ export default function BatchClient({ recipes, stockMap, userId, teams }: Props)
   async function handleShare() {
     if (!shareTeamId) return;
     setSharing(true);
-    await saveBatch({ teamId: shareTeamId });
-    setSharedTeamId(shareTeamId);
+    setError('');
+    const ok = await saveBatch({ teamId: shareTeamId });
+    if (ok) setSharedTeamId(shareTeamId);
+    else setError('Impossible de partager le batch.');
     setSharing(false);
   }
 
@@ -320,16 +324,43 @@ export default function BatchClient({ recipes, stockMap, userId, teams }: Props)
   async function handleProduce() {
     setProducing(true); setError('');
     const supabase = createClient();
+
+    const toUpdate = lines.filter((l) => l.ingredientId);
+    if (toUpdate.length === 0) { setDone(true); setProducing(false); return; }
+
+    const ids = [...new Set(toUpdate.map((l) => l.ingredientId!))];
+    const { data: freshRows, error: fetchErr } = await supabase
+      .from('ingredients')
+      .select('id, data')
+      .in('id', ids)
+      .eq('user_id', userId);
+
+    if (fetchErr) { setError('Erreur lors de la mise à jour du stock.'); setProducing(false); return; }
+
+    const freshMap = new Map((freshRows ?? []).map((r) => [r.id as string, r.data as Record<string, unknown>]));
+
     const results = await Promise.all(
-      lines.filter((l) => l.ingredientId && l.stockInfo?.stock !== undefined)
-        .map((l) => supabase.from('ingredients').update({
-          data: { ...l.stockInfo, stock: Math.max(0, (l.stockInfo!.stock ?? 0) - l.totalQty) },
-          updated_at: new Date().toISOString(),
-        }).eq('id', l.ingredientId!).eq('user_id', userId))
+      toUpdate
+        .filter((l) => {
+          const d = freshMap.get(l.ingredientId!);
+          return d && typeof d.stock === 'number';
+        })
+        .map((l) => {
+          const d = freshMap.get(l.ingredientId!)!;
+          return supabase.from('ingredients')
+            .update({
+              data: { ...d, stock: Math.max(0, (d.stock as number) - l.totalQty) },
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', l.ingredientId!)
+            .eq('user_id', userId);
+        })
     );
-    if (results.find((r) => r.error)) setError('Erreur lors de la mise à jour du stock.');
-    else {
-      if (batchId) await createClient().from('batches').update({ status: 'done' }).eq('id', batchId);
+
+    if (results.find((r) => r.error)) {
+      setError('Erreur lors de la mise à jour du stock.');
+    } else {
+      if (batchId) await supabase.from('batches').update({ status: 'done' }).eq('id', batchId);
       setDone(true);
     }
     setProducing(false);
@@ -647,7 +678,7 @@ export default function BatchClient({ recipes, stockMap, userId, teams }: Props)
               <div className="flex gap-2">
                 <input
                   type="text"
-                  placeholder="1:30 (h:mm) ou 45:00 (mm:ss)"
+                  placeholder="MM:SS ou HH:MM:SS"
                   value={globalInput}
                   onChange={(e) => setGlobalInput(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && addGlobalTimer()}

@@ -43,23 +43,26 @@ export default async function TeamSettingsPage() {
 
   if (teamIds.length > 0) {
     const [t, m, s, inv, n] = await Promise.all([
-      supabase.from('teams').select('*').in('id', teamIds),
-      supabase.from('team_members').select('*').in('team_id', teamIds),
+      supabase.from('teams').select('*').in('id', teamIds).limit(50),
+      supabase.from('team_members').select('*').in('team_id', teamIds).limit(200),
       supabase
         .from('team_shared_items')
         .select('*')
         .in('team_id', teamIds)
-        .order('created_at', { ascending: false }),
+        .order('created_at', { ascending: false })
+        .limit(200),
       supabase
         .from('team_invitations')
         .select('*')
         .in('team_id', teamIds)
-        .eq('accepted', false),
+        .eq('accepted', false)
+        .limit(100),
       supabase
         .from('team_notes')
         .select('*')
         .in('team_id', teamIds)
-        .order('created_at', { ascending: true }),
+        .order('created_at', { ascending: true })
+        .limit(200),
     ]);
     teams = (t.data ?? []) as Team[];
     members = (m.data ?? []) as TeamMember[];

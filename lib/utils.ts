@@ -27,6 +27,6 @@ export function calculateCostPrice(
 }
 
 export function calculateMargin(costPrice: number, salePrice: number): number {
-  if (salePrice === 0) return 0;
+  if (!salePrice || !Number.isFinite(costPrice) || !Number.isFinite(salePrice)) return 0;
   return ((salePrice - costPrice) / salePrice) * 100;
 }

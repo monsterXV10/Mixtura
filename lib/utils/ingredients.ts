@@ -123,7 +123,8 @@ export async function ensureIngredients(
   }
 
   if (toCreate.size > 0) {
-    const { data: created } = await supabase
+    // Best-effort insert; concurrent calls may race — re-fetch after either outcome
+    await supabase
       .from('ingredients')
       .insert(
         [...toCreate.values()].map((r) => ({
@@ -139,12 +140,16 @@ export async function ensureIngredients(
           },
           updated_at: new Date().toISOString(),
         }))
-      )
-      .select('id, data');
+      );
 
-    for (const c of created ?? []) {
+    // Re-fetch so we get the correct IDs regardless of who won the race
+    const { data: refreshed } = await supabase
+      .from('ingredients')
+      .select('id, data')
+      .eq('user_id', userId);
+    for (const c of refreshed ?? []) {
       const n = ((c.data as { name?: string })?.name ?? '').toLowerCase();
-      if (n) byName.set(n, c.id as string);
+      if (n && !byName.has(n)) byName.set(n, c.id as string);
     }
   }
 
