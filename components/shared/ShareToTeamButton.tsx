@@ -89,7 +89,8 @@ export function ShareToTeamButton({
       }
 
       const { error } = await supabase.from('team_shared_items').insert(rows);
-      if (!error) {
+      // 23505 = unique_violation: item was shared concurrently, treat as success
+      if (!error || (error as { code?: string }).code === '23505') {
         setSharedTeams((p) => new Set(p).add(teamId));
         if (teams.length === 1) setOpen(false);
       }

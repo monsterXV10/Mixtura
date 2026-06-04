@@ -57,13 +57,14 @@ export async function POST(req: NextRequest) {
   // Create GitHub Issue
   const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
   if (GITHUB_TOKEN) {
+    const sanitizeGh = (s: string) => s.replace(/@/g, '@ ').replace(/#(\d+)/g, '# $1');
     const issueBody = [
       `**Type :** ${typeLabel}`,
-      `**Section :** ${location}`,
+      `**Section :** ${sanitizeGh(location)}`,
       `**Utilisateur :** ${user.email}`,
       ``,
       `**Description :**`,
-      desc,
+      sanitizeGh(desc),
     ].join('\n');
 
     await fetch('https://api.github.com/repos/monsterXV10/Mixtura/issues', {
@@ -75,7 +76,7 @@ export async function POST(req: NextRequest) {
         'X-GitHub-Api-Version': '2022-11-28',
       },
       body: JSON.stringify({
-        title: `[${type === 'bug' ? 'Bug' : 'Feature'}] ${location.replace(/@/g, '@ ')} — ${desc.slice(0, 60).replace(/@/g, '@ ')}${desc.length > 60 ? '…' : ''}`,
+        title: `[${type === 'bug' ? 'Bug' : 'Feature'}] ${sanitizeGh(location)} — ${sanitizeGh(desc.slice(0, 60))}${desc.length > 60 ? '…' : ''}`,
         body: issueBody,
         labels: [type === 'bug' ? 'bug' : 'enhancement'],
       }),

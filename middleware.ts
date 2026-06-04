@@ -33,6 +33,9 @@ export async function middleware(request: NextRequest) {
   const isPublicRoute = publicRoutes.some(r => pathname === r || pathname.startsWith('/demo') || pathname.startsWith('/callback') || pathname.startsWith('/legal') || pathname.startsWith('/features'));
 
   if (!user && !isPublicRoute) {
+    if (pathname.startsWith('/api/')) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
     const url = request.nextUrl.clone();
     url.pathname = '/login';
     return NextResponse.redirect(url);
