@@ -71,12 +71,7 @@ const INGREDIENT_TYPES = [
   { key: 'other', label: 'Autre' },
 ];
 
-const WATER_TEMPS = [
-  { key: 'froide', label: 'Froide (0-4°C)' },
-  { key: 'ambiante', label: 'Ambiante (20°C)' },
-  { key: 'chaude', label: 'Chaude (65°C)' },
-  { key: 'bouillante', label: 'Bouillante (95°C)' },
-];
+const WATER_TEMP_SUGGESTIONS = ['Froide (0-4°C)', 'Ambiante (20°C)', 'Chaude (65°C)', 'Bouillante (95°C)'];
 
 const UNITS = ['cl', 'ml', 'L', 'g', 'kg', 'pcs', 'dash', 'barspoon', '%'];
 
@@ -125,7 +120,7 @@ export default function IngredientForm({ userId, userIngredients, initialData }:
     // Ancienne prépa ou nouvelle : 1 sortie vide par défaut
     return [{ tempId: 'out-0', name: '', qty: initialData?.yield ?? 50, unit: initialData?.yieldUnit ?? 'cl' }];
   });
-  const [temperature, setTemperature] = useState(initialData?.temperature ?? 'ambiante');
+  const [temperature, setTemperature] = useState(initialData?.temperature ?? '');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -354,9 +349,9 @@ export default function IngredientForm({ userId, userIngredients, initialData }:
 
   function selectCategory(key: string) {
     setType(key);
-    const liquid = ['spirit', 'liqueur', 'wine', 'syrup', 'juice'].includes(key);
+    const liquid = ['spirit', 'liqueur', 'wine', 'syrup', 'juice', 'water'].includes(key);
     setUnit(liquid ? 'cl' : key === 'other' ? 'pcs' : 'g');
-    setFormat(liquid ? 70 : 0);
+    setFormat(liquid && key !== 'water' ? 70 : 0);
   }
 
   return (
@@ -420,33 +415,34 @@ export default function IngredientForm({ userId, userIngredients, initialData }:
             <>
               <div className="space-y-1.5">
                 <label className="text-xs font-medium text-[var(--text-dim)] uppercase tracking-wide">Température</label>
-                <div className="flex flex-wrap gap-2">
-                  {WATER_TEMPS.map((t) => (
-                    <button key={t.key} type="button" onClick={() => setTemperature(t.key)}
-                      className={`px-3 py-1.5 text-xs font-medium rounded-full border transition-all ${
-                        temperature === t.key
-                          ? 'bg-blue-500 text-white border-blue-500'
-                          : 'bg-transparent text-[var(--text-dim)] border-[var(--border)] hover:border-blue-400'
-                      }`}>
-                      {t.label}
-                    </button>
-                  ))}
+                <input
+                  type="text"
+                  list="water-temp-suggestions"
+                  value={temperature}
+                  onChange={(e) => setTemperature(e.target.value)}
+                  placeholder="ex. Froide (0-4°C), 65°C…"
+                  className="field-input"
+                />
+                <datalist id="water-temp-suggestions">
+                  {WATER_TEMP_SUGGESTIONS.map((s) => <option key={s} value={s} />)}
+                </datalist>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-[var(--text-dim)] uppercase tracking-wide">Unité</label>
+                  <select value={unit} onChange={(e) => setUnit(e.target.value)} className="field-input">
+                    {UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
+                  </select>
+                  <p className="text-xs text-[var(--text-dim)]">1 g = 1 cl pour l'eau</p>
                 </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-[var(--text-dim)] uppercase tracking-wide">Unité</label>
-                <select value={unit} onChange={(e) => setUnit(e.target.value)} className="field-input w-32">
-                  {UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
-                </select>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-[var(--text-dim)] uppercase tracking-wide">Prix achat (€) — optionnel</label>
-                <input type="number" min="0" step="0.01"
-                  value={price === 0 ? '' : price}
-                  onChange={(e) => setPrice(parseFloat(e.target.value) || 0)}
-                  placeholder="0.00" className="field-input w-40" />
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-[var(--text-dim)] uppercase tracking-wide">Prix achat (€)</label>
+                  <input type="number" min="0" step="0.01"
+                    value={price === 0 ? '' : price}
+                    onChange={(e) => setPrice(parseFloat(e.target.value) || 0)}
+                    placeholder="0.00" className="field-input" />
+                </div>
               </div>
 
               <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl"
