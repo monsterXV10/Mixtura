@@ -344,7 +344,7 @@ export default function BatchClient({ recipes, stockMap, userId, teams }: Props)
       toUpdate
         .filter((l) => {
           const d = freshMap.get(l.ingredientId!);
-          return d && typeof d.stock === 'number';
+          return d && typeof d.stock === 'number' && !d.unlimitedStock;
         })
         .map((l) => {
           const d = freshMap.get(l.ingredientId!)!;

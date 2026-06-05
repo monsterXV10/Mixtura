@@ -42,6 +42,8 @@ interface IngredientFormProps {
     steps?: string;
     preparationType?: string;
     outputs?: Array<{ ingredientId?: string; name: string; qty: number; unit: string }>;
+    temperature?: string;
+    unlimitedStock?: boolean;
   };
 }
 
@@ -65,7 +67,15 @@ const INGREDIENT_TYPES = [
   { key: 'juice', label: 'Jus' },
   { key: 'fresh', label: 'Frais' },
   { key: 'dry', label: 'Sec' },
+  { key: 'water', label: 'Eau' },
   { key: 'other', label: 'Autre' },
+];
+
+const WATER_TEMPS = [
+  { key: 'froide', label: 'Froide (0-4°C)' },
+  { key: 'ambiante', label: 'Ambiante (20°C)' },
+  { key: 'chaude', label: 'Chaude (65°C)' },
+  { key: 'bouillante', label: 'Bouillante (95°C)' },
 ];
 
 const UNITS = ['cl', 'ml', 'L', 'g', 'kg', 'pcs', 'dash', 'barspoon', '%'];
@@ -115,6 +125,7 @@ export default function IngredientForm({ userId, userIngredients, initialData }:
     // Ancienne prépa ou nouvelle : 1 sortie vide par défaut
     return [{ tempId: 'out-0', name: '', qty: initialData?.yield ?? 50, unit: initialData?.yieldUnit ?? 'cl' }];
   });
+  const [temperature, setTemperature] = useState(initialData?.temperature ?? 'ambiante');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -190,13 +201,17 @@ export default function IngredientForm({ userId, userIngredients, initialData }:
       : [];
 
     if (!homemade) {
-      // Ingrédient acheté — comportement inchangé
-      const data = {
-        name: name.trim(), type, unit, price, stock, format, homemade: false,
-        brand: brand.trim() || undefined,
-        family: family.trim() || undefined,
-        supplier: supplier.trim() || undefined,
-      };
+      const data = isWater
+        ? {
+            name: name.trim(), type: 'water', unit, price, stock: 0, format: 0, homemade: false,
+            temperature, unlimitedStock: true,
+          }
+        : {
+            name: name.trim(), type, unit, price, stock, format, homemade: false,
+            brand: brand.trim() || undefined,
+            family: family.trim() || undefined,
+            supplier: supplier.trim() || undefined,
+          };
       const payload = { user_id: userId, data, updated_at: new Date().toISOString() };
       const result = initialData
         ? await supabase.from('ingredients').update(payload).eq('id', initialData.id).eq('user_id', userId)
@@ -335,6 +350,7 @@ export default function IngredientForm({ userId, userIngredients, initialData }:
 
   const isAlcohol = ['spirit', 'liqueur', 'wine'].includes(type);
   const isLiquid = isAlcohol || ['syrup', 'juice'].includes(type);
+  const isWater = type === 'water';
 
   function selectCategory(key: string) {
     setType(key);
@@ -399,89 +415,124 @@ export default function IngredientForm({ userId, userIngredients, initialData }:
             </div>
           </div>
 
-          {/* Famille / variété (libre + suggestions) */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium text-[var(--text-dim)] uppercase tracking-wide">
-              {isAlcohol ? "Type / famille d'alcool" : 'Type / variété (optionnel)'}
-            </label>
-            <input
-              type="text"
-              list={isAlcohol ? 'alcohol-families' : undefined}
-              value={family}
-              onChange={(e) => setFamily(e.target.value)}
-              placeholder={isAlcohol ? 'ex. Whisky, Gin, Rhum…' : 'ex. Café, Citron vert, Menthe…'}
-              className="field-input"
-            />
-            {isAlcohol && (
-              <datalist id="alcohol-families">
-                {COMMON_FAMILIES.map((f) => <option key={f} value={f} />)}
-              </datalist>
-            )}
-            <p className="text-xs text-[var(--text-dim)]">
-              {isAlcohol
-                ? 'Permet de retrouver ce produit en tapant la famille (ex. « whisky ») dans une recette.'
-                : 'Permet de retrouver ce produit en tapant ce mot-clé dans une recette.'}
-            </p>
-          </div>
+          {/* ── EAU : température + stock illimité ── */}
+          {isWater && (
+            <>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-[var(--text-dim)] uppercase tracking-wide">Température</label>
+                <div className="flex flex-wrap gap-2">
+                  {WATER_TEMPS.map((t) => (
+                    <button key={t.key} type="button" onClick={() => setTemperature(t.key)}
+                      className={`px-3 py-1.5 text-xs font-medium rounded-full border transition-all ${
+                        temperature === t.key
+                          ? 'bg-blue-500 text-white border-blue-500'
+                          : 'bg-transparent text-[var(--text-dim)] border-[var(--border)] hover:border-blue-400'
+                      }`}>
+                      {t.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
 
-          {/* Marque + Fournisseur */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-[var(--text-dim)] uppercase tracking-wide">Marque</label>
-              <input
-                type="text"
-                value={brand}
-                onChange={(e) => setBrand(e.target.value)}
-                placeholder="ex. Jack Daniel's"
-                className="field-input"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-[var(--text-dim)] uppercase tracking-wide">Fournisseur</label>
-              <input
-                type="text"
-                value={supplier}
-                onChange={(e) => setSupplier(e.target.value)}
-                placeholder="ex. Metro"
-                className="field-input"
-              />
-            </div>
-          </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-[var(--text-dim)] uppercase tracking-wide">Unité</label>
+                <select value={unit} onChange={(e) => setUnit(e.target.value)} className="field-input w-32">
+                  {UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
+                </select>
+              </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-[var(--text-dim)] uppercase tracking-wide">Unité</label>
-              <select value={unit} onChange={(e) => setUnit(e.target.value)} className="field-input">
-                {UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
-              </select>
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-[var(--text-dim)] uppercase tracking-wide">
-                {isLiquid ? 'Format bouteille' : 'Conditionnement'} ({unit})
-              </label>
-              <input type="number" min="0" step="any"
-                value={format === 0 ? '' : format}
-                onChange={(e) => setFormat(parseFloat(e.target.value) || 0)}
-                placeholder={isLiquid ? 'ex. 70' : 'ex. 1000'} className="field-input" />
-            </div>
-          </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-[var(--text-dim)] uppercase tracking-wide">Prix achat (€) — optionnel</label>
+                <input type="number" min="0" step="0.01"
+                  value={price === 0 ? '' : price}
+                  onChange={(e) => setPrice(parseFloat(e.target.value) || 0)}
+                  placeholder="0.00" className="field-input w-40" />
+              </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-[var(--text-dim)] uppercase tracking-wide">Prix achat (€)</label>
-              <input type="number" min="0" step="0.01"
-                value={price === 0 ? '' : price}
-                onChange={(e) => setPrice(parseFloat(e.target.value) || 0)}
-                placeholder="0.00" className="field-input" />
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-[var(--text-dim)] uppercase tracking-wide">Stock actuel</label>
-              <input type="number" min="0" step="any"
-                value={stock === 0 ? '' : stock}
-                onChange={(e) => setStock(parseFloat(e.target.value) || 0)}
-                placeholder="0" className="field-input" />
-            </div>
-          </div>
+              <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl"
+                style={{ background: 'rgba(99,179,237,0.08)', border: '1px solid rgba(99,179,237,0.2)' }}>
+                <span className="text-base">♾️</span>
+                <p className="text-sm text-blue-300 font-medium">Stock illimité — l'eau ne se décompte pas</p>
+              </div>
+            </>
+          )}
+
+          {/* Champs standards (masqués pour l'eau) */}
+          {!isWater && (
+            <>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-[var(--text-dim)] uppercase tracking-wide">
+                  {isAlcohol ? "Type / famille d'alcool" : 'Type / variété (optionnel)'}
+                </label>
+                <input
+                  type="text"
+                  list={isAlcohol ? 'alcohol-families' : undefined}
+                  value={family}
+                  onChange={(e) => setFamily(e.target.value)}
+                  placeholder={isAlcohol ? 'ex. Whisky, Gin, Rhum…' : 'ex. Café, Citron vert, Menthe…'}
+                  className="field-input"
+                />
+                {isAlcohol && (
+                  <datalist id="alcohol-families">
+                    {COMMON_FAMILIES.map((f) => <option key={f} value={f} />)}
+                  </datalist>
+                )}
+                <p className="text-xs text-[var(--text-dim)]">
+                  {isAlcohol
+                    ? 'Permet de retrouver ce produit en tapant la famille (ex. « whisky ») dans une recette.'
+                    : 'Permet de retrouver ce produit en tapant ce mot-clé dans une recette.'}
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-[var(--text-dim)] uppercase tracking-wide">Marque</label>
+                  <input type="text" value={brand} onChange={(e) => setBrand(e.target.value)}
+                    placeholder="ex. Jack Daniel's" className="field-input" />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-[var(--text-dim)] uppercase tracking-wide">Fournisseur</label>
+                  <input type="text" value={supplier} onChange={(e) => setSupplier(e.target.value)}
+                    placeholder="ex. Metro" className="field-input" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-[var(--text-dim)] uppercase tracking-wide">Unité</label>
+                  <select value={unit} onChange={(e) => setUnit(e.target.value)} className="field-input">
+                    {UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-[var(--text-dim)] uppercase tracking-wide">
+                    {isLiquid ? 'Format bouteille' : 'Conditionnement'} ({unit})
+                  </label>
+                  <input type="number" min="0" step="any"
+                    value={format === 0 ? '' : format}
+                    onChange={(e) => setFormat(parseFloat(e.target.value) || 0)}
+                    placeholder={isLiquid ? 'ex. 70' : 'ex. 1000'} className="field-input" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-[var(--text-dim)] uppercase tracking-wide">Prix achat (€)</label>
+                  <input type="number" min="0" step="0.01"
+                    value={price === 0 ? '' : price}
+                    onChange={(e) => setPrice(parseFloat(e.target.value) || 0)}
+                    placeholder="0.00" className="field-input" />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-[var(--text-dim)] uppercase tracking-wide">Stock actuel</label>
+                  <input type="number" min="0" step="any"
+                    value={stock === 0 ? '' : stock}
+                    onChange={(e) => setStock(parseFloat(e.target.value) || 0)}
+                    placeholder="0" className="field-input" />
+                </div>
+              </div>
+            </>
+          )}
         </>
       )}
 

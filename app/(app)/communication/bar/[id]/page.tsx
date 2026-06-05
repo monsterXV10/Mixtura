@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic';
 const CATEGORY_LABELS: Record<string, string> = {
   spirit: 'Spiritueux', liqueur: 'Liqueur', wine: 'Vin',
   syrup: 'Sirop', juice: 'Jus', fresh: 'Frais',
-  dry: 'Sec', homemade: 'Fait maison', other: 'Autre',
+  dry: 'Sec', water: 'Eau', homemade: 'Fait maison', other: 'Autre',
 };
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -20,6 +20,7 @@ const CATEGORY_COLORS: Record<string, string> = {
   juice: 'text-orange-400 bg-orange-400/10',
   fresh: 'text-emerald-400 bg-emerald-400/10',
   dry: 'text-yellow-400 bg-yellow-400/10',
+  water: 'text-blue-300 bg-blue-300/10',
   homemade: 'text-blue-400 bg-blue-400/10',
   other: 'text-[var(--text-dim)] bg-[var(--surface2)]',
 };

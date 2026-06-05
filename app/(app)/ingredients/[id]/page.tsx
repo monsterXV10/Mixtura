@@ -9,7 +9,7 @@ import { ShareToTeamButton } from '@/components/shared/ShareToTeamButton';
 const CATEGORY_LABELS: Record<string, string> = {
   spirit: 'Spiritueux', liqueur: 'Liqueur', wine: 'Vin',
   syrup: 'Sirop', juice: 'Jus', fresh: 'Frais',
-  dry: 'Sec', homemade: 'Fait maison', other: 'Autre',
+  dry: 'Sec', water: 'Eau', homemade: 'Fait maison', other: 'Autre',
 };
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -20,6 +20,7 @@ const CATEGORY_COLORS: Record<string, string> = {
   juice: 'text-orange-400 bg-orange-400/10',
   fresh: 'text-emerald-400 bg-emerald-400/10',
   dry: 'text-yellow-400 bg-yellow-400/10',
+  water: 'text-blue-300 bg-blue-300/10',
   homemade: 'text-blue-400 bg-blue-400/10',
   other: 'text-[var(--text-dim)] bg-[var(--surface2)]',
 };
@@ -62,6 +63,8 @@ export default async function IngredientDetailPage({
     isOutput?: boolean;
     sourcePreparationId?: string;
     outputs?: Array<{ ingredientId?: string; name: string; qty: number; unit: string }>;
+    temperature?: string;
+    unlimitedStock?: boolean;
   };
 
   // Si c'est une sortie, récupérer la prépa source pour afficher le lien
@@ -146,7 +149,24 @@ export default async function IngredientDetailPage({
             </span>
           </div>
 
-          {!d.homemade && (
+          {!d.homemade && d.type === 'water' && (
+            <div className="grid grid-cols-2 gap-3">
+              {d.temperature && (
+                <div>
+                  <p className="text-xs text-[var(--text-dim)]">Température</p>
+                  <p className="text-sm font-semibold text-blue-300 capitalize">{d.temperature}</p>
+                </div>
+              )}
+              {d.price ? (
+                <div>
+                  <p className="text-xs text-[var(--text-dim)]">Prix achat</p>
+                  <p className="text-sm font-semibold text-[var(--text)]">{d.price.toFixed(2)} €</p>
+                </div>
+              ) : null}
+            </div>
+          )}
+
+          {!d.homemade && d.type !== 'water' && (
             <div className="grid grid-cols-2 gap-3">
               {d.supplier && (
                 <div className="col-span-2">
@@ -196,25 +216,34 @@ export default async function IngredientDetailPage({
         {/* Stock */}
         <div className="card space-y-3">
           <h2 className="text-sm font-semibold text-[var(--text)]">Stock</h2>
-          <div className="flex items-center gap-2">
-            <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${
-              !stockOk ? 'bg-red-400' : stockLow ? 'bg-orange-400' : 'bg-emerald-400'
-            }`} />
-            <span className="text-sm text-[var(--text)]">
-              {(d.stock ?? 0)} {d.unit ?? ''}
-              {!stockOk && <span className="text-red-400 ml-2 text-xs">Épuisé</span>}
-              {stockLow && <span className="text-orange-400 ml-2 text-xs">Stock bas</span>}
-            </span>
-          </div>
-          {stockPct !== null && (
-            <div className="h-1.5 bg-[var(--surface2)] rounded-full overflow-hidden">
-              <div
-                className={`h-full rounded-full ${
-                  !stockOk ? 'bg-red-400' : stockLow ? 'bg-orange-400' : 'bg-emerald-400'
-                }`}
-                style={{ width: `${stockPct}%` }}
-              />
+          {d.unlimitedStock ? (
+            <div className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full shrink-0 bg-blue-300" />
+              <span className="text-sm text-blue-300 font-medium">Illimité</span>
             </div>
+          ) : (
+            <>
+              <div className="flex items-center gap-2">
+                <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${
+                  !stockOk ? 'bg-red-400' : stockLow ? 'bg-orange-400' : 'bg-emerald-400'
+                }`} />
+                <span className="text-sm text-[var(--text)]">
+                  {(d.stock ?? 0)} {d.unit ?? ''}
+                  {!stockOk && <span className="text-red-400 ml-2 text-xs">Épuisé</span>}
+                  {stockLow && <span className="text-orange-400 ml-2 text-xs">Stock bas</span>}
+                </span>
+              </div>
+              {stockPct !== null && (
+                <div className="h-1.5 bg-[var(--surface2)] rounded-full overflow-hidden">
+                  <div
+                    className={`h-full rounded-full ${
+                      !stockOk ? 'bg-red-400' : stockLow ? 'bg-orange-400' : 'bg-emerald-400'
+                    }`}
+                    style={{ width: `${stockPct}%` }}
+                  />
+                </div>
+              )}
+            </>
           )}
         </div>
 
