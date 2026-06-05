@@ -12,7 +12,8 @@ export default async function NewRecipePage() {
   const { data: ingredients } = await supabase
     .from('ingredients')
     .select('id, data')
-    .eq('user_id', user.id);
+    .eq('user_id', user.id)
+    .limit(500);
 
   const userIngredients = (ingredients ?? []).map((i) =>
     toIngredientOption({ id: i.id as string, data: i.data })

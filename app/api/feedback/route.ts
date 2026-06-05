@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
     location,
     description: desc,
   });
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: 'Erreur lors de l\'enregistrement.' }, { status: 500 });
 
   const typeLabel = type === 'bug' ? '🐛 Bug' : '✨ Suggestion';
 
