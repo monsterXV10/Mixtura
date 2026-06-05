@@ -30,6 +30,15 @@ function json(body: unknown, status = 200, origin: string | null = null) {
   });
 }
 
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#x27;');
+}
+
 Deno.serve(async (req: Request) => {
   const origin = req.headers.get('Origin');
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders(origin) });
@@ -76,22 +85,26 @@ Deno.serve(async (req: Request) => {
     const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
     if (!RESEND_API_KEY) return json({ error: 'RESEND_API_KEY not configured' }, 500, origin);
 
-    const inviterName =
-      (user.user_metadata?.full_name as string) ?? user.email ?? 'Un collègue';
-    const from = `${inviterName} via Mixtura <invitations@mixtura.buzz>`;
-    const url = typeof joinUrl === 'string' ? joinUrl : '';
+    const rawName = (user.user_metadata?.full_name as string) ?? user.email ?? 'Un collègue';
+    const inviterName = escapeHtml(rawName);
+    const teamName = escapeHtml(team.name as string);
+    const teamCode = escapeHtml(team.code as string);
+    const from = `${rawName} via Mixtura <invitations@mixtura.buzz>`;
+
+    // Only allow https:// join URLs to prevent javascript: injection
+    const safeUrl = typeof joinUrl === 'string' && joinUrl.startsWith('https://') ? joinUrl : '';
 
     const html = `
       <div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:520px;margin:0 auto;padding:32px 24px;color:#1a1a1a;background:#ffffff">
         <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#1a1a1a">Bonjour,</p>
         <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#1a1a1a">
-          <strong>${inviterName}</strong> vous invite à rejoindre l'équipe <strong>${team.name}</strong> sur Mixtura, l'outil de gestion de bar et de cocktails.
+          <strong>${inviterName}</strong> vous invite à rejoindre l'équipe <strong>${teamName}</strong> sur Mixtura, l'outil de gestion de bar et de cocktails.
         </p>
         <p style="margin:0 0 8px;font-size:14px;color:#555">Votre code d'équipe :</p>
-        <p style="margin:0 0 24px;font-size:32px;font-weight:700;letter-spacing:8px;font-family:monospace;color:#1a1a1a">${team.code}</p>
+        <p style="margin:0 0 24px;font-size:32px;font-weight:700;letter-spacing:8px;font-family:monospace;color:#1a1a1a">${teamCode}</p>
         ${
-          url
-            ? `<p style="margin:0 0 24px"><a href="${url}" style="display:inline-block;background:#C8A45C;color:#0A0E1A;text-decoration:none;font-weight:600;padding:10px 24px;border-radius:8px;font-size:14px">Rejoindre l'équipe →</a></p>`
+          safeUrl
+            ? `<p style="margin:0 0 24px"><a href="${escapeHtml(safeUrl)}" style="display:inline-block;background:#C8A45C;color:#0A0E1A;text-decoration:none;font-weight:600;padding:10px 24px;border-radius:8px;font-size:14px">Rejoindre l'équipe →</a></p>`
             : ''
         }
         <p style="margin:0 0 32px;font-size:13px;line-height:1.6;color:#777">
@@ -121,7 +134,7 @@ Deno.serve(async (req: Request) => {
     }
 
     return json({ ok: true }, 200, origin);
-  } catch (e) {
-    return json({ error: String(e) }, 500, origin);
+  } catch {
+    return json({ error: 'Internal server error' }, 500, origin);
   }
 });
