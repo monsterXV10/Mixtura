@@ -22,6 +22,7 @@ export function ShareToTeamButton({
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [sharedTeams, setSharedTeams] = useState<Set<string>>(new Set());
+  const [shareError, setShareError] = useState('');
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -36,6 +37,7 @@ export function ShareToTeamButton({
 
   async function shareTo(teamId: string) {
     setBusy(teamId);
+    setShareError('');
     try {
       const [{ data: existingMain, error: checkErr }, { data: existingIngs, error: ingsErr }] = await Promise.all([
         supabase
@@ -46,11 +48,11 @@ export function ShareToTeamButton({
           .filter('data->>name', 'eq', itemName)
           .maybeSingle(),
         itemType === 'recipe' && ingredientsToShare?.length
-          ? supabase.from('team_shared_items').select('data').eq('team_id', teamId).eq('item_type', 'ingredient')
+          ? supabase.from('team_shared_items').select('data').eq('team_id', teamId).eq('item_type', 'ingredient').limit(500)
           : Promise.resolve({ data: null, error: null }),
       ]);
 
-      if (checkErr) throw checkErr;
+      if (checkErr) { setShareError('Erreur de partage.'); return; }
 
       if (existingMain) {
         setSharedTeams((p) => new Set(p).add(teamId));
@@ -104,20 +106,23 @@ export function ShareToTeamButton({
     const t = teams[0];
     const done = sharedTeams.has(t.id);
     return (
-      <button
-        onClick={() => !done && shareTo(t.id)}
-        disabled={busy === t.id || done}
-        className="btn-ghost px-3 py-1.5 text-sm flex items-center gap-1.5"
-      >
-        {busy === t.id ? (
-          <Loader2 size={14} className="animate-spin" />
-        ) : done ? (
-          <Check size={14} className="text-emerald-400" />
-        ) : (
-          <Share2 size={14} />
-        )}
-        {done ? 'Partagé' : 'Partager'}
-      </button>
+      <div className="flex flex-col items-end gap-1">
+        <button
+          onClick={() => !done && shareTo(t.id)}
+          disabled={busy === t.id || done}
+          className="btn-ghost px-3 py-1.5 text-sm flex items-center gap-1.5"
+        >
+          {busy === t.id ? (
+            <Loader2 size={14} className="animate-spin" />
+          ) : done ? (
+            <Check size={14} className="text-emerald-400" />
+          ) : (
+            <Share2 size={14} />
+          )}
+          {done ? 'Partagé' : 'Partager'}
+        </button>
+        {shareError && <p className="text-xs text-red-400">{shareError}</p>}
+      </div>
     );
   }
 
