@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { ArrowRight, BookOpen, Package, Wrench, Users, ArrowLeft, CheckCircle2, Zap } from 'lucide-react';
+import ScrollToTopButton from '../ScrollToTopButton';
 
 const FEATURES = [
   {
@@ -96,16 +97,18 @@ export default function FeaturesPage() {
 
       {/* ── Hero ── */}
       <section className="px-6 py-16 text-center max-w-3xl mx-auto">
-        <Link
-          href="/"
-          className="inline-flex items-center gap-1.5 text-xs text-[var(--text-dim)] hover:text-[var(--text)] transition-colors mb-8"
-        >
-          <ArrowLeft size={13} />
-          Retour à l&apos;accueil
-        </Link>
-        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[var(--surface2)] border border-[var(--border)] text-[var(--gold)] text-xs font-medium mb-6">
-          <Zap size={11} />
-          <span>Documentation complète</span>
+        <div className="flex flex-col items-center gap-3 mb-8">
+          <Link
+            href="/"
+            className="inline-flex items-center gap-1.5 text-xs text-[var(--text-dim)] hover:text-[var(--text)] transition-colors"
+          >
+            <ArrowLeft size={13} />
+            Retour à l&apos;accueil
+          </Link>
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[var(--surface2)] border border-[var(--border)] text-[var(--gold)] text-xs font-medium">
+            <Zap size={11} />
+            <span>Documentation complète</span>
+          </div>
         </div>
         <h1 className="text-3xl sm:text-5xl font-bold text-[var(--text)] leading-tight mb-4">
           Tout ce que Mixtura{' '}
@@ -303,6 +306,8 @@ export default function FeaturesPage() {
         {' · '}
         <Link href="/legal/confidentialite" className="hover:text-[var(--text)] transition-colors">Confidentialité</Link>
       </footer>
+
+      <ScrollToTopButton />
     </main>
   );
 }
