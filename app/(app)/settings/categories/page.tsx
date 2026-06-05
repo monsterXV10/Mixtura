@@ -10,17 +10,18 @@ export default async function CategoriesSettingsPage() {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('visible_categories')
+    .select('visible_categories, category_suggestions')
     .eq('id', user.id)
     .single();
 
   const visibleCategories = (profile?.visible_categories as string[] | null) ?? null;
+  const categorySuggestions = (profile?.category_suggestions as Record<string, string[]> | null) ?? null;
 
   return (
     <>
       <TopBar title="Catégories d'ingrédients" backHref="/settings" />
       <main className="px-4 py-5 pb-safe max-w-xl mx-auto">
-        <CategoriesClient userId={user.id} visibleCategories={visibleCategories} />
+        <CategoriesClient userId={user.id} visibleCategories={visibleCategories} categorySuggestions={categorySuggestions} />
       </main>
     </>
   );

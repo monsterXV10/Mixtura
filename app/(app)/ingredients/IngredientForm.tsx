@@ -25,6 +25,7 @@ interface IngredientFormProps {
   userId: string;
   userIngredients: UserIngredientOption[];
   visibleCategories?: string[] | null;
+  categorySuggestions?: Record<string, string[]> | null;
   initialData?: {
     id: string;
     name: string;
@@ -76,18 +77,20 @@ const WATER_TEMP_SUGGESTIONS = ['Froide (0-4°C)', 'Ambiante (20°C)', 'Chaude (
 
 const UNITS = ['cl', 'ml', 'L', 'g', 'kg', 'pcs', 'dash', 'barspoon', '%'];
 
-// Suggestions for the "famille d'alcool" datalist (free text — user can type anything)
-const COMMON_FAMILIES = [
-  'Whisky', 'Bourbon', 'Scotch', 'Rye Whiskey', 'Irish Whiskey',
-  'Gin', 'Vodka', 'Rhum', 'Rhum agricole', 'Tequila', 'Mezcal',
-  'Cognac', 'Armagnac', 'Brandy', 'Calvados',
-  'Vermouth', 'Amaro', 'Bitters', 'Triple Sec', 'Liqueur',
-  'Champagne', 'Vin', 'Porto', 'Sherry',
-];
+const DEFAULT_FAMILY_SUGGESTIONS: Record<string, string[]> = {
+  spirit:  ['Whisky', 'Bourbon', 'Scotch', 'Gin', 'Vodka', 'Rhum', 'Tequila', 'Mezcal', 'Cognac', 'Armagnac', 'Calvados'],
+  liqueur: ['Vermouth', 'Amaro', 'Triple Sec', 'Bitters', 'Campari', 'Cointreau', 'Chartreuse'],
+  wine:    ['Champagne', 'Vin rouge', 'Vin blanc', 'Porto', 'Sherry', 'Prosecco'],
+  syrup:   ['Sucre de canne', 'Orgeat', 'Grenadine', 'Fraise', 'Pêche', 'Citron', 'Menthe'],
+  juice:   ['Citron', 'Citron vert', 'Orange', 'Pamplemousse', 'Ananas', 'Cranberry', 'Tomate'],
+  fresh:   ['Citron', 'Citron vert', 'Orange', 'Menthe', 'Basilic', 'Concombre', 'Fraise'],
+  dry:     ['Sel', 'Sucre', 'Poivre', 'Piment', 'Muscade', 'Cannelle'],
+  other:   [],
+};
 
 const EMPTY_COMP: CompositionRow = { name: '', qty: 0, unit: 'cl' };
 
-export default function IngredientForm({ userId, userIngredients, visibleCategories, initialData }: IngredientFormProps) {
+export default function IngredientForm({ userId, userIngredients, visibleCategories, categorySuggestions, initialData }: IngredientFormProps) {
   const router = useRouter();
   const [name, setName] = useState(initialData?.name ?? '');
   const [type, setType] = useState(initialData?.type ?? 'spirit');
@@ -348,6 +351,11 @@ export default function IngredientForm({ userId, userIngredients, visibleCategor
     ? INGREDIENT_TYPES.filter((t) => visibleCategories.includes(t.key))
     : INGREDIENT_TYPES;
 
+  const familySuggestions: string[] =
+    (categorySuggestions && categorySuggestions[type] !== undefined)
+      ? categorySuggestions[type]
+      : (DEFAULT_FAMILY_SUGGESTIONS[type] ?? []);
+
   const isAlcohol = ['spirit', 'liqueur', 'wine'].includes(type);
   const isLiquid = isAlcohol || ['syrup', 'juice'].includes(type);
   const isWater = type === 'water';
@@ -467,21 +475,19 @@ export default function IngredientForm({ userId, userIngredients, visibleCategor
                 </label>
                 <input
                   type="text"
-                  list={isAlcohol ? 'alcohol-families' : undefined}
+                  list={familySuggestions.length > 0 ? 'family-suggestions' : undefined}
                   value={family}
                   onChange={(e) => setFamily(e.target.value)}
-                  placeholder={isAlcohol ? 'ex. Whisky, Gin, Rhum…' : 'ex. Café, Citron vert, Menthe…'}
+                  placeholder={isAlcohol ? 'ex. Whisky, Gin, Rhum…' : 'ex. Orgeat, Citron vert, Menthe…'}
                   className="field-input"
                 />
-                {isAlcohol && (
-                  <datalist id="alcohol-families">
-                    {COMMON_FAMILIES.map((f) => <option key={f} value={f} />)}
+                {familySuggestions.length > 0 && (
+                  <datalist id="family-suggestions">
+                    {familySuggestions.map((f) => <option key={f} value={f} />)}
                   </datalist>
                 )}
                 <p className="text-xs text-[var(--text-dim)]">
-                  {isAlcohol
-                    ? 'Permet de retrouver ce produit en tapant la famille (ex. « whisky ») dans une recette.'
-                    : 'Permet de retrouver ce produit en tapant ce mot-clé dans une recette.'}
+                  Permet de retrouver ce produit par famille dans une recette.
                 </p>
               </div>
 
