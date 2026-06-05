@@ -64,13 +64,16 @@ export default function PlanClient({ currentPlan }: { currentPlan: PlanId }) {
         <button
           type="button"
           onClick={() => setAnnual(v => !v)}
-          className="relative w-11 h-6 rounded-full overflow-hidden transition-colors"
+          className="relative w-11 h-6 rounded-full transition-colors duration-200 shrink-0"
           style={{ background: annual ? 'var(--gold)' : 'var(--surface2)' }}
           aria-label="Basculer annuel/mensuel"
         >
           <span
-            className="absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform"
-            style={{ transform: annual ? 'translateX(22px)' : 'translateX(2px)' }}
+            className="absolute top-0.5 w-5 h-5 rounded-full bg-white shadow"
+            style={{
+              left: annual ? '22px' : '2px',
+              transition: 'left 200ms cubic-bezier(0.4,0,0.2,1)',
+            }}
           />
         </button>
         <button
@@ -225,7 +228,7 @@ export default function PlanClient({ currentPlan }: { currentPlan: PlanId }) {
 
       <p className="text-xs text-center px-4" style={{ color: 'var(--text-dim)' }}>
         Paiements disponibles prochainement —{' '}
-        <a href="mailto:contact@mixtura.buzz" className="underline">accès anticipé</a>
+        <Link href="/settings/feedback" className="underline hover:text-[var(--text)] transition-colors">accès anticipé</Link>
       </p>
 
       <p className="text-xs text-center px-4" style={{ color: 'var(--text-dim)' }}>
