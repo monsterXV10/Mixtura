@@ -14,10 +14,12 @@ export default async function EditIngredientPage({
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login');
 
-  const [{ data: ingredient }, { data: ingredientRows }] = await Promise.all([
+  const [{ data: ingredient }, { data: ingredientRows }, { data: profile }] = await Promise.all([
     supabase.from('ingredients').select('*').eq('id', id).eq('user_id', user.id).single(),
     supabase.from('ingredients').select('id, data').eq('user_id', user.id).limit(500),
+    supabase.from('profiles').select('visible_categories').eq('id', user.id).single(),
   ]);
+  const visibleCategories = (profile?.visible_categories as string[] | null) ?? null;
 
   if (!ingredient) notFound();
 
@@ -68,7 +70,7 @@ export default async function EditIngredientPage({
     <>
       <TopBar title="Modifier l'ingrédient" backHref={`/ingredients/${id}`} />
       <main className="px-4 py-5 pb-safe">
-        <IngredientForm userId={user.id} userIngredients={userIngredients} initialData={initialData} />
+        <IngredientForm userId={user.id} userIngredients={userIngredients} initialData={initialData} visibleCategories={visibleCategories} />
       </main>
     </>
   );

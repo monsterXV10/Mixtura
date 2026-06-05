@@ -24,6 +24,7 @@ interface OutputRow {
 interface IngredientFormProps {
   userId: string;
   userIngredients: UserIngredientOption[];
+  visibleCategories?: string[] | null;
   initialData?: {
     id: string;
     name: string;
@@ -86,7 +87,7 @@ const COMMON_FAMILIES = [
 
 const EMPTY_COMP: CompositionRow = { name: '', qty: 0, unit: 'cl' };
 
-export default function IngredientForm({ userId, userIngredients, initialData }: IngredientFormProps) {
+export default function IngredientForm({ userId, userIngredients, visibleCategories, initialData }: IngredientFormProps) {
   const router = useRouter();
   const [name, setName] = useState(initialData?.name ?? '');
   const [type, setType] = useState(initialData?.type ?? 'spirit');
@@ -343,6 +344,10 @@ export default function IngredientForm({ userId, userIngredients, initialData }:
     }
   };
 
+  const visibleTypes = visibleCategories
+    ? INGREDIENT_TYPES.filter((t) => visibleCategories.includes(t.key))
+    : INGREDIENT_TYPES;
+
   const isAlcohol = ['spirit', 'liqueur', 'wine'].includes(type);
   const isLiquid = isAlcohol || ['syrup', 'juice'].includes(type);
   const isWater = type === 'water';
@@ -397,7 +402,7 @@ export default function IngredientForm({ userId, userIngredients, initialData }:
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-[var(--text-dim)] uppercase tracking-wide">Catégorie</label>
             <div className="flex flex-wrap gap-2">
-              {INGREDIENT_TYPES.map((t) => (
+              {visibleTypes.map((t) => (
                 <button key={t.key} type="button" onClick={() => selectCategory(t.key)}
                   className={`px-3 py-1.5 text-xs font-medium rounded-full border transition-all ${
                     type === t.key
