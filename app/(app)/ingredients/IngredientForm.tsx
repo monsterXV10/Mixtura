@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client';
 import { matchesIngredient, ensureIngredients } from '@/lib/utils/ingredients';
 import { Plus, Trash2, Loader2, FlaskConical } from 'lucide-react';
 import type { UserIngredientOption } from '@/lib/utils/ingredients';
+import { getCategoryFieldConfig, type CategoryConfig } from '@/lib/config/categoryFields';
 
 interface CompositionRow {
   ingredientId?: string;
@@ -26,6 +27,7 @@ interface IngredientFormProps {
   userIngredients: UserIngredientOption[];
   visibleCategories?: string[] | null;
   categorySuggestions?: Record<string, string[]> | null;
+  categoryConfig?: CategoryConfig | null;
   initialData?: {
     id: string;
     name: string;
@@ -46,6 +48,14 @@ interface IngredientFormProps {
     outputs?: Array<{ ingredientId?: string; name: string; qty: number; unit: string }>;
     temperature?: string;
     unlimitedStock?: boolean;
+    expiryDate?: string;
+    alcoholContent?: number;
+    sugarRatio?: string;
+    sugarRatioCustom?: string;
+    quantityInBottle?: number;
+    fruitLabel?: string;
+    juicePerFruit?: number;
+    yieldVariance?: number;
   };
 }
 
@@ -90,7 +100,7 @@ const DEFAULT_FAMILY_SUGGESTIONS: Record<string, string[]> = {
 
 const EMPTY_COMP: CompositionRow = { name: '', qty: 0, unit: 'cl' };
 
-export default function IngredientForm({ userId, userIngredients, visibleCategories, categorySuggestions, initialData }: IngredientFormProps) {
+export default function IngredientForm({ userId, userIngredients, visibleCategories, categorySuggestions, categoryConfig, initialData }: IngredientFormProps) {
   const router = useRouter();
   const [name, setName] = useState(initialData?.name ?? '');
   const [type, setType] = useState(initialData?.type ?? 'spirit');
@@ -125,6 +135,15 @@ export default function IngredientForm({ userId, userIngredients, visibleCategor
     return [{ tempId: 'out-0', name: '', qty: initialData?.yield ?? 50, unit: initialData?.yieldUnit ?? 'cl' }];
   });
   const [temperature, setTemperature] = useState(initialData?.temperature ?? '');
+  // New configurable fields
+  const [expiryDate,       setExpiryDate]       = useState(initialData?.expiryDate ?? '');
+  const [alcoholContent,   setAlcoholContent]   = useState(initialData?.alcoholContent ?? 0);
+  const [sugarRatio,       setSugarRatio]       = useState(initialData?.sugarRatio ?? '1:1');
+  const [sugarRatioCustom, setSugarRatioCustom] = useState(initialData?.sugarRatioCustom ?? '');
+  const [quantityInBottle, setQuantityInBottle] = useState(initialData?.quantityInBottle ?? 0);
+  const [fruitLabel,       setFruitLabel]       = useState(initialData?.fruitLabel ?? '');
+  const [juicePerFruit,    setJuicePerFruit]    = useState(initialData?.juicePerFruit ?? 0);
+  const [yieldVariance,    setYieldVariance]    = useState(initialData?.yieldVariance ?? 10);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -200,16 +219,25 @@ export default function IngredientForm({ userId, userIngredients, visibleCategor
       : [];
 
     if (!homemade) {
+      const cfg = getCategoryFieldConfig(type, categoryConfig);
       const data = isWater
         ? {
             name: name.trim(), type: 'water', unit, price, stock: 0, format: 0, homemade: false,
             temperature, unlimitedStock: true,
           }
         : {
-            name: name.trim(), type, unit, price, stock, format, homemade: false,
-            brand: brand.trim() || undefined,
-            family: family.trim() || undefined,
-            supplier: supplier.trim() || undefined,
+            name: name.trim(), type, unit, homemade: false,
+            ...(cfg.price    && { price }),
+            ...(cfg.stock    && { stock }),
+            ...(cfg.format   && { format }),
+            ...(cfg.brand    && brand.trim()    && { brand:    brand.trim() }),
+            ...(cfg.supplier && supplier.trim() && { supplier: supplier.trim() }),
+            ...(family.trim() && { family: family.trim() }),
+            ...(cfg.expiryDate       && expiryDate       && { expiryDate }),
+            ...(cfg.alcoholContent   && alcoholContent > 0 && { alcoholContent }),
+            ...(cfg.sugarRatio       && { sugarRatio, ...(sugarRatio === 'Sur mesure' && sugarRatioCustom && { sugarRatioCustom }) }),
+            ...(cfg.quantityInBottle && quantityInBottle > 0 && { quantityInBottle }),
+            ...(cfg.yieldCalc        && { fruitLabel, juicePerFruit, yieldVariance }),
           };
       const payload = { user_id: userId, data, updated_at: new Date().toISOString() };
       const result = initialData
@@ -356,9 +384,10 @@ export default function IngredientForm({ userId, userIngredients, visibleCategor
       ? categorySuggestions[type]
       : (DEFAULT_FAMILY_SUGGESTIONS[type] ?? []);
 
+  const cfg     = getCategoryFieldConfig(type, categoryConfig);
   const isAlcohol = ['spirit', 'liqueur', 'wine'].includes(type);
-  const isLiquid = isAlcohol || ['syrup', 'juice'].includes(type);
-  const isWater = type === 'water';
+  const isLiquid  = isAlcohol || ['syrup', 'juice'].includes(type);
+  const isWater   = type === 'water';
 
   function selectCategory(key: string) {
     setType(key);
@@ -469,6 +498,7 @@ export default function IngredientForm({ userId, userIngredients, visibleCategor
           {/* Champs standards (masqués pour l'eau) */}
           {!isWater && (
             <>
+              {/* Famille / variété */}
               <div className="space-y-2">
                 <label className="text-xs font-medium text-[var(--text-dim)] uppercase tracking-wide">
                   {isAlcohol ? "Type / famille d'alcool" : 'Type / variété (optionnel)'}
@@ -476,77 +506,195 @@ export default function IngredientForm({ userId, userIngredients, visibleCategor
                 {familySuggestions.length > 0 && (
                   <div className="flex flex-wrap gap-2">
                     {familySuggestions.map((s) => (
-                      <button
-                        key={s}
-                        type="button"
-                        onClick={() => setFamily(family === s ? '' : s)}
+                      <button key={s} type="button" onClick={() => setFamily(family === s ? '' : s)}
                         className={`px-3 py-1.5 text-xs font-medium rounded-full border transition-all ${
                           family === s
                             ? 'bg-[var(--gold)] text-[#0A0E1A] border-[var(--gold)]'
                             : 'bg-transparent text-[var(--text-dim)] border-[var(--border)] hover:border-[var(--gold-dim)]'
-                        }`}
-                      >
+                        }`}>
                         {s}
                       </button>
                     ))}
                   </div>
                 )}
-                <input
-                  type="text"
-                  value={family}
-                  onChange={(e) => setFamily(e.target.value)}
-                  placeholder="Autre (saisie libre)…"
-                  className="field-input"
-                />
+                <input type="text" value={family} onChange={(e) => setFamily(e.target.value)}
+                  placeholder="Autre (saisie libre)…" className="field-input" />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-[var(--text-dim)] uppercase tracking-wide">Marque</label>
-                  <input type="text" value={brand} onChange={(e) => setBrand(e.target.value)}
-                    placeholder="ex. Jack Daniel's" className="field-input" />
+              {/* Marque + Fournisseur */}
+              {(cfg.brand || cfg.supplier) && (
+                <div className={`gap-3 ${cfg.brand && cfg.supplier ? 'grid grid-cols-2' : ''}`}>
+                  {cfg.brand && (
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium text-[var(--text-dim)] uppercase tracking-wide">Marque</label>
+                      <input type="text" value={brand} onChange={(e) => setBrand(e.target.value)}
+                        placeholder="ex. Jack Daniel's" className="field-input" />
+                    </div>
+                  )}
+                  {cfg.supplier && (
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium text-[var(--text-dim)] uppercase tracking-wide">Fournisseur</label>
+                      <input type="text" value={supplier} onChange={(e) => setSupplier(e.target.value)}
+                        placeholder="ex. Metro" className="field-input" />
+                    </div>
+                  )}
                 </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-[var(--text-dim)] uppercase tracking-wide">Fournisseur</label>
-                  <input type="text" value={supplier} onChange={(e) => setSupplier(e.target.value)}
-                    placeholder="ex. Metro" className="field-input" />
-                </div>
-              </div>
+              )}
 
-              <div className="grid grid-cols-2 gap-3">
+              {/* Taux d'alcool */}
+              {cfg.alcoholContent && (
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-[var(--text-dim)] uppercase tracking-wide">Taux d'alcool (%)</label>
+                  <div className="flex items-center gap-2">
+                    <input type="number" min="0" max="100" step="0.1"
+                      value={alcoholContent === 0 ? '' : alcoholContent}
+                      onChange={(e) => setAlcoholContent(parseFloat(e.target.value) || 0)}
+                      placeholder="ex. 40" className="field-input w-32" />
+                    <span className="text-sm text-[var(--text-dim)]">% vol.</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Ratio de sucre */}
+              {cfg.sugarRatio && (
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-[var(--text-dim)] uppercase tracking-wide">Ratio de sucre</label>
+                  <div className="flex flex-wrap gap-2">
+                    {['1:1', '2:1', 'Sur mesure'].map((r) => (
+                      <button key={r} type="button" onClick={() => setSugarRatio(r)}
+                        className={`px-3 py-1.5 text-xs font-medium rounded-full border transition-all ${
+                          sugarRatio === r
+                            ? 'bg-pink-500 text-white border-pink-500'
+                            : 'bg-transparent text-[var(--text-dim)] border-[var(--border)] hover:border-pink-400'
+                        }`}>
+                        {r}
+                      </button>
+                    ))}
+                  </div>
+                  {sugarRatio === 'Sur mesure' && (
+                    <input type="text" value={sugarRatioCustom} onChange={(e) => setSugarRatioCustom(e.target.value)}
+                      placeholder="ex. 1.5:1 ou 3 parts sucre / 2 parts eau"
+                      className="field-input" />
+                  )}
+                </div>
+              )}
+
+              {/* Format / conditionnement */}
+              {cfg.format && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-[var(--text-dim)] uppercase tracking-wide">Unité</label>
+                    <select value={unit} onChange={(e) => setUnit(e.target.value)} className="field-input">
+                      {UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
+                    </select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-[var(--text-dim)] uppercase tracking-wide">
+                      {isLiquid ? 'Format bouteille' : 'Conditionnement'} ({unit})
+                    </label>
+                    <input type="number" min="0" step="any"
+                      value={format === 0 ? '' : format}
+                      onChange={(e) => setFormat(parseFloat(e.target.value) || 0)}
+                      placeholder={isLiquid ? 'ex. 70' : 'ex. 1000'} className="field-input" />
+                  </div>
+                </div>
+              )}
+              {!cfg.format && (
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium text-[var(--text-dim)] uppercase tracking-wide">Unité</label>
-                  <select value={unit} onChange={(e) => setUnit(e.target.value)} className="field-input">
+                  <select value={unit} onChange={(e) => setUnit(e.target.value)} className="field-input w-32">
                     {UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
                   </select>
                 </div>
+              )}
+
+              {/* Quantité restante dans la bouteille ouverte */}
+              {cfg.quantityInBottle && (
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium text-[var(--text-dim)] uppercase tracking-wide">
-                    {isLiquid ? 'Format bouteille' : 'Conditionnement'} ({unit})
+                    Quantité restante ({unit}) — bouteille ouverte
                   </label>
                   <input type="number" min="0" step="any"
-                    value={format === 0 ? '' : format}
-                    onChange={(e) => setFormat(parseFloat(e.target.value) || 0)}
-                    placeholder={isLiquid ? 'ex. 70' : 'ex. 1000'} className="field-input" />
+                    value={quantityInBottle === 0 ? '' : quantityInBottle}
+                    onChange={(e) => setQuantityInBottle(parseFloat(e.target.value) || 0)}
+                    placeholder="0" className="field-input w-40" />
                 </div>
+              )}
+
+              {/* Prix + Stock */}
+              <div className={`gap-3 ${cfg.price && cfg.stock ? 'grid grid-cols-2' : ''}`}>
+                {cfg.price && (
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-[var(--text-dim)] uppercase tracking-wide">Prix achat (€)</label>
+                    <input type="number" min="0" step="0.01"
+                      value={price === 0 ? '' : price}
+                      onChange={(e) => setPrice(parseFloat(e.target.value) || 0)}
+                      placeholder="0.00" className="field-input" />
+                  </div>
+                )}
+                {cfg.stock && (
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-[var(--text-dim)] uppercase tracking-wide">Stock actuel</label>
+                    <input type="number" min="0" step="any"
+                      value={stock === 0 ? '' : stock}
+                      onChange={(e) => setStock(parseFloat(e.target.value) || 0)}
+                      placeholder="0" className="field-input" />
+                  </div>
+                )}
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              {/* Date de péremption */}
+              {cfg.expiryDate && (
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-[var(--text-dim)] uppercase tracking-wide">Prix achat (€)</label>
-                  <input type="number" min="0" step="0.01"
-                    value={price === 0 ? '' : price}
-                    onChange={(e) => setPrice(parseFloat(e.target.value) || 0)}
-                    placeholder="0.00" className="field-input" />
+                  <label className="text-xs font-medium text-[var(--text-dim)] uppercase tracking-wide">
+                    Date de péremption
+                  </label>
+                  <input type="date" value={expiryDate} onChange={(e) => setExpiryDate(e.target.value)}
+                    className="field-input" />
                 </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-[var(--text-dim)] uppercase tracking-wide">Stock actuel</label>
-                  <input type="number" min="0" step="any"
-                    value={stock === 0 ? '' : stock}
-                    onChange={(e) => setStock(parseFloat(e.target.value) || 0)}
-                    placeholder="0" className="field-input" />
+              )}
+
+              {/* Calcul de rendement */}
+              {cfg.yieldCalc && (
+                <div className="space-y-3 card">
+                  <p className="text-xs font-bold uppercase tracking-widest text-[var(--text-dim)]">
+                    Calcul de rendement (fruits → jus)
+                  </p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <label className="text-xs text-[var(--text-dim)]">Fruit / unité</label>
+                      <input type="text" value={fruitLabel} onChange={(e) => setFruitLabel(e.target.value)}
+                        placeholder="ex. citron" className="field-input" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs text-[var(--text-dim)]">Jus par fruit (ml)</label>
+                      <input type="number" min="0" step="1"
+                        value={juicePerFruit === 0 ? '' : juicePerFruit}
+                        onChange={(e) => setJuicePerFruit(parseFloat(e.target.value) || 0)}
+                        placeholder="ex. 30" className="field-input" />
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs text-[var(--text-dim)]">Variance saisonnière (%)</label>
+                    <div className="flex items-center gap-2">
+                      <input type="number" min="0" max="50" step="1"
+                        value={yieldVariance}
+                        onChange={(e) => setYieldVariance(parseFloat(e.target.value) || 0)}
+                        className="field-input w-24" />
+                      <span className="text-xs text-[var(--text-dim)]">%</span>
+                    </div>
+                  </div>
+                  {fruitLabel && juicePerFruit > 0 && (
+                    <div className="px-3 py-2 rounded-lg text-xs"
+                      style={{ background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.2)' }}>
+                      <span className="text-emerald-400 font-medium">
+                        1 {fruitLabel} → {Math.round(juicePerFruit * (1 - yieldVariance / 100))}–{juicePerFruit} ml
+                      </span>
+                      <span className="text-[var(--text-dim)] ml-2">selon la saison</span>
+                    </div>
+                  )}
                 </div>
-              </div>
+              )}
             </>
           )}
         </>

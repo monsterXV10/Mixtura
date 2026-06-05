@@ -17,10 +17,11 @@ export default async function EditIngredientPage({
   const [{ data: ingredient }, { data: ingredientRows }, { data: profile }] = await Promise.all([
     supabase.from('ingredients').select('*').eq('id', id).eq('user_id', user.id).single(),
     supabase.from('ingredients').select('id, data').eq('user_id', user.id).limit(500),
-    supabase.from('profiles').select('visible_categories, category_suggestions').eq('id', user.id).single(),
+    supabase.from('profiles').select('visible_categories, category_suggestions, category_config').eq('id', user.id).single(),
   ]);
-  const visibleCategories = (profile?.visible_categories as string[] | null) ?? null;
+  const visibleCategories   = (profile?.visible_categories   as string[] | null) ?? null;
   const categorySuggestions = (profile?.category_suggestions as Record<string, string[]> | null) ?? null;
+  const categoryConfig      = (profile?.category_config      as Record<string, Record<string, boolean>> | null) ?? null;
 
   if (!ingredient) notFound();
 
@@ -29,22 +30,17 @@ export default async function EditIngredientPage({
     .map((i) => toIngredientOption({ id: i.id as string, data: i.data }));
 
   const d = ingredient.data as {
-    name?: string;
-    type?: string;
-    unit?: string;
-    price?: number;
-    stock?: number;
-    format?: number;
-    homemade?: boolean;
-    brand?: string;
-    family?: string;
-    supplier?: string;
+    name?: string; type?: string; unit?: string; price?: number;
+    stock?: number; format?: number; homemade?: boolean;
+    brand?: string; family?: string; supplier?: string;
     composition?: Array<{ ingredientId?: string; name: string; qty: number; unit: string }>;
-    yield?: number;
-    yieldUnit?: string;
-    steps?: string;
-    preparationType?: string;
+    yield?: number; yieldUnit?: string; steps?: string; preparationType?: string;
     outputs?: Array<{ ingredientId?: string; name: string; qty: number; unit: string }>;
+    temperature?: string; unlimitedStock?: boolean;
+    expiryDate?: string; alcoholContent?: number;
+    sugarRatio?: string; sugarRatioCustom?: string;
+    quantityInBottle?: number;
+    fruitLabel?: string; juicePerFruit?: number; yieldVariance?: number;
   };
 
   const initialData = {
@@ -65,13 +61,23 @@ export default async function EditIngredientPage({
     steps: d?.steps,
     preparationType: d?.preparationType,
     outputs: d?.outputs,
+    temperature: d?.temperature,
+    unlimitedStock: d?.unlimitedStock,
+    expiryDate: d?.expiryDate,
+    alcoholContent: d?.alcoholContent,
+    sugarRatio: d?.sugarRatio,
+    sugarRatioCustom: d?.sugarRatioCustom,
+    quantityInBottle: d?.quantityInBottle,
+    fruitLabel: d?.fruitLabel,
+    juicePerFruit: d?.juicePerFruit,
+    yieldVariance: d?.yieldVariance,
   };
 
   return (
     <>
       <TopBar title="Modifier l'ingrédient" backHref={`/ingredients/${id}`} />
       <main className="px-4 py-5 pb-safe">
-        <IngredientForm userId={user.id} userIngredients={userIngredients} initialData={initialData} visibleCategories={visibleCategories} categorySuggestions={categorySuggestions} />
+        <IngredientForm userId={user.id} userIngredients={userIngredients} initialData={initialData} visibleCategories={visibleCategories} categorySuggestions={categorySuggestions} categoryConfig={categoryConfig} />
       </main>
     </>
   );
