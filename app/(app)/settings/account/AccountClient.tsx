@@ -54,8 +54,8 @@ export default function AccountClient({ userId, email, displayName, planName, pr
 
   async function changePassword() {
     setPwdMsg(null);
-    if (password.length < 6) {
-      setPwdMsg({ type: 'err', text: 'Le mot de passe doit faire au moins 6 caractères.' });
+    if (password.length < 8) {
+      setPwdMsg({ type: 'err', text: 'Le mot de passe doit faire au moins 8 caractères.' });
       return;
     }
     if (password !== confirm) {

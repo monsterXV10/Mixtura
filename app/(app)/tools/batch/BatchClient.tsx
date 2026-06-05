@@ -156,13 +156,14 @@ export default function BatchClient({ recipes, stockMap, userId, teams }: Props)
   const [sharedTeamId, setSharedTeamId] = useState<string | null>(null);
   const [tick, setTick]             = useState(0);
 
-  // Clock tick every second when any timer is active
+  // Stable boolean so the interval is only recreated when active state flips, not on every timer update
+  const hasActiveTimers = Object.values(timers).some((t) => t.startedAt !== null && getRemaining(t) > 0);
+
   useEffect(() => {
-    const hasActive = Object.values(timers).some((t) => t.startedAt !== null && getRemaining(t) > 0);
-    if (!hasActive) return;
+    if (!hasActiveTimers) return;
     const id = setInterval(() => setTick((n) => n + 1), 1000);
     return () => clearInterval(id);
-  }, [timers]);
+  }, [hasActiveTimers]);
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase().trim();
