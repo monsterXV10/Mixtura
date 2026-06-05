@@ -469,26 +469,35 @@ export default function IngredientForm({ userId, userIngredients, visibleCategor
           {/* Champs standards (masqués pour l'eau) */}
           {!isWater && (
             <>
-              <div className="space-y-1.5">
+              <div className="space-y-2">
                 <label className="text-xs font-medium text-[var(--text-dim)] uppercase tracking-wide">
                   {isAlcohol ? "Type / famille d'alcool" : 'Type / variété (optionnel)'}
                 </label>
+                {familySuggestions.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {familySuggestions.map((s) => (
+                      <button
+                        key={s}
+                        type="button"
+                        onClick={() => setFamily(family === s ? '' : s)}
+                        className={`px-3 py-1.5 text-xs font-medium rounded-full border transition-all ${
+                          family === s
+                            ? 'bg-[var(--gold)] text-[#0A0E1A] border-[var(--gold)]'
+                            : 'bg-transparent text-[var(--text-dim)] border-[var(--border)] hover:border-[var(--gold-dim)]'
+                        }`}
+                      >
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                )}
                 <input
                   type="text"
-                  list={familySuggestions.length > 0 ? 'family-suggestions' : undefined}
                   value={family}
                   onChange={(e) => setFamily(e.target.value)}
-                  placeholder={isAlcohol ? 'ex. Whisky, Gin, Rhum…' : 'ex. Orgeat, Citron vert, Menthe…'}
+                  placeholder="Autre (saisie libre)…"
                   className="field-input"
                 />
-                {familySuggestions.length > 0 && (
-                  <datalist id="family-suggestions">
-                    {familySuggestions.map((f) => <option key={f} value={f} />)}
-                  </datalist>
-                )}
-                <p className="text-xs text-[var(--text-dim)]">
-                  Permet de retrouver ce produit par famille dans une recette.
-                </p>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
