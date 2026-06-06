@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Edit2, FlaskConical, Package, ArrowLeft } from 'lucide-react';
 import TimerWidget from '../TimerWidget';
 import { ShareToTeamButton } from '@/components/shared/ShareToTeamButton';
+import { DeleteIngredientButton } from './DeleteIngredientButton';
 
 const CATEGORY_LABELS: Record<string, string> = {
   spirit: 'Spiritueux', liqueur: 'Liqueur', wine: 'Vin',
@@ -109,6 +110,7 @@ export default async function IngredientDetailPage({
         backHref="/ingredients"
         actions={
           <div className="flex items-center gap-2">
+            <DeleteIngredientButton id={id} />
             <ShareToTeamButton
               userId={user.id}
               sharerName={sharerName}
