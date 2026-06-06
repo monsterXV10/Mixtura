@@ -469,7 +469,10 @@ export default function CommunicationClient({
     if (!item.ingredients?.length) return item.qty;
     const vol = item.ingredients.reduce((s, i) => {
       const u = i.unit.toLowerCase();
-      return s + (u === 'cl' ? i.qty : u === 'ml' ? i.qty / 10 : u === 'l' ? i.qty * 100 : i.qty);
+      if (u === 'cl') return s + i.qty;
+      if (u === 'ml') return s + i.qty / 10;
+      if (u === 'l') return s + i.qty * 100;
+      return s;
     }, 0);
     if (vol <= 0) return item.qty;
     const target = item.qtyUnit === 'cl' ? item.qty : item.qtyUnit === 'L' ? item.qty * 100 : item.qtyUnit === 'btl70' ? item.qty * 70 : item.qty * 100;

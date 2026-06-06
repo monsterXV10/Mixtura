@@ -80,7 +80,13 @@ function toBase(qty: number, unit: string): number {
 
 function effectivePortions(qty: number, unit: BatchQtyUnit, recipe: Recipe): number {
   if (unit === 'portions') return qty;
-  const vol = recipe.ingredients.reduce((s, i) => s + toBase(i.qty, i.unit), 0);
+  const vol = recipe.ingredients.reduce((s, i) => {
+    const u = i.unit.toLowerCase();
+    if (u === 'cl') return s + i.qty;
+    if (u === 'ml') return s + i.qty / 10;
+    if (u === 'l') return s + i.qty * 100;
+    return s;
+  }, 0);
   if (vol <= 0) return qty;
   const target = unit === 'cl' ? qty : unit === 'L' ? qty * 100 : unit === 'btl70' ? qty * 70 : qty * 100;
   return target / vol;
