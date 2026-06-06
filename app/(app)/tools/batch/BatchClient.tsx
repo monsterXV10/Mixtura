@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/client';
 import {
   Search, ChevronDown, Minus, Plus, FlaskConical, Package,
   CheckCircle2, Loader2, X, List, BookOpen, Timer, Play, Square,
-  RotateCcw, Share2, Users, ChevronRight,
+  RotateCcw, Share2, Users, ChevronRight, Save, FolderOpen, Trash2,
 } from 'lucide-react';
 
 type BatchQtyUnit = 'portions' | 'cl' | 'L' | 'btl70' | 'btl100';
@@ -155,6 +155,14 @@ export default function BatchClient({ recipes, stockMap, userId, teams }: Props)
   const [shareTeamId, setShareTeamId] = useState(teams[0]?.id ?? '');
   const [sharedTeamId, setSharedTeamId] = useState<string | null>(null);
   const [tick, setTick]             = useState(0);
+  const [saving, setSaving]         = useState(false);
+  const [savedOk, setSavedOk]       = useState(false);
+  const [savedBatches, setSavedBatches] = useState<Array<{
+    id: string; name: string; updated_at: string;
+    items: Array<{ key: string; recipeId: string; recipeName: string; qty: number; qtyUnit: BatchQtyUnit; ingredients: RecipeIngredient[]; steps: string | null }>;
+    timers: Record<string, TimerEntry>; checked: string[];
+  }>>([]);
+  const [showSaved, setShowSaved]   = useState(false);
 
   // Stable boolean so the interval is only recreated when active state flips, not on every timer update
   const hasActiveTimers = Object.values(timers).some((t) => t.startedAt !== null && getRemaining(t) > 0);
@@ -266,6 +274,49 @@ export default function BatchClient({ recipes, stockMap, userId, teams }: Props)
     setExpanded((p) => { const n = new Set(p); n.has(key) ? n.delete(key) : n.add(key); return n; });
   }
 
+  async function fetchSavedBatches() {
+    const sb = createClient();
+    const { data } = await sb.from('batches').select('id, name, items, timers, checked, updated_at')
+      .eq('user_id', userId).eq('status', 'active').is('team_id', null)
+      .order('updated_at', { ascending: false }).limit(20);
+    setSavedBatches((data ?? []) as typeof savedBatches);
+  }
+
+  useEffect(() => { fetchSavedBatches(); }, []);
+
+  function loadBatch(saved: typeof savedBatches[number]) {
+    counter = 0;
+    const restored: BatchItem[] = saved.items.map((si) => {
+      counter++;
+      const found = recipes.find((r) => r.id === si.recipeId);
+      return {
+        key: si.key,
+        qty: si.qty,
+        qtyUnit: si.qtyUnit,
+        recipe: found ?? {
+          id: si.recipeId, name: si.recipeName, type: 'cocktail',
+          ingredients: si.ingredients, steps: si.steps ?? '', timerSeconds: 0,
+        },
+      };
+    });
+    setBatchName(saved.name === 'Batch sans titre' ? '' : saved.name);
+    setItems(restored);
+    setTimers(saved.timers ?? {});
+    setChecked(new Set(saved.checked ?? []));
+    setBatchId(saved.id);
+    setSharedTeamId(null);
+    setExpanded(new Set());
+    setChecked(new Set(saved.checked ?? []));
+    setShowSaved(false);
+  }
+
+  async function deleteSavedBatch(id: string) {
+    const sb = createClient();
+    await sb.from('batches').delete().eq('id', id);
+    setSavedBatches((p) => p.filter((b) => b.id !== id));
+    if (batchId === id) { setBatchId(null); }
+  }
+
   const saveBatch = useCallback(async (opts?: { teamId?: string }): Promise<boolean> => {
     const supabase = createClient();
     const payload = {
@@ -293,6 +344,21 @@ export default function BatchClient({ recipes, stockMap, userId, teams }: Props)
     const { data } = await supabase.from('batches').select('timers').eq('id', id).single();
     const current = (data?.timers ?? {}) as Record<string, TimerEntry>;
     await supabase.from('batches').update({ timers: { ...current, [key]: entry } }).eq('id', id);
+  }
+
+  async function handleSave() {
+    if (items.length === 0) return;
+    setSaving(true);
+    setError('');
+    const ok = await saveBatch();
+    setSaving(false);
+    if (ok) {
+      setSavedOk(true);
+      setTimeout(() => setSavedOk(false), 2000);
+      await fetchSavedBatches();
+    } else {
+      setError('Impossible de sauvegarder le batch.');
+    }
   }
 
   async function handleShare() {
@@ -388,14 +454,61 @@ export default function BatchClient({ recipes, stockMap, userId, teams }: Props)
   return (
     <div className="space-y-3 max-w-xl mx-auto">
 
+      {/* ── Saved batches ── */}
+      {savedBatches.length > 0 && (
+        <div className="card p-0 overflow-hidden">
+          <button type="button"
+            onClick={() => setShowSaved((v) => !v)}
+            className="w-full flex items-center justify-between px-4 py-3 text-sm text-[var(--text-dim)] hover:bg-[var(--surface2)] transition-colors">
+            <div className="flex items-center gap-2">
+              <FolderOpen size={14} className="text-[var(--gold)]" />
+              <span className="font-medium text-[var(--text)]">Batches enregistrés</span>
+              <span className="text-[10px] rounded-full px-1.5 py-px bg-[var(--gold)]/20 text-[var(--gold)]">{savedBatches.length}</span>
+            </div>
+            <ChevronDown size={14} className={`transition-transform ${showSaved ? '' : '-rotate-90'}`} />
+          </button>
+          {showSaved && (
+            <div className="border-t border-[var(--border)] divide-y divide-[var(--border)]">
+              {savedBatches.map((b) => (
+                <div key={b.id} className="flex items-center gap-3 px-4 py-3">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-[var(--text)] truncate">{b.name}</p>
+                    <p className="text-xs text-[var(--text-dim)] mt-0.5 truncate">
+                      {b.items.map((i) => i.recipeName).join(' · ')} · {new Date(b.updated_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
+                    </p>
+                  </div>
+                  <button type="button" onClick={() => loadBatch(b)}
+                    className="shrink-0 px-3 py-1.5 text-xs btn-primary">
+                    Reprendre
+                  </button>
+                  <button type="button" onClick={() => deleteSavedBatch(b.id)}
+                    className="shrink-0 p-1.5 text-[var(--text-dim)] hover:text-red-400 hover:bg-red-400/10 rounded-md transition-colors">
+                    <Trash2 size={13} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* ── Batch name ── */}
-      <input
-        type="text"
-        placeholder="Nom du batch (ex. Soirée vendredi…)"
-        value={batchName}
-        onChange={(e) => setBatchName(e.target.value)}
-        className="field-input font-semibold text-base"
-      />
+      <div className="flex gap-2">
+        <input
+          type="text"
+          placeholder="Nom du batch (ex. Soirée vendredi…)"
+          value={batchName}
+          onChange={(e) => setBatchName(e.target.value)}
+          className="field-input font-semibold text-base flex-1"
+        />
+        {items.length > 0 && (
+          <button type="button" onClick={handleSave} disabled={saving}
+            className="btn-ghost px-3 flex items-center gap-1.5 text-sm shrink-0">
+            {saving ? <Loader2 size={14} className="animate-spin" /> : savedOk ? <CheckCircle2 size={14} className="text-emerald-400" /> : <Save size={14} />}
+            {savedOk ? 'Enregistré' : 'Sauver'}
+          </button>
+        )}
+      </div>
 
       {/* ── Search / add ── */}
       <div className="relative">
