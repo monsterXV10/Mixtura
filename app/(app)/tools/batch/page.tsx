@@ -53,7 +53,7 @@ export default async function BatchPage() {
 
   type StockEntry = {
     id: string; name: string; type?: string; unit: string;
-    price?: number; format?: number; stock?: number; homemade?: boolean;
+    price?: number; format?: number; stock?: number; homemade?: boolean; unlimitedStock?: boolean;
     composition?: Array<{ ingredientId?: string; name: string; qty: number; unit: string }>;
     yield?: number; yieldUnit?: string; steps?: string;
   };
@@ -62,13 +62,13 @@ export default async function BatchPage() {
   for (const row of ingredientRows ?? []) {
     const d = row.data as {
       name?: string; type?: string; unit?: string; price?: number; format?: number;
-      stock?: number; homemade?: boolean; sourcePreparationId?: string;
+      stock?: number; homemade?: boolean; unlimitedStock?: boolean; sourcePreparationId?: string;
       composition?: Array<{ ingredientId?: string; name: string; qty: number; unit: string }>;
       yield?: number; yieldUnit?: string; steps?: string;
     } | null;
     stockMap[row.id as string] = {
       id: row.id as string, name: d?.name ?? '', type: d?.type, unit: d?.unit ?? '',
-      price: d?.price, format: d?.format, stock: d?.stock, homemade: d?.homemade,
+      price: d?.price, format: d?.format, stock: d?.stock, homemade: d?.homemade, unlimitedStock: d?.unlimitedStock,
       composition: d?.composition, yield: d?.yield, yieldUnit: d?.yieldUnit, steps: d?.steps,
     };
     if (d?.sourcePreparationId && !d?.composition?.length && !d?.steps) {

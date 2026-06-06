@@ -19,6 +19,7 @@ interface IngredientData {
   yield?: number;
   yieldUnit?: string;
   preparationType?: string;
+  unlimitedStock?: boolean;
 }
 
 const PREP_TYPE_LABELS: Record<string, string> = {
@@ -378,7 +379,7 @@ export default function IngredientsClient({ initialIngredients, userId, userPlan
                     ? (d.preparationType ? (PREP_TYPE_LABELS[d.preparationType] ?? 'Maison') : 'Fait maison')
                     : (CATEGORY_LABELS[catKey] ?? CATEGORY_LABELS['other']);
                   const stock = d.stock ?? 0;
-                  const status = getStockStatus(stock, isHomemade ? undefined : d.format);
+                  const status = d.unlimitedStock ? 'full' : getStockStatus(stock, isHomemade ? undefined : d.format);
                   const stockDisplay = isHomemade ? `${stock} ${d.yieldUnit ?? d.unit}` : `${stock} ${d.unit ?? ''}`;
 
                   return (
@@ -406,7 +407,7 @@ export default function IngredientsClient({ initialIngredients, userId, userPlan
                         <div className="flex items-center gap-1.5">
                           <span className={`w-2 h-2 rounded-full ${STOCK_DOT[status]}`} />
                           <span className="text-xs text-[var(--text-dim)]">
-                            {stock > 0 ? stockDisplay : 'Épuisé'}
+                            {d.unlimitedStock ? 'Illimité' : stock > 0 ? stockDisplay : 'Épuisé'}
                           </span>
                         </div>
                         {!isHomemade && d.price && d.price > 0 && (

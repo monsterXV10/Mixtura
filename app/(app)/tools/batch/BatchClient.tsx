@@ -11,7 +11,7 @@ type BatchQtyUnit = 'portions' | 'cl' | 'L' | 'btl70' | 'btl100';
 
 interface IngredientStock {
   id: string; name: string; type?: string; unit: string;
-  price?: number; format?: number; stock?: number; homemade?: boolean;
+  price?: number; format?: number; stock?: number; homemade?: boolean; unlimitedStock?: boolean;
   composition?: Array<{ ingredientId?: string; name: string; qty: number; unit: string }>;
   yield?: number; yieldUnit?: string; steps?: string;
 }
@@ -115,7 +115,9 @@ function getRemaining(entry: TimerEntry): number {
 }
 
 function stockStatus(line: ConsolidatedLine): 'ok' | 'low' | 'insufficient' | 'unknown' {
-  if (!line.ingredientId || line.stockInfo?.stock === undefined) return 'unknown';
+  if (!line.ingredientId) return 'unknown';
+  if (line.stockInfo?.unlimitedStock) return 'ok';
+  if (line.stockInfo?.stock === undefined) return 'unknown';
   const a = line.stockInfo.stock;
   if (a >= line.totalQty) return 'ok';
   if (a >= line.totalQty * 0.8) return 'low';
@@ -754,11 +756,12 @@ export default function BatchClient({ recipes, stockMap, userId, teams }: Props)
                       <div className="flex-1 min-w-0">
                         <p className={`text-sm text-[var(--text)] ${isChecked ? 'line-through' : ''}`}>{line.name}</p>
                         <p className="text-xs text-[var(--text-dim)] truncate mt-0.5">{line.sources.join(' · ')}</p>
-                        {line.stockInfo?.stock !== undefined && (
+                        {(line.stockInfo?.unlimitedStock || line.stockInfo?.stock !== undefined) && (
                           <p className={`text-xs mt-0.5 ${status === 'ok' ? 'text-emerald-400' : status === 'low' ? 'text-orange-400' : status === 'insufficient' ? 'text-red-400' : 'text-[var(--text-dim)]'}`}>
-                            Stock: {line.stockInfo.stock} {line.stockInfo.unit}
-                            {status === 'insufficient' && ' · insuffisant'}
-                            {status === 'low' && ' · juste'}
+                            {line.stockInfo?.unlimitedStock
+                              ? 'Stock: Illimité'
+                              : <>Stock: {line.stockInfo!.stock} {line.stockInfo!.unit}{status === 'insufficient' && ' · insuffisant'}{status === 'low' && ' · juste'}</>
+                            }
                           </p>
                         )}
                       </div>
