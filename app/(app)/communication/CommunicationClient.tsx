@@ -112,6 +112,7 @@ export default function CommunicationClient({
   const [collapsedBatches, setCollapsedBatches] = useState<Set<string>>(new Set());
   const [expandedRecipes, setExpandedRecipes] = useState<Set<string>>(new Set());
   const [expandedHomemadeIngs, setExpandedHomemadeIngs] = useState<Set<string>>(new Set());
+  const [stockInputs, setStockInputs] = useState<Record<string, string>>({});
 
   useEffect(() => {
     setLiveBatches(teamBatches);
@@ -170,8 +171,10 @@ export default function CommunicationClient({
     } else {
       newEntry = { ...entry, startedAt: new Date().toISOString() };
     }
+    const updatedTimers = { ...batch.timers, [timerKey]: newEntry };
+    setLiveBatches((prev) => prev.map((b) => b.id === batchId ? { ...b, timers: updatedTimers } : b));
     const supabase = createClient();
-    await supabase.from('batches').update({ timers: { ...batch.timers, [timerKey]: newEntry }, updated_at: new Date().toISOString() }).eq('id', batchId);
+    await supabase.from('batches').update({ timers: updatedTimers, updated_at: new Date().toISOString() }).eq('id', batchId);
   }
 
   const myRole: TeamRole = useMemo(() => {
@@ -805,13 +808,27 @@ export default function CommunicationClient({
                                   {hasIngredients && (
                                     hasGroups ? (
                                       <>
-                                        <div className="space-y-1 pl-8">
-                                          {autreIngs.map((ing, idx) => (
-                                            <div key={idx} className="flex justify-between gap-2">
-                                              <span className="text-xs text-[var(--text-dim)] truncate">{ing.name}</span>
-                                              <span className="text-xs font-mono text-[var(--text-dim)] shrink-0 tabular-nums">{Math.round(ing.qty * portions * 100) / 100} {ing.unit}</span>
-                                            </div>
-                                          ))}
+                                        <div className="space-y-1.5 pl-8">
+                                          {autreIngs.map((ing, idx) => {
+                                            const sk = `${batch.id}:${item.key}:${ing.ingredientId ?? ing.name}`;
+                                            const needed = Math.round(ing.qty * portions * 100) / 100;
+                                            const have = parseFloat(stockInputs[sk] ?? '');
+                                            const ok = !isNaN(have) && have >= needed;
+                                            return (
+                                              <div key={idx} className="flex items-center justify-between gap-2">
+                                                <span className="text-xs text-[var(--text-dim)] truncate flex-1">{ing.name}</span>
+                                                <div className="flex items-center gap-1 shrink-0">
+                                                  <input type="number" min={0} step="any"
+                                                    value={stockInputs[sk] ?? ''}
+                                                    onChange={(e) => setStockInputs(p => ({ ...p, [sk]: e.target.value }))}
+                                                    placeholder="—"
+                                                    className={`w-14 text-xs text-right rounded px-1.5 py-0.5 focus:outline-none bg-[var(--surface2)] border ${ok ? 'border-emerald-500/50 text-emerald-400' : 'border-[var(--border)] text-[var(--text)]'}`}
+                                                  />
+                                                  <span className="text-xs font-mono text-[var(--text-dim)] tabular-nums">/ {needed} {ing.unit}</span>
+                                                </div>
+                                              </div>
+                                            );
+                                          })}
                                         </div>
                                         <div className="border-t border-dashed border-[var(--border)] pt-2 space-y-2 pl-8">
                                           {maisonIngs.map((ing, idx) => {
@@ -819,9 +836,13 @@ export default function CommunicationClient({
                                             const hmData = ing.ingredientId ? homemadeData[ing.ingredientId] : null;
                                             const hasSubContent = !!(hmData?.composition?.length || hmData?.steps);
                                             const ingExpanded = hasSubContent && expandedHomemadeIngs.has(ingKey);
+                                            const sk = `${batch.id}:${item.key}:${ing.ingredientId ?? ing.name}`;
+                                            const needed = Math.round(ing.qty * portions * 100) / 100;
+                                            const have = parseFloat(stockInputs[sk] ?? '');
+                                            const ok = !isNaN(have) && have >= needed;
                                             return (
                                               <div key={idx}>
-                                                <div className="flex justify-between gap-2">
+                                                <div className="flex items-center justify-between gap-2">
                                                   {hasSubContent ? (
                                                     <button type="button"
                                                       onClick={() => toggle(expandedHomemadeIngs, setExpandedHomemadeIngs, ingKey)}
@@ -832,7 +853,15 @@ export default function CommunicationClient({
                                                   ) : (
                                                     <span className="text-xs text-[var(--text-dim)] truncate flex-1">{ing.name}</span>
                                                   )}
-                                                  <span className="text-xs font-mono text-[var(--text-dim)] shrink-0 tabular-nums">{Math.round(ing.qty * portions * 100) / 100} {ing.unit}</span>
+                                                  <div className="flex items-center gap-1 shrink-0">
+                                                    <input type="number" min={0} step="any"
+                                                      value={stockInputs[sk] ?? ''}
+                                                      onChange={(e) => setStockInputs(p => ({ ...p, [sk]: e.target.value }))}
+                                                      placeholder="—"
+                                                      className={`w-14 text-xs text-right rounded px-1.5 py-0.5 focus:outline-none bg-[var(--surface2)] border ${ok ? 'border-emerald-500/50 text-emerald-400' : 'border-[var(--border)] text-[var(--text)]'}`}
+                                                    />
+                                                    <span className="text-xs font-mono text-[var(--text-dim)] tabular-nums">/ {needed} {ing.unit}</span>
+                                                  </div>
                                                 </div>
                                                 {ingExpanded && (
                                                   <div className="ml-3 mt-0.5 space-y-0.5 border-l-2 border-[var(--gold)]/20 pl-2">
@@ -859,9 +888,13 @@ export default function CommunicationClient({
                                           const hmData = ing.ingredientId ? (homemadeData[ing.ingredientId] ?? null) : null;
                                           const hasSubContent = !!(hmData?.composition?.length || hmData?.steps);
                                           const ingExpanded = hasSubContent && expandedHomemadeIngs.has(ingKey);
+                                          const sk = `${batch.id}:${item.key}:${ing.ingredientId ?? ing.name}`;
+                                          const needed = Math.round(ing.qty * portions * 100) / 100;
+                                          const have = parseFloat(stockInputs[sk] ?? '');
+                                          const ok = !isNaN(have) && have >= needed;
                                           return (
                                             <div key={idx}>
-                                              <div className="flex justify-between gap-2">
+                                              <div className="flex items-center justify-between gap-2">
                                                 {hasSubContent ? (
                                                   <button type="button"
                                                     onClick={() => toggle(expandedHomemadeIngs, setExpandedHomemadeIngs, ingKey)}
@@ -872,7 +905,15 @@ export default function CommunicationClient({
                                                 ) : (
                                                   <span className="text-xs text-[var(--text-dim)] truncate flex-1">{ing.name}</span>
                                                 )}
-                                                <span className="text-xs font-mono text-[var(--text-dim)] shrink-0 tabular-nums">{Math.round(ing.qty * portions * 100) / 100} {ing.unit}</span>
+                                                <div className="flex items-center gap-1 shrink-0">
+                                                  <input type="number" min={0} step="any"
+                                                    value={stockInputs[sk] ?? ''}
+                                                    onChange={(e) => setStockInputs(p => ({ ...p, [sk]: e.target.value }))}
+                                                    placeholder="—"
+                                                    className={`w-14 text-xs text-right rounded px-1.5 py-0.5 focus:outline-none bg-[var(--surface2)] border ${ok ? 'border-emerald-500/50 text-emerald-400' : 'border-[var(--border)] text-[var(--text)]'}`}
+                                                  />
+                                                  <span className="text-xs font-mono text-[var(--text-dim)] tabular-nums">/ {needed} {ing.unit}</span>
+                                                </div>
                                               </div>
                                               {ingExpanded && (
                                                 <div className="ml-3 mt-0.5 space-y-0.5 border-l-2 border-[var(--gold)]/20 pl-2">
