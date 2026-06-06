@@ -9,21 +9,26 @@ export default async function NewRecipePage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login');
 
-  const { data: ingredients } = await supabase
-    .from('ingredients')
-    .select('id, data')
-    .eq('user_id', user.id)
-    .limit(500);
+  const [{ data: ingredients }, { data: recipeRows }] = await Promise.all([
+    supabase.from('ingredients').select('id, data').eq('user_id', user.id).limit(500),
+    supabase.from('recipes').select('id, type, data').eq('user_id', user.id).order('updated_at', { ascending: false }).limit(200),
+  ]);
 
   const userIngredients = (ingredients ?? []).map((i) =>
     toIngredientOption({ id: i.id as string, data: i.data })
   );
 
+  const userRecipes = (recipeRows ?? []).map((r) => ({
+    id: r.id as string,
+    name: ((r.data as { name?: string })?.name) ?? 'Sans titre',
+    recipeType: (r.type as string) ?? 'cocktail',
+  }));
+
   return (
     <>
       <TopBar title="Nouvelle recette" backHref="/recipes" />
       <main className="px-4 py-5 pb-safe">
-        <RecipeForm userId={user.id} userIngredients={userIngredients} />
+        <RecipeForm userId={user.id} userIngredients={userIngredients} userRecipes={userRecipes} />
       </main>
     </>
   );

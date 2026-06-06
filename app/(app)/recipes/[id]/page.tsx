@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { redirect, notFound } from 'next/navigation';
 import { TopBar } from '@/components/layout/TopBar';
 import Link from 'next/link';
-import { Pencil, FlaskConical } from 'lucide-react';
+import { Pencil, FlaskConical, BookOpen } from 'lucide-react';
 import { GlassIcon } from '@/components/ui/GlassIcon';
 import { RecipeDeleteButton } from '../RecipeDeleteButton';
 import { RecipeTimer } from '../RecipeTimer';
@@ -83,9 +83,11 @@ export default async function RecipeDetailPage({
     timerSeconds?: number;
     ingredients?: Array<{
       ingredientId?: string;
+      recipeRef?: string;
       qty: number;
       name: string;
       unit: string;
+      type?: string;
       alternatives?: Array<{ ingredientId?: string; name: string }>;
     }>;
   } | null;
@@ -119,25 +121,33 @@ export default async function RecipeDetailPage({
     ])
     .filter((id): id is string => Boolean(id));
 
+  const recipeRefIds = ingredients
+    .filter((i) => i.type === 'recipe' && i.recipeRef)
+    .map((i) => i.recipeRef as string);
+
   const stockMap = new Map<string, { homemade?: boolean }>();
+  const recipeRefNames = new Map<string, string>(); // recipeId → name
   const ingredientSharePayloads: Array<{ name: string; ingredientData: Record<string, unknown> }> = [];
-  if (linkedIds.length > 0) {
-    const { data: stockRows } = await supabase
-      .from('ingredients')
-      .select('id, data')
-      .eq('user_id', user.id)
-      .in('id', linkedIds);
-    for (const row of stockRows ?? []) {
-      const d = row.data as Record<string, unknown> | null;
-      stockMap.set(row.id as string, { homemade: (d?.homemade as boolean | undefined) });
-      if (d) {
-        ingredientSharePayloads.push({
-          name: (d.name as string | undefined) ?? '',
-          ingredientData: d,
-        });
-      }
-    }
-  }
+
+  await Promise.all([
+    linkedIds.length > 0
+      ? supabase.from('ingredients').select('id, data').eq('user_id', user.id).in('id', linkedIds).then(({ data: stockRows }) => {
+          for (const row of stockRows ?? []) {
+            const d = row.data as Record<string, unknown> | null;
+            stockMap.set(row.id as string, { homemade: (d?.homemade as boolean | undefined) });
+            if (d) ingredientSharePayloads.push({ name: (d.name as string | undefined) ?? '', ingredientData: d });
+          }
+        })
+      : Promise.resolve(),
+    recipeRefIds.length > 0
+      ? supabase.from('recipes').select('id, data').eq('user_id', user.id).in('id', recipeRefIds).then(({ data: refRows }) => {
+          for (const row of refRows ?? []) {
+            const n = ((row.data as { name?: string })?.name) ?? 'Recette';
+            recipeRefNames.set(row.id as string, n);
+          }
+        })
+      : Promise.resolve(),
+  ]);
 
   const TYPE_LABELS: Record<string, string> = {
     cocktail: 'Cocktail',
@@ -247,8 +257,8 @@ export default async function RecipeDetailPage({
                 Maison
               </span>
               <span className="flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-orange-400 inline-block" />
-                Nouveau
+                <span className="w-1.5 h-1.5 rounded-full bg-purple-400 inline-block" />
+                Recette
               </span>
             </div>
           </div>
@@ -259,6 +269,24 @@ export default async function RecipeDetailPage({
             <ul className="space-y-0">
               {ingredients.map(
                 (ing, i) => {
+                  // Recipe-as-ingredient
+                  if (ing.type === 'recipe' && ing.recipeRef) {
+                    return (
+                      <li key={i} className="flex items-center gap-3 py-2.5 border-b border-[var(--border)] last:border-0">
+                        <span className="w-2 h-2 rounded-full shrink-0 bg-purple-400" />
+                        <span className="flex-1 text-[var(--text)] text-sm flex items-center gap-1.5 min-w-0">
+                          <Link href={`/recipes/${ing.recipeRef}`} className="hover:text-purple-400 transition-colors truncate">
+                            {recipeRefNames.get(ing.recipeRef) ?? ing.name}
+                          </Link>
+                          <BookOpen size={11} className="text-purple-400 shrink-0" />
+                        </span>
+                        <span className="text-[var(--gold)] text-sm font-medium tabular-nums shrink-0">
+                          {ing.qty} {ing.unit}
+                        </span>
+                      </li>
+                    );
+                  }
+
                   const primaryInfo = ing.ingredientId ? stockMap.get(ing.ingredientId) : undefined;
                   const linkedAltId = !primaryInfo
                     ? ing.alternatives?.find((a) => a.ingredientId && stockMap.has(a.ingredientId))?.ingredientId

@@ -4,9 +4,11 @@ type SupabaseClient = ReturnType<typeof createClient>;
 
 export interface IngredientRef {
   ingredientId?: string;
+  recipeRef?: string;   // recipe used as ingredient
   name: string;
   unit: string;
   qty?: number;
+  type?: string;
   alternatives?: Array<{ ingredientId?: string; name: string }>;
 }
 
@@ -102,6 +104,7 @@ export async function ensureIngredients(
   // Figure out which rows need a new ingredient created
   const toCreate = new Map<string, IngredientRef>();
   for (const r of named) {
+    if (r.type === 'recipe') continue; // recipe-as-ingredient: no DB row needed
     // Primary ingredient
     if (!r.ingredientId) {
       const alts = parseAlternatives(r.name);
@@ -154,6 +157,8 @@ export async function ensureIngredients(
   }
 
   return named.map((r) => {
+    if (r.type === 'recipe') return r; // pass-through unchanged
+
     let result = r;
 
     if (!r.ingredientId) {

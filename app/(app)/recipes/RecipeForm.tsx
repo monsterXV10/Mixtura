@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { ensureIngredients, matchesIngredient } from '@/lib/utils/ingredients';
 import type { UserIngredientOption } from '@/lib/utils/ingredients';
-import { Plus, Trash2, Loader2, FlaskConical, Timer, X } from 'lucide-react';
+import { Plus, Trash2, Loader2, FlaskConical, Timer, X, BookOpen } from 'lucide-react';
 
 const METHOD_TIMER_DEFAULTS: Record<string, number> = {
   'Shake': 10,
@@ -16,8 +16,15 @@ const METHOD_TIMER_DEFAULTS: Record<string, number> = {
 
 export type { UserIngredientOption };
 
+export interface UserRecipeOption {
+  id: string;
+  name: string;
+  recipeType: string;
+}
+
 interface RecipeIngredientRow {
   ingredientId?: string;
+  recipeRef?: string;
   qty: number;
   name: string;
   unit: string;
@@ -54,6 +61,7 @@ interface RecipeFormProps {
     timerSeconds: number;
   };
   userIngredients: UserIngredientOption[];
+  userRecipes?: UserRecipeOption[];
   userId: string;
 }
 
@@ -75,7 +83,7 @@ const METHODS = [
 
 const EMPTY_ROW: RecipeIngredientRow = { qty: 0, name: '', unit: 'cl' };
 
-export default function RecipeForm({ initialData, userIngredients, userId }: RecipeFormProps) {
+export default function RecipeForm({ initialData, userIngredients, userRecipes = [], userId }: RecipeFormProps) {
   const router = useRouter();
   const [name, setName] = useState(initialData?.name ?? '');
   const [type, setType] = useState<'cocktail' | 'coffee' | 'cuisine'>(initialData?.type ?? 'cocktail');
@@ -92,17 +100,23 @@ export default function RecipeForm({ initialData, userIngredients, userId }: Rec
   const [error, setError] = useState('');
 
   const [suggestions, setSuggestions] = useState<UserIngredientOption[]>([]);
+  const [recipeSuggestions, setRecipeSuggestions] = useState<UserRecipeOption[]>([]);
   const [activeTarget, setActiveTarget] = useState<{ row: number; alt: number | null } | null>(null);
 
   function handleBlur() {
-    setTimeout(() => { setSuggestions([]); setActiveTarget(null); }, 150);
+    setTimeout(() => { setSuggestions([]); setRecipeSuggestions([]); setActiveTarget(null); }, 150);
   }
 
   function filterSuggestions(value: string) {
     return userIngredients
       .filter((ing) => matchesIngredient(ing, value))
       .filter((ing) => !ing.isPreparation)
-      .slice(0, 8);
+      .slice(0, 6);
+  }
+
+  function filterRecipeSuggestions(value: string): UserRecipeOption[] {
+    const q = value.toLowerCase();
+    return userRecipes.filter((r) => r.name.toLowerCase().includes(q)).slice(0, 4);
   }
 
   function handleNameChange(index: number, value: string) {
@@ -111,8 +125,9 @@ export default function RecipeForm({ initialData, userIngredients, userId }: Rec
       updated[index] = { ...updated[index], name: value, ingredientId: undefined };
       return updated;
     });
-    if (!value.trim()) { setSuggestions([]); setActiveTarget(null); return; }
+    if (!value.trim()) { setSuggestions([]); setRecipeSuggestions([]); setActiveTarget(null); return; }
     setSuggestions(filterSuggestions(value));
+    setRecipeSuggestions(filterRecipeSuggestions(value));
     setActiveTarget({ row: index, alt: null });
   }
 
@@ -124,7 +139,7 @@ export default function RecipeForm({ initialData, userIngredients, userId }: Rec
       updated[rowIndex] = { ...updated[rowIndex], alternatives: alts };
       return updated;
     });
-    if (!value.trim()) { setSuggestions([]); setActiveTarget(null); return; }
+    if (!value.trim()) { setSuggestions([]); setRecipeSuggestions([]); setActiveTarget(null); return; }
     setSuggestions(filterSuggestions(value));
     setActiveTarget({ row: rowIndex, alt: altIndex });
   }
@@ -149,6 +164,25 @@ export default function RecipeForm({ initialData, userIngredients, userId }: Rec
       return updated;
     });
     setSuggestions([]);
+    setActiveTarget(null);
+  }
+
+  function handleRecipePick(rowIndex: number, option: UserRecipeOption) {
+    setIngredients((prev) => {
+      const updated = [...prev];
+      updated[rowIndex] = {
+        ...updated[rowIndex],
+        recipeRef: option.id,
+        ingredientId: undefined,
+        name: option.name,
+        unit: 'portions',
+        type: 'recipe',
+        homemade: false,
+      };
+      return updated;
+    });
+    setSuggestions([]);
+    setRecipeSuggestions([]);
     setActiveTarget(null);
   }
 
@@ -182,6 +216,7 @@ export default function RecipeForm({ initialData, userIngredients, userId }: Rec
 
   function dotColor(row: RecipeIngredientRow): string {
     if (!row.name.trim()) return '';
+    if (row.type === 'recipe') return 'bg-purple-400';
     if (row.ingredientId) {
       const opt = userIngredients.find((i) => i.id === row.ingredientId);
       return opt?.homemade ? 'bg-blue-400' : 'bg-emerald-400';
@@ -284,6 +319,7 @@ export default function RecipeForm({ initialData, userIngredients, userId }: Rec
           <div className="flex items-center gap-2 text-xs text-[var(--text-dim)]">
             <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-400 inline-block" /> Stock</span>
             <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-400 inline-block" /> Maison</span>
+            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-purple-400 inline-block" /> Recette</span>
             <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-orange-400 inline-block" /> Nouveau</span>
           </div>
         </div>
@@ -310,8 +346,8 @@ export default function RecipeForm({ initialData, userIngredients, userId }: Rec
                     {row.name.trim() && dot && (
                       <span className={`absolute right-2.5 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full ${dot}`} />
                     )}
-                    {isMainActive && suggestions.length > 0 && (
-                      <div className="absolute left-0 right-0 top-full mt-1 z-50 card p-1 shadow-lg">
+                    {isMainActive && (suggestions.length > 0 || recipeSuggestions.length > 0) && (
+                      <div className="absolute left-0 right-0 top-full mt-1 z-50 card p-1 shadow-lg max-h-64 overflow-y-auto">
                         {suggestions.map((opt) => {
                           const subtitle = [opt.brand, opt.family].filter(Boolean).join(' · ');
                           return (
@@ -332,6 +368,24 @@ export default function RecipeForm({ initialData, userIngredients, userId }: Rec
                             </button>
                           );
                         })}
+                        {recipeSuggestions.length > 0 && (
+                          <>
+                            {suggestions.length > 0 && <div className="my-1 border-t border-[var(--border)]" />}
+                            <p className="px-3 py-1 text-[10px] font-medium text-[var(--text-dim)] uppercase tracking-wide">Recettes</p>
+                            {recipeSuggestions.map((r) => (
+                              <button
+                                key={r.id}
+                                type="button"
+                                onMouseDown={(e) => { e.preventDefault(); handleRecipePick(index, r); }}
+                                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-[var(--text)] hover:bg-[var(--surface2)] rounded-md transition-colors text-left"
+                              >
+                                <span className="w-2 h-2 rounded-full shrink-0 bg-purple-400" />
+                                <span className="flex-1 truncate">{r.name}</span>
+                                <BookOpen size={12} className="text-purple-400 shrink-0" />
+                              </button>
+                            ))}
+                          </>
+                        )}
                       </div>
                     )}
                   </div>
