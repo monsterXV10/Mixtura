@@ -15,6 +15,7 @@ interface IngredientData {
   format?: number;
   homemade?: boolean;
   unlimitedStock?: boolean;
+  isOutput?: boolean;
   brand?: string;
   family?: string;
   yield?: number;
@@ -175,7 +176,7 @@ export default function IngredientsClient({ initialIngredients, userId, userPlan
   }, [initialIngredients]);
 
   const filtered = useMemo(() => {
-    let result = initialIngredients;
+    let result = initialIngredients.filter((ing) => !ing.data.isOutput);
 
     if (categoryFilter !== 'all') {
       result = result.filter((ing) => {

@@ -7,7 +7,7 @@ import {
   RotateCcw, Share2, Users, ChevronRight, Save, FolderOpen, Trash2,
 } from 'lucide-react';
 
-type BatchQtyUnit = 'portions' | 'cl' | 'L' | 'btl70' | 'btl100' | 'btl_ml' | 'btl_cl';
+type BatchQtyUnit = 'portions' | 'cl' | 'L' | 'btl70' | 'btl100' | 'btl_cl' | 'btl_ml';
 
 interface IngredientStock {
   id: string; name: string; type?: string; unit: string;
@@ -635,12 +635,10 @@ export default function BatchClient({ recipes, stockMap, userId, teams }: Props)
                           {QTY_UNIT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                         </select>
                         {(item.qtyUnit === 'btl_cl' || item.qtyUnit === 'btl_ml') && (
-                          <input
-                            type="number" min={1} value={item.btlSize ?? ''}
+                          <input type="number" min={1} value={item.btlSize ?? ''}
                             onChange={(e) => updateBtlSize(item.key, Number(e.target.value))}
                             placeholder={item.qtyUnit === 'btl_ml' ? 'ml' : 'cl'}
-                            className="field-input text-sm w-20"
-                          />
+                            className="field-input text-sm w-20" />
                         )}
                       </div>
                     </div>
