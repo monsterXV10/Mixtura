@@ -771,8 +771,8 @@ export default function CommunicationClient({
                           const isExpanded = expandedRecipes.has(recipeKey);
                           const checkerName = isDone ? (batch.checked_by?.[item.key]?.name ?? null) : null;
                           const portions = calcPortions(item);
-                          const maisonIngs = (item.ingredients ?? []).filter((i) => i.homemade);
-                          const autreIngs = (item.ingredients ?? []).filter((i) => !i.homemade);
+                          const maisonIngs = (item.ingredients ?? []).filter((i) => !!(i.ingredientId && homemadeData[i.ingredientId]));
+                          const autreIngs = (item.ingredients ?? []).filter((i) => !(i.ingredientId && homemadeData[i.ingredientId]));
                           const hasGroups = maisonIngs.length > 0 && autreIngs.length > 0;
                           return (
                             <div key={item.key} className={`border-t border-[var(--border)] ${isDone ? 'opacity-60' : ''}`}>
@@ -856,7 +856,7 @@ export default function CommunicationClient({
                                       <div className="space-y-2 pl-8">
                                         {item.ingredients!.map((ing, idx) => {
                                           const ingKey = `${recipeKey}:${ing.ingredientId ?? idx}`;
-                                          const hmData = ing.homemade && ing.ingredientId ? homemadeData[ing.ingredientId] : null;
+                                          const hmData = ing.ingredientId ? (homemadeData[ing.ingredientId] ?? null) : null;
                                           const hasSubContent = !!(hmData?.composition?.length || hmData?.steps);
                                           const ingExpanded = hasSubContent && expandedHomemadeIngs.has(ingKey);
                                           return (

@@ -103,24 +103,27 @@ export default async function CommunicationPage() {
     teamBatches = (batchRows ?? []) as BatchRow[];
   }
 
-  // Fetch compositions for homemade ingredients referenced in batch items
+  // Fetch ingredient data for all ingredientIds in batch items.
+  // Use actual DB homemade flag as source of truth (not the recipe copy).
   type HmCompItem = { name: string; qty: number; unit: string };
   let homemadeData: Record<string, { composition?: HmCompItem[]; steps?: string }> = {};
   if (teamBatches.length > 0) {
-    const hmIds = new Set<string>();
+    const allIngIds = new Set<string>();
     for (const b of teamBatches) {
       for (const item of b.items ?? []) {
         for (const ing of item.ingredients ?? []) {
-          if (ing.homemade && ing.ingredientId) hmIds.add(ing.ingredientId);
+          if (ing.ingredientId) allIngIds.add(ing.ingredientId);
         }
       }
     }
-    if (hmIds.size > 0) {
+    if (allIngIds.size > 0) {
       const { data: hmRows } = await supabase
-        .from('ingredients').select('id, data').in('id', [...hmIds]);
+        .from('ingredients').select('id, data').in('id', [...allIngIds]);
       for (const row of hmRows ?? []) {
-        const d = row.data as { composition?: HmCompItem[]; steps?: string };
-        homemadeData[row.id as string] = { composition: d?.composition, steps: d?.steps };
+        const d = row.data as { homemade?: boolean; composition?: HmCompItem[]; steps?: string };
+        if (d?.homemade) {
+          homemadeData[row.id as string] = { composition: d.composition, steps: d.steps };
+        }
       }
     }
   }
