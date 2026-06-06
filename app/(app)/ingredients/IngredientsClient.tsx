@@ -14,12 +14,12 @@ interface IngredientData {
   stock?: number;
   format?: number;
   homemade?: boolean;
+  unlimitedStock?: boolean;
   brand?: string;
   family?: string;
   yield?: number;
   yieldUnit?: string;
   preparationType?: string;
-  unlimitedStock?: boolean;
 }
 
 const PREP_TYPE_LABELS: Record<string, string> = {

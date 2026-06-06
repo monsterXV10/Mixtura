@@ -7,7 +7,7 @@ import {
   RotateCcw, Share2, Users, ChevronRight, Save, FolderOpen, Trash2,
 } from 'lucide-react';
 
-type BatchQtyUnit = 'portions' | 'cl' | 'L' | 'btl70' | 'btl100';
+type BatchQtyUnit = 'portions' | 'cl' | 'L' | 'btl70' | 'btl100' | 'btl_ml' | 'btl_cl';
 
 interface IngredientStock {
   id: string; name: string; type?: string; unit: string;
@@ -27,7 +27,7 @@ interface Recipe {
 }
 
 interface BatchItem {
-  key: string; recipe: Recipe; qty: number; qtyUnit: BatchQtyUnit;
+  key: string; recipe: Recipe; qty: number; qtyUnit: BatchQtyUnit; btlSize?: number;
 }
 
 interface ConsolidatedLine {
@@ -67,6 +67,8 @@ const QTY_UNIT_OPTIONS: { value: BatchQtyUnit; label: string }[] = [
   { value: 'L',        label: 'L' },
   { value: 'btl70',    label: 'btl 70cl' },
   { value: 'btl100',   label: 'btl 100cl' },
+  { value: 'btl_cl',   label: 'btl ? cl' },
+  { value: 'btl_ml',   label: 'btl ? ml' },
 ];
 
 function toBase(qty: number, unit: string): number {
@@ -78,7 +80,7 @@ function toBase(qty: number, unit: string): number {
   return qty;
 }
 
-function effectivePortions(qty: number, unit: BatchQtyUnit, recipe: Recipe): number {
+function effectivePortions(qty: number, unit: BatchQtyUnit, recipe: Recipe, btlSize?: number): number {
   if (unit === 'portions') return qty;
   const vol = recipe.ingredients.reduce((s, i) => {
     const u = i.unit.toLowerCase();
@@ -88,7 +90,14 @@ function effectivePortions(qty: number, unit: BatchQtyUnit, recipe: Recipe): num
     return s;
   }, 0);
   if (vol <= 0) return qty;
-  const target = unit === 'cl' ? qty : unit === 'L' ? qty * 100 : unit === 'btl70' ? qty * 70 : qty * 100;
+  let target: number;
+  if (unit === 'cl') target = qty;
+  else if (unit === 'L') target = qty * 100;
+  else if (unit === 'btl70') target = qty * 70;
+  else if (unit === 'btl100') target = qty * 100;
+  else if (unit === 'btl_cl') target = qty * (btlSize ?? 70);
+  else if (unit === 'btl_ml') target = qty * (btlSize ?? 700) / 10;
+  else target = qty;
   return target / vol;
 }
 
@@ -214,6 +223,10 @@ export default function BatchClient({ recipes, stockMap, userId, teams }: Props)
     setItems((p) => p.map((i) => i.key === key ? { ...i, qtyUnit: unit } : i));
   }
 
+  function updateBtlSize(key: string, size: number) {
+    setItems((p) => p.map((i) => i.key === key ? { ...i, btlSize: size } : i));
+  }
+
   function toggleTimer(key: string) {
     setTimers((p) => {
       const entry = p[key];
@@ -257,7 +270,7 @@ export default function BatchClient({ recipes, stockMap, userId, teams }: Props)
   const lines = useMemo((): ConsolidatedLine[] => {
     const map = new Map<string, ConsolidatedLine>();
     for (const item of items) {
-      const portions = effectivePortions(item.qty, item.qtyUnit, item.recipe);
+      const portions = effectivePortions(item.qty, item.qtyUnit, item.recipe, item.btlSize);
       for (const ing of item.recipe.ingredients) {
         const byName: Record<string, IngredientStock> = {};
         for (const s of Object.values(stockMap)) { if (s.name) byName[s.name.toLowerCase()] = s; }
@@ -329,7 +342,7 @@ export default function BatchClient({ recipes, stockMap, userId, teams }: Props)
     const supabase = createClient();
     const payload = {
       name: batchName || 'Batch sans titre',
-      items: items.map((i) => ({ key: i.key, recipeId: i.recipe.id, recipeName: i.recipe.name, qty: i.qty, qtyUnit: i.qtyUnit, ingredients: i.recipe.ingredients, steps: i.recipe.steps ?? null })),
+      items: items.map((i) => ({ key: i.key, recipeId: i.recipe.id, recipeName: i.recipe.name, qty: i.qty, qtyUnit: i.qtyUnit, btlSize: i.btlSize, ingredients: i.recipe.ingredients, steps: i.recipe.steps ?? null })),
       timers,
       checked: [...checked],
       status: 'active' as const,
@@ -584,7 +597,7 @@ export default function BatchClient({ recipes, stockMap, userId, teams }: Props)
           {view === 'recipes' && (
             <div className="space-y-3">
               {items.map((item) => {
-                const portions = effectivePortions(item.qty, item.qtyUnit, item.recipe);
+                const portions = effectivePortions(item.qty, item.qtyUnit, item.recipe, item.btlSize);
                 const groups   = groupByCategory(item.recipe.ingredients, stockMap);
                 const cats     = CATEGORY_ORDER.filter((c) => groups[c]);
                 const recipeTimer = timers[item.key];
@@ -621,6 +634,14 @@ export default function BatchClient({ recipes, stockMap, userId, teams }: Props)
                           className="field-input text-sm flex-1">
                           {QTY_UNIT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                         </select>
+                        {(item.qtyUnit === 'btl_cl' || item.qtyUnit === 'btl_ml') && (
+                          <input
+                            type="number" min={1} value={item.btlSize ?? ''}
+                            onChange={(e) => updateBtlSize(item.key, Number(e.target.value))}
+                            placeholder={item.qtyUnit === 'btl_ml' ? 'ml' : 'cl'}
+                            className="field-input text-sm w-20"
+                          />
+                        )}
                       </div>
                     </div>
 
