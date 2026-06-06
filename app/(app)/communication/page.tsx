@@ -119,10 +119,27 @@ export default async function CommunicationPage() {
     if (allIngIds.size > 0) {
       const { data: hmRows } = await supabase
         .from('ingredients').select('id, data').in('id', [...allIngIds]);
+      const outputToPrep = new Map<string, string>();
       for (const row of hmRows ?? []) {
-        const d = row.data as { homemade?: boolean; composition?: HmCompItem[]; steps?: string };
+        const d = row.data as { homemade?: boolean; isOutput?: boolean; sourcePreparationId?: string; composition?: HmCompItem[]; steps?: string };
         if (d?.homemade) {
           homemadeData[row.id as string] = { composition: d.composition, steps: d.steps };
+        } else if (d?.isOutput && d?.sourcePreparationId) {
+          outputToPrep.set(row.id as string, d.sourcePreparationId);
+        }
+      }
+      if (outputToPrep.size > 0) {
+        const prepIds = [...new Set(outputToPrep.values())];
+        const { data: prepRows } = await supabase
+          .from('ingredients').select('id, data').in('id', prepIds);
+        const prepDataMap = new Map<string, { composition?: HmCompItem[]; steps?: string }>();
+        for (const row of prepRows ?? []) {
+          const d = row.data as { composition?: HmCompItem[]; steps?: string };
+          prepDataMap.set(row.id as string, { composition: d.composition, steps: d.steps });
+        }
+        for (const [outputId, prepId] of outputToPrep) {
+          const prep = prepDataMap.get(prepId);
+          if (prep) homemadeData[outputId] = prep;
         }
       }
     }

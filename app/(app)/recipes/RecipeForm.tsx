@@ -183,7 +183,7 @@ export default function RecipeForm({ initialData, userIngredients, userRecipes =
         recipeRef: option.id,
         ingredientId: undefined,
         name: option.name,
-        unit: 'portions',
+        unit: 'ml',
         type: 'recipe',
         homemade: false,
       };
