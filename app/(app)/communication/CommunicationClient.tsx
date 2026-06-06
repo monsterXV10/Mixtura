@@ -1,5 +1,5 @@
 'use client';
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import {
@@ -113,6 +113,12 @@ export default function CommunicationClient({
   const [expandedRecipes, setExpandedRecipes] = useState<Set<string>>(new Set());
   const [expandedHomemadeIngs, setExpandedHomemadeIngs] = useState<Set<string>>(new Set());
   const [stockInputs, setStockInputs] = useState<Record<string, string>>({});
+  const [showNotifPrompt, setShowNotifPrompt] = useState(false);
+  const [notifGranted, setNotifGranted] = useState<boolean>(() => {
+    if (typeof window === 'undefined' || !('Notification' in window)) return false;
+    return Notification.permission === 'granted';
+  });
+  const prevRemainingRef = useRef<Record<string, number>>({});
 
   useEffect(() => {
     setLiveBatches(teamBatches);
@@ -140,6 +146,26 @@ export default function CommunicationClient({
       .subscribe();
     return () => { supabase.removeChannel(ch); };
   }, [liveBatches.length]);
+
+  useEffect(() => {
+    if (!notifGranted) return;
+    const nowMap: Record<string, number> = {};
+    for (const batch of liveBatches) {
+      for (const [key, timer] of Object.entries(batch.timers ?? {})) {
+        const tk = `${batch.id}:${key}`;
+        const remaining = getRemaining(timer);
+        const prev = prevRemainingRef.current[tk];
+        if (prev !== undefined && prev > 0 && remaining <= 0 && timer.startedAt) {
+          if (typeof window !== 'undefined' && 'Notification' in window) {
+            new Notification(`⏱ ${timer.label}`, { silent: true, body: 'Timer terminé !' });
+          }
+        }
+        nowMap[tk] = remaining;
+      }
+    }
+    prevRemainingRef.current = nowMap;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tick]);
 
   async function toggleBatchChecked(batchId: string, itemKey: string) {
     const batch = liveBatches.find((b) => b.id === batchId);
@@ -170,6 +196,9 @@ export default function CommunicationClient({
       newEntry = { ...entry, durationSec: Math.max(0, entry.durationSec - elapsed), startedAt: null };
     } else {
       newEntry = { ...entry, startedAt: new Date().toISOString() };
+      if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'default' && !localStorage.getItem('notif-denied')) {
+        setShowNotifPrompt(true);
+      }
     }
     const updatedTimers = { ...batch.timers, [timerKey]: newEntry };
     setLiveBatches((prev) => prev.map((b) => b.id === batchId ? { ...b, timers: updatedTimers } : b));
@@ -863,7 +892,21 @@ export default function CommunicationClient({
                                                     <span className="text-xs font-mono text-[var(--text-dim)] tabular-nums">/ {needed} {ing.unit}</span>
                                                   </div>
                                                 </div>
-                                                {ingExpanded && (
+                                                {(!isNaN(have) && have < needed && (hmData?.composition?.length ?? 0) > 0) ? (
+                                                  <div className="ml-3 mt-1 space-y-0.5 border-l-2 border-amber-400/30 pl-2">
+                                                    <span className="text-[10px] text-amber-400/70">à faire : {Math.round((needed - have) * 100) / 100} {ing.unit}</span>
+                                                    {(hmData!.composition ?? []).map((sub, si) => {
+                                                      const scale = needed > 0 ? (needed - have) / needed : 0;
+                                                      return (
+                                                        <div key={si} className="flex justify-between gap-2">
+                                                          <span className="text-[11px] text-[var(--text-dim)]/70 truncate">{sub.name}</span>
+                                                          <span className="text-[11px] font-mono text-[var(--text-dim)]/70 shrink-0">{Math.round(sub.qty * scale * 100) / 100} {sub.unit}</span>
+                                                        </div>
+                                                      );
+                                                    })}
+                                                    {hmData!.steps && <p className="text-[11px] text-[var(--text-dim)]/70 italic">→ {hmData!.steps}</p>}
+                                                  </div>
+                                                ) : ingExpanded ? (
                                                   <div className="ml-3 mt-0.5 space-y-0.5 border-l-2 border-[var(--gold)]/20 pl-2">
                                                     {(hmData!.composition ?? []).map((sub, si) => (
                                                       <div key={si} className="flex justify-between gap-2">
@@ -875,7 +918,7 @@ export default function CommunicationClient({
                                                       <p className="text-[11px] text-[var(--text-dim)]/80 italic leading-relaxed">→ {hmData!.steps}</p>
                                                     )}
                                                   </div>
-                                                )}
+                                                ) : null}
                                               </div>
                                             );
                                           })}
@@ -915,7 +958,21 @@ export default function CommunicationClient({
                                                   <span className="text-xs font-mono text-[var(--text-dim)] tabular-nums">/ {needed} {ing.unit}</span>
                                                 </div>
                                               </div>
-                                              {ingExpanded && (
+                                              {(!isNaN(have) && have < needed && (hmData?.composition?.length ?? 0) > 0) ? (
+                                                <div className="ml-3 mt-1 space-y-0.5 border-l-2 border-amber-400/30 pl-2">
+                                                  <span className="text-[10px] text-amber-400/70">à faire : {Math.round((needed - have) * 100) / 100} {ing.unit}</span>
+                                                  {(hmData!.composition ?? []).map((sub, si) => {
+                                                    const scale = needed > 0 ? (needed - have) / needed : 0;
+                                                    return (
+                                                      <div key={si} className="flex justify-between gap-2">
+                                                        <span className="text-[11px] text-[var(--text-dim)]/70 truncate">{sub.name}</span>
+                                                        <span className="text-[11px] font-mono text-[var(--text-dim)]/70 shrink-0">{Math.round(sub.qty * scale * 100) / 100} {sub.unit}</span>
+                                                      </div>
+                                                    );
+                                                  })}
+                                                  {hmData!.steps && <p className="text-[11px] text-[var(--text-dim)]/70 italic">→ {hmData!.steps}</p>}
+                                                </div>
+                                              ) : ingExpanded ? (
                                                 <div className="ml-3 mt-0.5 space-y-0.5 border-l-2 border-[var(--gold)]/20 pl-2">
                                                   {(hmData!.composition ?? []).map((sub, si) => (
                                                     <div key={si} className="flex justify-between gap-2">
@@ -927,7 +984,7 @@ export default function CommunicationClient({
                                                     <p className="text-[11px] text-[var(--text-dim)]/80 italic leading-relaxed">→ {hmData!.steps}</p>
                                                   )}
                                                 </div>
-                                              )}
+                                              ) : null}
                                             </div>
                                           );
                                         })}
@@ -1157,6 +1214,30 @@ export default function CommunicationClient({
               })}
             </ul>
           )}
+        </div>
+      )}
+
+      {/* Timer notification prompt */}
+      {showNotifPrompt && (
+        <div className="fixed bottom-24 left-4 right-4 max-w-xl mx-auto z-50 bg-[var(--surface)] border border-[var(--gold)]/40 rounded-xl px-4 py-3 shadow-xl flex items-center gap-3">
+          <Timer size={18} className="text-[var(--gold)] shrink-0" />
+          <p className="flex-1 text-sm text-[var(--text)]">Recevoir une notification quand un timer se termine ?</p>
+          <button
+            onClick={async () => {
+              if ('Notification' in window) {
+                const perm = await Notification.requestPermission();
+                setNotifGranted(perm === 'granted');
+              }
+              setShowNotifPrompt(false);
+            }}
+            className="btn-primary px-3 py-1.5 text-xs shrink-0">
+            Oui
+          </button>
+          <button
+            onClick={() => { localStorage.setItem('notif-denied', '1'); setShowNotifPrompt(false); }}
+            className="text-xs text-[var(--text-dim)] hover:text-[var(--text)] shrink-0 px-2 py-1.5">
+            Non
+          </button>
         </div>
       )}
     </div>
