@@ -84,7 +84,7 @@ const METHODS = [
   'Muddle', 'Direct', 'Shake + Double Strain',
 ];
 
-const EMPTY_ROW: RecipeIngredientRow = { qty: 0, name: '', unit: 'cl' };
+const EMPTY_ROW: RecipeIngredientRow = { qty: 0, name: '', unit: 'ml' };
 
 export default function RecipeForm({ initialData, userIngredients, userRecipes = [], userId }: RecipeFormProps) {
   const router = useRouter();
@@ -259,13 +259,35 @@ export default function RecipeForm({ initialData, userIngredients, userRecipes =
       ingredients.filter((i) => i.name.trim())
     );
 
+    // For milk_punch: auto-calculate clarifying agent qty in ml
+    let finalIngredientRows = ingredientRows;
+    if (type === 'milk_punch' && clarifyingAgent && clarifyingPct > 0) {
+      const withoutCasse = ingredientRows.filter(
+        (i) => i.ingredientId !== clarifyingAgentId && i.name.toLowerCase() !== clarifyingAgent.toLowerCase()
+      );
+      const totalMl = withoutCasse.reduce((s, i) => {
+        if (i.unit === 'ml') return s + (i.qty ?? 0);
+        if (i.unit === 'cl') return s + (i.qty ?? 0) * 10;
+        if (i.unit === 'L') return s + (i.qty ?? 0) * 1000;
+        if (i.unit === 'l') return s + (i.qty ?? 0);
+        return s;
+      }, 0);
+      if (totalMl > 0) {
+        const clarQty = Math.round(totalMl * clarifyingPct / 100 * 10) / 10;
+        finalIngredientRows = [
+          ...withoutCasse,
+          { ingredientId: clarifyingAgentId, name: clarifyingAgent, qty: clarQty, unit: 'ml' },
+        ];
+      }
+    }
+
     const payload = {
       user_id: userId,
       type,
       data: {
         name: name.trim(),
         steps,
-        ingredients: ingredientRows,
+        ingredients: finalIngredientRows,
         timerSeconds: timerSeconds > 0 ? timerSeconds : undefined,
       },
       metadata: type === 'cocktail'

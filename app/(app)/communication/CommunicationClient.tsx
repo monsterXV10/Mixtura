@@ -65,6 +65,32 @@ function getRemaining(entry: { durationSec: number; startedAt: string | null }):
   return Math.max(0, entry.durationSec - elapsed);
 }
 
+function ingNorm(qty: number, unit: string, type?: string): { qty: number; unit: string } {
+  if (unit === 'cl') return { qty: qty * 10, unit: 'ml' };
+  if (unit === 'L') return { qty: qty * 1000, unit: 'ml' };
+  if (unit === 'l') return { qty, unit: 'ml' };
+  if (unit === 'portions' && type === 'recipe') return { qty, unit: 'ml' };
+  return { qty, unit };
+}
+
+function ingNeeded(
+  ing: { qty: number; unit: string; type?: string },
+  allIngs: Array<{ qty: number; unit: string; type?: string }>,
+  portions: number
+): { needed: number; unit: string } {
+  if (ing.unit === '%') {
+    const totalMl = allIngs
+      .filter((x) => x !== ing)
+      .reduce((s, x) => {
+        const n = ingNorm(x.qty, x.unit, x.type);
+        return n.unit === 'ml' ? s + n.qty * portions : s;
+      }, 0);
+    if (totalMl > 0) return { needed: Math.round(totalMl * ing.qty / 100 * 10) / 10, unit: 'ml' };
+  }
+  const n = ingNorm(ing.qty, ing.unit, ing.type);
+  return { needed: Math.round(n.qty * portions * 100) / 100, unit: n.unit };
+}
+
 export default function CommunicationClient({
   userId, userEmail, myName, canCreateTeam, teamPlanName,
   teams, members, invitations, sharedItems, notes, myRecipes, pendingInvites,
@@ -846,7 +872,7 @@ export default function CommunicationClient({
                                         <div className="space-y-1.5 pl-8">
                                           {autreIngs.map((ing, idx) => {
                                             const sk = `${batch.id}:${item.key}:${ing.ingredientId ?? ing.name}`;
-                                            const needed = Math.round(ing.qty * portions * 100) / 100;
+                                            const { needed, unit: dispUnit } = ingNeeded(ing, item.ingredients ?? [], portions);
                                             const have = parseFloat(stockInputs[sk] ?? '');
                                             const ok = !isNaN(have) && have >= needed;
                                             return (
@@ -859,7 +885,7 @@ export default function CommunicationClient({
                                                     placeholder="—"
                                                     className={`w-14 text-xs text-right rounded px-1.5 py-0.5 focus:outline-none bg-[var(--surface2)] border ${ok ? 'border-emerald-500/50 text-emerald-400' : 'border-[var(--border)] text-[var(--text)]'}`}
                                                   />
-                                                  <span className="text-xs font-mono text-[var(--text-dim)] tabular-nums">/ {needed} {ing.unit}</span>
+                                                  <span className="text-xs font-mono text-[var(--text-dim)] tabular-nums">/ {needed} {dispUnit}</span>
                                                 </div>
                                               </div>
                                             );
@@ -872,7 +898,7 @@ export default function CommunicationClient({
                                             const hasSubContent = !!(hmData?.composition?.length || hmData?.steps);
                                             const ingExpanded = hasSubContent && expandedHomemadeIngs.has(ingKey);
                                             const sk = `${batch.id}:${item.key}:${ing.ingredientId ?? ing.name}`;
-                                            const needed = Math.round(ing.qty * portions * 100) / 100;
+                                            const { needed, unit: dispUnit } = ingNeeded(ing, item.ingredients ?? [], portions);
                                             const have = parseFloat(stockInputs[sk] ?? '');
                                             const ok = !isNaN(have) && have >= needed;
                                             return (
@@ -895,12 +921,12 @@ export default function CommunicationClient({
                                                       placeholder="—"
                                                       className={`w-14 text-xs text-right rounded px-1.5 py-0.5 focus:outline-none bg-[var(--surface2)] border ${ok ? 'border-emerald-500/50 text-emerald-400' : 'border-[var(--border)] text-[var(--text)]'}`}
                                                     />
-                                                    <span className="text-xs font-mono text-[var(--text-dim)] tabular-nums">/ {needed} {ing.unit}</span>
+                                                    <span className="text-xs font-mono text-[var(--text-dim)] tabular-nums">/ {needed} {dispUnit}</span>
                                                   </div>
                                                 </div>
                                                 {(!isNaN(have) && have < needed && (hmData?.composition?.length ?? 0) > 0) ? (
                                                   <div className="ml-3 mt-1 space-y-0.5 border-l-2 border-amber-400/30 pl-2">
-                                                    <span className="text-[10px] text-amber-400/70">à faire : {Math.round((needed - have) * 100) / 100} {ing.unit}</span>
+                                                    <span className="text-[10px] text-amber-400/70">à faire : {Math.round((needed - have) * 100) / 100} {dispUnit}</span>
                                                     {(hmData!.composition ?? []).map((sub, si) => {
                                                       const scale = needed > 0 ? (needed - have) / needed : 0;
                                                       return (
@@ -938,7 +964,7 @@ export default function CommunicationClient({
                                           const hasSubContent = !!(hmData?.composition?.length || hmData?.steps);
                                           const ingExpanded = hasSubContent && expandedHomemadeIngs.has(ingKey);
                                           const sk = `${batch.id}:${item.key}:${ing.ingredientId ?? ing.name}`;
-                                          const needed = Math.round(ing.qty * portions * 100) / 100;
+                                          const { needed, unit: dispUnit } = ingNeeded(ing, item.ingredients ?? [], portions);
                                           const have = parseFloat(stockInputs[sk] ?? '');
                                           const ok = !isNaN(have) && have >= needed;
                                           return (
@@ -961,12 +987,12 @@ export default function CommunicationClient({
                                                     placeholder="—"
                                                     className={`w-14 text-xs text-right rounded px-1.5 py-0.5 focus:outline-none bg-[var(--surface2)] border ${ok ? 'border-emerald-500/50 text-emerald-400' : 'border-[var(--border)] text-[var(--text)]'}`}
                                                   />
-                                                  <span className="text-xs font-mono text-[var(--text-dim)] tabular-nums">/ {needed} {ing.unit}</span>
+                                                  <span className="text-xs font-mono text-[var(--text-dim)] tabular-nums">/ {needed} {dispUnit}</span>
                                                 </div>
                                               </div>
                                               {(!isNaN(have) && have < needed && (hmData?.composition?.length ?? 0) > 0) ? (
                                                 <div className="ml-3 mt-1 space-y-0.5 border-l-2 border-amber-400/30 pl-2">
-                                                  <span className="text-[10px] text-amber-400/70">à faire : {Math.round((needed - have) * 100) / 100} {ing.unit}</span>
+                                                  <span className="text-[10px] text-amber-400/70">à faire : {Math.round((needed - have) * 100) / 100} {dispUnit}</span>
                                                   {(hmData!.composition ?? []).map((sub, si) => {
                                                     const scale = needed > 0 ? (needed - have) / needed : 0;
                                                     return (
