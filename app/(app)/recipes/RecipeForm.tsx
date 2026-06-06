@@ -66,6 +66,7 @@ interface RecipeFormProps {
   userIngredients: UserIngredientOption[];
   userRecipes?: UserRecipeOption[];
   userId: string;
+  preferredUnit?: string;
 }
 
 const UNITS = [
@@ -86,12 +87,12 @@ const METHODS = [
 
 const EMPTY_ROW: RecipeIngredientRow = { qty: 0, name: '', unit: 'ml' };
 
-export default function RecipeForm({ initialData, userIngredients, userRecipes = [], userId }: RecipeFormProps) {
+export default function RecipeForm({ initialData, userIngredients, userRecipes = [], userId, preferredUnit = 'ml' }: RecipeFormProps) {
   const router = useRouter();
   const [name, setName] = useState(initialData?.name ?? '');
   const [type, setType] = useState<'cocktail' | 'coffee' | 'cuisine' | 'service' | 'milk_punch'>(initialData?.type ?? 'cocktail');
   const [ingredients, setIngredients] = useState<RecipeIngredientRow[]>(
-    initialData?.ingredients?.length ? initialData.ingredients : [{ ...EMPTY_ROW }]
+    initialData?.ingredients?.length ? initialData.ingredients : [{ ...EMPTY_ROW, unit: preferredUnit }]
   );
   const [steps, setSteps] = useState(initialData?.steps ?? '');
   const [glass, setGlass] = useState(initialData?.glass ?? '');
@@ -538,7 +539,7 @@ export default function RecipeForm({ initialData, userIngredients, userRecipes =
 
         <button
           type="button"
-          onClick={() => setIngredients((prev) => [...prev, { ...EMPTY_ROW }])}
+          onClick={() => setIngredients((prev) => [...prev, { ...EMPTY_ROW, unit: preferredUnit }])}
           className="btn-ghost w-full py-2.5 text-sm flex items-center justify-center gap-1.5"
         >
           <Plus size={15} />

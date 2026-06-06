@@ -14,13 +14,14 @@ export default async function CommunicationPage() {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('plan, display_name')
+    .select('plan, display_name, preferred_unit')
     .eq('id', user.id)
     .single();
 
   const plan = ((profile?.plan as PlanId) ?? 'free') as PlanId;
   const myName = profile?.display_name ?? user.email?.split('@')[0] ?? 'Moi';
   const canCreateTeam = hasFeature(plan, 'teamManagement');
+  const preferredUnit = (profile?.preferred_unit as string) ?? 'ml';
 
   const { data: memberships } = await supabase
     .from('team_members')
@@ -164,6 +165,7 @@ export default async function CommunicationPage() {
           pendingInvites={pendingInvites}
           teamBatches={teamBatches}
           homemadeData={homemadeData}
+          preferredUnit={preferredUnit}
         />
       </main>
     </>

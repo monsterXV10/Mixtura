@@ -45,6 +45,7 @@ interface Props {
   pendingInvites: Array<TeamInvitation & { team_name: string }>;
   teamBatches?: BatchRow[];
   homemadeData?: Record<string, { composition?: Array<{ name: string; qty: number; unit: string }>; steps?: string }>;
+  preferredUnit?: string;
 }
 
 type MainTab = 'shares' | 'members' | 'batches';
@@ -65,36 +66,47 @@ function getRemaining(entry: { durationSec: number; startedAt: string | null }):
   return Math.max(0, entry.durationSec - elapsed);
 }
 
-function ingNorm(qty: number, unit: string, type?: string): { qty: number; unit: string } {
-  if (unit === 'cl') return { qty: qty * 10, unit: 'ml' };
-  if (unit === 'L') return { qty: qty * 1000, unit: 'ml' };
-  if (unit === 'l') return { qty, unit: 'ml' };
-  if (unit === 'portions' && type === 'recipe') return { qty, unit: 'ml' };
-  return { qty, unit };
+function ingNorm(qty: number, unit: string, type: string | undefined, preferred: string): { qty: number; unit: string } {
+  let ml: number | null = null;
+  if (unit === 'ml') ml = qty;
+  else if (unit === 'cl') ml = qty * 10;
+  else if (unit === 'L') ml = qty * 1000;
+  else if (unit === 'l') ml = qty;
+  else if (unit === 'portions' && type === 'recipe') ml = qty;
+  if (ml === null) return { qty, unit };
+  if (preferred === 'cl') return { qty: ml / 10, unit: 'cl' };
+  if (preferred === 'L') return { qty: ml / 1000, unit: 'L' };
+  return { qty: ml, unit: 'ml' };
 }
 
 function ingNeeded(
   ing: { qty: number; unit: string; type?: string },
   allIngs: Array<{ qty: number; unit: string; type?: string }>,
-  portions: number
+  portions: number,
+  preferred: string
 ): { needed: number; unit: string } {
   if (ing.unit === '%') {
     const totalMl = allIngs
       .filter((x) => x !== ing)
       .reduce((s, x) => {
-        const n = ingNorm(x.qty, x.unit, x.type);
+        const n = ingNorm(x.qty, x.unit, x.type, 'ml');
         return n.unit === 'ml' ? s + n.qty * portions : s;
       }, 0);
-    if (totalMl > 0) return { needed: Math.round(totalMl * ing.qty / 100 * 10) / 10, unit: 'ml' };
+    if (totalMl > 0) {
+      const rawMl = Math.round(totalMl * ing.qty / 100 * 10) / 10;
+      const conv = ingNorm(rawMl, 'ml', undefined, preferred);
+      return { needed: Math.round(conv.qty * 100) / 100, unit: conv.unit };
+    }
+    return { needed: ing.qty, unit: '%' };
   }
-  const n = ingNorm(ing.qty, ing.unit, ing.type);
+  const n = ingNorm(ing.qty, ing.unit, ing.type, preferred);
   return { needed: Math.round(n.qty * portions * 100) / 100, unit: n.unit };
 }
 
 export default function CommunicationClient({
   userId, userEmail, myName, canCreateTeam, teamPlanName,
   teams, members, invitations, sharedItems, notes, myRecipes, pendingInvites,
-  teamBatches = [], homemadeData = {},
+  teamBatches = [], homemadeData = {}, preferredUnit = 'ml',
 }: Props) {
   const router = useRouter();
   const supabase = createClient();
@@ -872,7 +884,7 @@ export default function CommunicationClient({
                                         <div className="space-y-1.5 pl-8">
                                           {autreIngs.map((ing, idx) => {
                                             const sk = `${batch.id}:${item.key}:${ing.ingredientId ?? ing.name}`;
-                                            const { needed, unit: dispUnit } = ingNeeded(ing, item.ingredients ?? [], portions);
+                                            const { needed, unit: dispUnit } = ingNeeded(ing, item.ingredients ?? [], portions, preferredUnit);
                                             const have = parseFloat(stockInputs[sk] ?? '');
                                             const ok = !isNaN(have) && have >= needed;
                                             return (
@@ -898,7 +910,7 @@ export default function CommunicationClient({
                                             const hasSubContent = !!(hmData?.composition?.length || hmData?.steps);
                                             const ingExpanded = hasSubContent && expandedHomemadeIngs.has(ingKey);
                                             const sk = `${batch.id}:${item.key}:${ing.ingredientId ?? ing.name}`;
-                                            const { needed, unit: dispUnit } = ingNeeded(ing, item.ingredients ?? [], portions);
+                                            const { needed, unit: dispUnit } = ingNeeded(ing, item.ingredients ?? [], portions, preferredUnit);
                                             const have = parseFloat(stockInputs[sk] ?? '');
                                             const ok = !isNaN(have) && have >= needed;
                                             return (
@@ -964,7 +976,7 @@ export default function CommunicationClient({
                                           const hasSubContent = !!(hmData?.composition?.length || hmData?.steps);
                                           const ingExpanded = hasSubContent && expandedHomemadeIngs.has(ingKey);
                                           const sk = `${batch.id}:${item.key}:${ing.ingredientId ?? ing.name}`;
-                                          const { needed, unit: dispUnit } = ingNeeded(ing, item.ingredients ?? [], portions);
+                                          const { needed, unit: dispUnit } = ingNeeded(ing, item.ingredients ?? [], portions, preferredUnit);
                                           const have = parseFloat(stockInputs[sk] ?? '');
                                           const ok = !isNaN(have) && have >= needed;
                                           return (

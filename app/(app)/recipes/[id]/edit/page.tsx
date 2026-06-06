@@ -14,10 +14,11 @@ export default async function EditRecipePage({
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login');
 
-  const [{ data: recipe }, { data: ingredientRows }, { data: recipeRows }] = await Promise.all([
+  const [{ data: recipe }, { data: ingredientRows }, { data: recipeRows }, { data: profile }] = await Promise.all([
     supabase.from('recipes').select('*').eq('id', id).eq('user_id', user.id).single(),
     supabase.from('ingredients').select('id, data').eq('user_id', user.id).limit(500),
     supabase.from('recipes').select('id, type, data').eq('user_id', user.id).order('updated_at', { ascending: false }).limit(200),
+    supabase.from('profiles').select('preferred_unit').eq('id', user.id).single(),
   ]);
 
   if (!recipe) notFound();
@@ -95,11 +96,13 @@ export default async function EditRecipePage({
     clarifyingPct: recipeMetadata?.clarifyingPct,
   };
 
+  const preferredUnit = (profile?.preferred_unit as string) ?? 'ml';
+
   return (
     <>
       <TopBar title="Modifier la recette" backHref={`/recipes/${id}`} />
       <main className="px-4 py-5 pb-safe">
-        <RecipeForm userId={user.id} userIngredients={userIngredients} userRecipes={userRecipes} initialData={initialData} />
+        <RecipeForm userId={user.id} userIngredients={userIngredients} userRecipes={userRecipes} initialData={initialData} preferredUnit={preferredUnit} />
       </main>
     </>
   );

@@ -13,9 +13,10 @@ interface Props {
   displayName: string;
   planName: string;
   provider: string;
+  preferredUnit: string;
 }
 
-export default function AccountClient({ userId, email, displayName, planName, provider }: Props) {
+export default function AccountClient({ userId, email, displayName, planName, provider, preferredUnit: initialUnit }: Props) {
   const router = useRouter();
   const supabase = createClient();
 
@@ -30,7 +31,22 @@ export default function AccountClient({ userId, email, displayName, planName, pr
   const [savingPwd, setSavingPwd] = useState(false);
   const [pwdMsg, setPwdMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
 
+  const [preferredUnit, setPreferredUnit] = useState(initialUnit);
+  const [savingUnit, setSavingUnit] = useState(false);
+  const [unitSaved, setUnitSaved] = useState(false);
+
   const [loggingOut, setLoggingOut] = useState(false);
+
+  async function saveUnit(unit: string) {
+    setSavingUnit(true);
+    setUnitSaved(false);
+    setPreferredUnit(unit);
+    await supabase.from('profiles').update({ preferred_unit: unit }).eq('id', userId);
+    setSavingUnit(false);
+    setUnitSaved(true);
+    setTimeout(() => setUnitSaved(false), 1500);
+    router.refresh();
+  }
 
   async function saveName() {
     const trimmed = name.trim();
@@ -139,6 +155,46 @@ export default function AccountClient({ userId, email, displayName, planName, pr
             <ChevronRight size={13} className="text-[var(--text-dim)]" />
           </div>
         </Link>
+      </div>
+
+      {/* Preferred unit */}
+      <div className="card space-y-3">
+        <h2 className="font-semibold text-[var(--text)] text-sm flex items-center gap-2">
+          <span className="text-[var(--gold)] font-mono text-base">㎖</span> Unité préférée
+        </h2>
+        <p className="text-xs text-[var(--text-dim)]">
+          Utilisée par défaut dans les recettes et les batchs.
+        </p>
+        <div className="flex gap-2">
+          {([
+            ['ml', 'ml', '1 ml = 0.1 cl'],
+            ['cl', 'cl', '1 cl = 10 ml'],
+            ['L', 'L', '1 L = 100 cl'],
+          ] as const).map(([val, label, hint]) => (
+            <button
+              key={val}
+              type="button"
+              onClick={() => saveUnit(val)}
+              title={hint}
+              disabled={savingUnit}
+              className={`flex-1 py-2.5 text-sm font-medium rounded-lg border transition-all ${
+                preferredUnit === val
+                  ? 'bg-[var(--gold)] text-[#0A0E1A] border-[var(--gold)]'
+                  : 'bg-transparent text-[var(--text-dim)] border-[var(--border)] hover:border-[var(--gold-dim)]'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        {unitSaved && (
+          <p className="text-xs text-emerald-400 flex items-center gap-1">
+            <Check size={12} /> Unité sauvegardée
+          </p>
+        )}
+        <p className="text-[11px] text-[var(--text-dim)] opacity-60">
+          Conversions : 1 L = 100 cl = 1000 ml
+        </p>
       </div>
 
       {/* Password */}

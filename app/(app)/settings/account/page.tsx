@@ -15,7 +15,7 @@ export default async function AccountSettingsPage() {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('display_name, plan')
+    .select('display_name, plan, preferred_unit')
     .eq('id', user.id)
     .single();
 
@@ -32,6 +32,7 @@ export default async function AccountSettingsPage() {
           displayName={profile?.display_name ?? ''}
           planName={PLANS[plan].name}
           provider={provider}
+          preferredUnit={(profile?.preferred_unit as string) ?? 'ml'}
         />
       </main>
     </>
