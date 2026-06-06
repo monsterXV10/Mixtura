@@ -36,7 +36,7 @@ export default async function BatchPage() {
       name?: string;
       steps?: string;
       timerSeconds?: number;
-      ingredients?: Array<{ ingredientId?: string; qty: number; name: string; unit: string; type?: string; homemade?: boolean }>;
+      ingredients?: Array<{ ingredientId?: string; recipeRef?: string; qty: number; name: string; unit: string; type?: string; homemade?: boolean }>;
     } | null;
     const m = r.metadata as { glass?: string; method?: string | string[] } | null;
     const rawMethod = m?.method;
@@ -51,16 +51,18 @@ export default async function BatchPage() {
     };
   }).filter((r) => r.name && r.ingredients.length > 0);
 
-  const stockMap: Record<string, {
+  type StockEntry = {
     id: string; name: string; type?: string; unit: string;
     price?: number; format?: number; stock?: number; homemade?: boolean;
     composition?: Array<{ ingredientId?: string; name: string; qty: number; unit: string }>;
     yield?: number; yieldUnit?: string; steps?: string;
-  }> = {};
+  };
+  const stockMap: Record<string, StockEntry> = {};
+  const sourcePrepIds = new Map<string, string>(); // ingredientId -> sourcePreparationId
   for (const row of ingredientRows ?? []) {
     const d = row.data as {
       name?: string; type?: string; unit?: string; price?: number; format?: number;
-      stock?: number; homemade?: boolean;
+      stock?: number; homemade?: boolean; sourcePreparationId?: string;
       composition?: Array<{ ingredientId?: string; name: string; qty: number; unit: string }>;
       yield?: number; yieldUnit?: string; steps?: string;
     } | null;
@@ -69,6 +71,25 @@ export default async function BatchPage() {
       price: d?.price, format: d?.format, stock: d?.stock, homemade: d?.homemade,
       composition: d?.composition, yield: d?.yield, yieldUnit: d?.yieldUnit, steps: d?.steps,
     };
+    if (d?.sourcePreparationId && !d?.composition?.length && !d?.steps) {
+      sourcePrepIds.set(row.id as string, d.sourcePreparationId);
+    }
+  }
+  // Resolve sourcePreparationId → copy composition/steps onto output ingredient entries
+  if (sourcePrepIds.size > 0) {
+    const { data: prepRows } = await supabase
+      .from('ingredients').select('id, data').in('id', [...new Set(sourcePrepIds.values())]);
+    const prepMap = new Map((prepRows ?? []).map((r) => {
+      const d = r.data as { composition?: Array<{ ingredientId?: string; name: string; qty: number; unit: string }>; steps?: string };
+      return [r.id as string, { composition: d.composition, steps: d.steps }] as const;
+    }));
+    for (const [ingId, prepId] of sourcePrepIds) {
+      const prep = prepMap.get(prepId);
+      if (prep && stockMap[ingId]) {
+        stockMap[ingId].composition = prep.composition;
+        stockMap[ingId].steps = prep.steps;
+      }
+    }
   }
 
   return (

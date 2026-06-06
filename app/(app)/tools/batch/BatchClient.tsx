@@ -17,7 +17,7 @@ interface IngredientStock {
 }
 
 interface RecipeIngredient {
-  ingredientId?: string; qty: number; name: string; unit: string;
+  ingredientId?: string; recipeRef?: string; qty: number; name: string; unit: string;
   type?: string; homemade?: boolean;
 }
 
@@ -126,7 +126,7 @@ function groupByCategory(ings: RecipeIngredient[], stockMap: Record<string, Ingr
     const info = ing.ingredientId
       ? stockMap[ing.ingredientId]
       : byName[ing.name.toLowerCase()];
-    const isHomemade = info?.homemade ?? ing.homemade ?? false;
+    const isHomemade = info?.homemade ?? ing.homemade ?? (ing.type === 'recipe');
     const rawType = info?.type ?? ing.type;
     const cat = isHomemade ? 'homemade' : (rawType?.toLowerCase() ?? 'other');
     (g[cat] ??= []).push(ing);
@@ -517,14 +517,17 @@ export default function BatchClient({ recipes, stockMap, userId, teams }: Props)
                               <div className="space-y-1.5">
                                 {groups[catKey].map((ing) => {
                                   const info      = ing.ingredientId ? stockMap[ing.ingredientId] : undefined;
+                                  const refRecipe = ing.recipeRef ? recipes.find((r) => r.id === ing.recipeRef) : undefined;
                                   const scaledQty = ing.qty * portions;
-                                  const ingKey    = `${item.key}:${ing.ingredientId ?? ing.name}`;
-                                  const isHomemade  = info?.homemade;
-                                  const hasDetails  = isHomemade && ((info?.composition?.length ?? 0) > 0 || !!info?.steps);
+                                  const ingKey    = `${item.key}:${ing.ingredientId ?? ing.recipeRef ?? ing.name}`;
+                                  const isHomemade  = info?.homemade ?? ing.type === 'recipe';
+                                  const composition = info?.composition ?? refRecipe?.ingredients;
+                                  const steps       = info?.steps ?? refRecipe?.steps;
+                                  const hasDetails  = isHomemade && ((composition?.length ?? 0) > 0 || !!steps);
                                   const isExpanded  = expanded.has(ingKey);
                                   const yB = toBase(info?.yield ?? 1, info?.yieldUnit ?? ing.unit);
                                   const nB = toBase(scaledQty, ing.unit);
-                                  const scale = yB > 0 ? nB / yB : 0;
+                                  const scale = yB > 0 ? nB / yB : 1;
 
                                   return (
                                     <div key={ingKey}>
@@ -543,14 +546,14 @@ export default function BatchClient({ recipes, stockMap, userId, teams }: Props)
                                       </div>
                                       {isExpanded && (
                                         <div className="ml-5 mt-1.5 mb-2 pl-3 border-l-2 border-[var(--border)] space-y-1">
-                                          {info?.composition?.map((c, ci) => (
+                                          {composition?.map((c, ci) => (
                                             <div key={ci} className="flex justify-between gap-2 text-xs">
                                               <span className="text-[var(--text-dim)] truncate">{c.name}</span>
-                                              <span className="font-mono text-[var(--text-dim)] shrink-0 tabular-nums">{fmt(c.qty * scale, c.unit)}</span>
+                                              <span className="font-mono text-[var(--text-dim)] shrink-0 tabular-nums">{refRecipe ? `${c.qty} ${c.unit}` : fmt(c.qty * scale, c.unit)}</span>
                                             </div>
                                           ))}
-                                          {info?.steps && (
-                                            <p className="text-xs text-[var(--text-dim)] italic leading-relaxed pt-1">→ {info.steps}</p>
+                                          {steps && (
+                                            <p className="text-xs text-[var(--text-dim)] italic leading-relaxed pt-1">→ {steps}</p>
                                           )}
                                         </div>
                                       )}

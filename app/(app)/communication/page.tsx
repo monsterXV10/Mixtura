@@ -86,7 +86,7 @@ export default async function CommunicationPage() {
   // Active batches shared with user's teams
   interface BatchRow {
     id: string; user_id: string; team_id: string | null; name: string;
-    items: Array<{ key: string; recipeName: string; qty: number; qtyUnit: string; ingredients?: Array<{ ingredientId?: string; qty: number; name: string; unit: string; type?: string; homemade?: boolean }>; steps?: string | null }>;
+    items: Array<{ key: string; recipeName: string; qty: number; qtyUnit: string; ingredients?: Array<{ ingredientId?: string; recipeRef?: string; qty: number; name: string; unit: string; type?: string; homemade?: boolean }>; steps?: string | null }>;
     timers: Record<string, { durationSec: number; startedAt: string | null; label: string }>;
     checked: string[];
     checked_by?: Record<string, { name: string; userId: string }>;
@@ -110,10 +110,12 @@ export default async function CommunicationPage() {
   let homemadeData: Record<string, { composition?: HmCompItem[]; steps?: string }> = {};
   if (teamBatches.length > 0) {
     const allIngIds = new Set<string>();
+    const allRecipeRefs = new Set<string>();
     for (const b of teamBatches) {
       for (const item of b.items ?? []) {
         for (const ing of item.ingredients ?? []) {
           if (ing.ingredientId) allIngIds.add(ing.ingredientId);
+          if (ing.recipeRef && !ing.ingredientId) allRecipeRefs.add(ing.recipeRef);
         }
       }
     }
@@ -123,10 +125,10 @@ export default async function CommunicationPage() {
       const outputToPrep = new Map<string, string>();
       for (const row of hmRows ?? []) {
         const d = row.data as { homemade?: boolean; isOutput?: boolean; sourcePreparationId?: string; composition?: HmCompItem[]; steps?: string };
-        if (d?.homemade) {
-          homemadeData[row.id as string] = { composition: d.composition, steps: d.steps };
-        } else if (d?.isOutput && d?.sourcePreparationId) {
+        if (d?.sourcePreparationId) {
           outputToPrep.set(row.id as string, d.sourcePreparationId);
+        } else if (d?.homemade) {
+          homemadeData[row.id as string] = { composition: d.composition, steps: d.steps };
         }
       }
       if (outputToPrep.size > 0) {
@@ -142,6 +144,18 @@ export default async function CommunicationPage() {
           const prep = prepDataMap.get(prepId);
           if (prep) homemadeData[outputId] = prep;
         }
+      }
+    }
+    // Also fetch recipe data for recipe-as-ingredient references (recipeRef without ingredientId)
+    if (allRecipeRefs.size > 0) {
+      const { data: recipeRefRows } = await supabase
+        .from('recipes').select('id, data').in('id', [...allRecipeRefs]);
+      for (const row of recipeRefRows ?? []) {
+        const d = row.data as { ingredients?: Array<{ name: string; qty: number; unit: string }>; steps?: string };
+        homemadeData[row.id as string] = {
+          composition: (d.ingredients ?? []).map((i) => ({ name: i.name, qty: i.qty, unit: i.unit })),
+          steps: d.steps,
+        };
       }
     }
   }

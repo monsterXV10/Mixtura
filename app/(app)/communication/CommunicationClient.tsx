@@ -23,7 +23,7 @@ interface MyRecipe {
 
 interface BatchRow {
   id: string; user_id: string; team_id: string | null; name: string;
-  items: Array<{ key: string; recipeName: string; qty: number; qtyUnit: string; ingredients?: Array<{ ingredientId?: string; qty: number; name: string; unit: string; type?: string; homemade?: boolean }>; steps?: string | null }>;
+  items: Array<{ key: string; recipeName: string; qty: number; qtyUnit: string; ingredients?: Array<{ ingredientId?: string; recipeRef?: string; qty: number; name: string; unit: string; type?: string; homemade?: boolean }>; steps?: string | null }>;
   timers: Record<string, { durationSec: number; startedAt: string | null; label: string }>;
   checked: string[];
   checked_by?: Record<string, { name: string; userId: string }>;
@@ -847,8 +847,8 @@ export default function CommunicationClient({
                           const isExpanded = expandedRecipes.has(recipeKey);
                           const checkerName = isDone ? (batch.checked_by?.[item.key]?.name ?? null) : null;
                           const portions = calcPortions(item);
-                          const maisonIngs = (item.ingredients ?? []).filter((i) => !!(i.ingredientId && homemadeData[i.ingredientId]));
-                          const autreIngs = (item.ingredients ?? []).filter((i) => !(i.ingredientId && homemadeData[i.ingredientId]));
+                          const maisonIngs = (item.ingredients ?? []).filter((i) => !!(( i.ingredientId && homemadeData[i.ingredientId]) || (i.recipeRef && homemadeData[i.recipeRef])));
+                          const autreIngs = (item.ingredients ?? []).filter((i) => !(( i.ingredientId && homemadeData[i.ingredientId]) || (i.recipeRef && homemadeData[i.recipeRef])));
                           const hasGroups = maisonIngs.length > 0 && autreIngs.length > 0;
                           return (
                             <div key={item.key} className={`border-t border-[var(--border)] ${isDone ? 'opacity-60' : ''}`}>
@@ -906,7 +906,7 @@ export default function CommunicationClient({
                                         <div className="border-t border-dashed border-[var(--border)] pt-2 space-y-2 pl-8">
                                           {maisonIngs.map((ing, idx) => {
                                             const ingKey = `${recipeKey}:${ing.ingredientId ?? idx}`;
-                                            const hmData = ing.ingredientId ? homemadeData[ing.ingredientId] : null;
+                                            const hmData = ing.ingredientId ? homemadeData[ing.ingredientId] : ing.recipeRef ? homemadeData[ing.recipeRef] : null;
                                             const hasSubContent = !!(hmData?.composition?.length || hmData?.steps);
                                             const ingExpanded = hasSubContent && expandedHomemadeIngs.has(ingKey);
                                             const sk = `${batch.id}:${item.key}:${ing.ingredientId ?? ing.name}`;
@@ -972,7 +972,7 @@ export default function CommunicationClient({
                                       <div className="space-y-2 pl-8">
                                         {item.ingredients!.map((ing, idx) => {
                                           const ingKey = `${recipeKey}:${ing.ingredientId ?? idx}`;
-                                          const hmData = ing.ingredientId ? (homemadeData[ing.ingredientId] ?? null) : null;
+                                          const hmData = ing.ingredientId ? (homemadeData[ing.ingredientId] ?? null) : ing.recipeRef ? (homemadeData[ing.recipeRef] ?? null) : null;
                                           const hasSubContent = !!(hmData?.composition?.length || hmData?.steps);
                                           const ingExpanded = hasSubContent && expandedHomemadeIngs.has(ingKey);
                                           const sk = `${batch.id}:${item.key}:${ing.ingredientId ?? ing.name}`;
