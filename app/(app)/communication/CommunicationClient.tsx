@@ -803,27 +803,21 @@ export default function CommunicationClient({
                                   {hasIngredients && (
                                     hasGroups ? (
                                       <>
-                                        <div>
-                                          <p className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-dim)] pl-8 mb-1">Autre</p>
-                                          <div className="space-y-1 pl-8">
-                                            {autreIngs.map((ing, idx) => (
-                                              <div key={idx} className="flex justify-between gap-2">
-                                                <span className="text-xs text-[var(--text-dim)] truncate">{ing.name}</span>
-                                                <span className="text-xs font-mono text-[var(--text-dim)] shrink-0 tabular-nums">{Math.round(ing.qty * portions * 100) / 100} {ing.unit}</span>
-                                              </div>
-                                            ))}
-                                          </div>
+                                        <div className="space-y-1 pl-8">
+                                          {autreIngs.map((ing, idx) => (
+                                            <div key={idx} className="flex justify-between gap-2">
+                                              <span className="text-xs text-[var(--text-dim)] truncate">{ing.name}</span>
+                                              <span className="text-xs font-mono text-[var(--text-dim)] shrink-0 tabular-nums">{Math.round(ing.qty * portions * 100) / 100} {ing.unit}</span>
+                                            </div>
+                                          ))}
                                         </div>
-                                        <div>
-                                          <p className="text-[9px] font-bold uppercase tracking-widest text-[var(--gold)]/70 pl-8 mb-1">Maison</p>
-                                          <div className="space-y-1 pl-8">
-                                            {maisonIngs.map((ing, idx) => (
-                                              <div key={idx} className="flex justify-between gap-2">
-                                                <span className="text-xs text-[var(--text-dim)] truncate">{ing.name}</span>
-                                                <span className="text-xs font-mono text-[var(--text-dim)] shrink-0 tabular-nums">{Math.round(ing.qty * portions * 100) / 100} {ing.unit}</span>
-                                              </div>
-                                            ))}
-                                          </div>
+                                        <div className="border-t border-dashed border-[var(--border)] pt-2 space-y-1 pl-8">
+                                          {maisonIngs.map((ing, idx) => (
+                                            <div key={idx} className="flex justify-between gap-2">
+                                              <span className="text-xs text-[var(--text-dim)] truncate">{ing.name}</span>
+                                              <span className="text-xs font-mono text-[var(--text-dim)] shrink-0 tabular-nums">{Math.round(ing.qty * portions * 100) / 100} {ing.unit}</span>
+                                            </div>
+                                          ))}
                                         </div>
                                       </>
                                     ) : (
