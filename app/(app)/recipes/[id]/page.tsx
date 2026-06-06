@@ -96,6 +96,9 @@ export default async function RecipeDetailPage({
     glass?: string;
     method?: string | string[];
     garnish?: string;
+    clarifyingAgent?: string;
+    clarifyingAgentId?: string;
+    clarifyingPct?: number;
   } | null;
 
   const name = recipeData?.name ?? 'Sans titre';
@@ -153,12 +156,16 @@ export default async function RecipeDetailPage({
     cocktail: 'Cocktail',
     coffee: 'Café',
     cuisine: 'Cuisine',
+    service: 'Service',
+    milk_punch: 'Milk Punch',
   };
 
   const TYPE_COLORS: Record<string, string> = {
     cocktail: 'text-blue-400 bg-blue-400/10',
     coffee: 'text-amber-400 bg-amber-400/10',
     cuisine: 'text-emerald-400 bg-emerald-400/10',
+    service: 'text-sky-400 bg-sky-400/10',
+    milk_punch: 'text-purple-400 bg-purple-400/10',
   };
 
   // Teams the user belongs to (for sharing) + display name
@@ -325,6 +332,37 @@ export default async function RecipeDetailPage({
             </ul>
           )}
         </div>
+
+        {/* Milk Punch — casse */}
+        {recipeType === 'milk_punch' && recipeMetadata?.clarifyingAgent && (
+          <div className="card space-y-3">
+            <h2 className="font-semibold text-[var(--text)] text-sm flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-purple-400" />
+              Casse (clarification)
+            </h2>
+            {(() => {
+              const totalMl = ingredients.reduce((s, i) => {
+                if (i.unit === 'ml') return s + i.qty;
+                if (i.unit === 'cl') return s + i.qty * 10;
+                if (i.unit === 'L') return s + i.qty * 1000;
+                return s;
+              }, 0);
+              const pct = recipeMetadata.clarifyingPct ?? 15;
+              const qty = totalMl > 0 ? Math.round(totalMl * pct / 100 * 10) / 10 : null;
+              return (
+                <div className="flex items-center justify-between py-1">
+                  <span className="text-sm text-[var(--text)]">{recipeMetadata.clarifyingAgent}</span>
+                  <div className="text-right">
+                    {qty !== null && (
+                      <span className="text-purple-400 font-semibold font-mono text-sm">{qty} ml</span>
+                    )}
+                    <span className="text-xs text-[var(--text-dim)] ml-2">({pct}% · {totalMl} ml total)</span>
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+        )}
 
         {/* Timer */}
         {timerSeconds > 0 && (

@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { ensureIngredients, matchesIngredient } from '@/lib/utils/ingredients';
 import type { UserIngredientOption } from '@/lib/utils/ingredients';
-import { Plus, Trash2, Loader2, FlaskConical, Timer, X, BookOpen } from 'lucide-react';
+import { Plus, Trash2, Loader2, FlaskConical, Timer, X, BookOpen, Milk, GlassWater } from 'lucide-react';
 
 const METHOD_TIMER_DEFAULTS: Record<string, number> = {
   'Shake': 10,
@@ -51,7 +51,7 @@ interface RecipeFormProps {
   initialData?: {
     id: string;
     name: string;
-    type: 'cocktail' | 'coffee' | 'cuisine';
+    type: 'cocktail' | 'coffee' | 'cuisine' | 'service' | 'milk_punch';
     ingredients: RecipeIngredientRow[];
     steps: string;
     glass: string;
@@ -59,6 +59,9 @@ interface RecipeFormProps {
     garnish: string;
     spiritFamily: string;
     timerSeconds: number;
+    clarifyingAgent?: string;
+    clarifyingAgentId?: string;
+    clarifyingPct?: number;
   };
   userIngredients: UserIngredientOption[];
   userRecipes?: UserRecipeOption[];
@@ -86,7 +89,7 @@ const EMPTY_ROW: RecipeIngredientRow = { qty: 0, name: '', unit: 'cl' };
 export default function RecipeForm({ initialData, userIngredients, userRecipes = [], userId }: RecipeFormProps) {
   const router = useRouter();
   const [name, setName] = useState(initialData?.name ?? '');
-  const [type, setType] = useState<'cocktail' | 'coffee' | 'cuisine'>(initialData?.type ?? 'cocktail');
+  const [type, setType] = useState<'cocktail' | 'coffee' | 'cuisine' | 'service' | 'milk_punch'>(initialData?.type ?? 'cocktail');
   const [ingredients, setIngredients] = useState<RecipeIngredientRow[]>(
     initialData?.ingredients?.length ? initialData.ingredients : [{ ...EMPTY_ROW }]
   );
@@ -96,6 +99,11 @@ export default function RecipeForm({ initialData, userIngredients, userRecipes =
   const [garnish, setGarnish] = useState(initialData?.garnish ?? '');
   const [spiritFamily, setSpiritFamily] = useState(initialData?.spiritFamily ?? '');
   const [timerSeconds, setTimerSeconds] = useState(initialData?.timerSeconds ?? 0);
+  const [clarifyingAgent, setClarifyingAgent] = useState(initialData?.clarifyingAgent ?? '');
+  const [clarifyingAgentId, setClarifyingAgentId] = useState<string | undefined>(initialData?.clarifyingAgentId);
+  const [clarifyingPct, setClarifyingPct] = useState(initialData?.clarifyingPct ?? 15);
+  const [clarSuggestions, setClarSuggestions] = useState<UserIngredientOption[]>([]);
+  const [clarActive, setClarActive] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -260,7 +268,13 @@ export default function RecipeForm({ initialData, userIngredients, userRecipes =
         ingredients: ingredientRows,
         timerSeconds: timerSeconds > 0 ? timerSeconds : undefined,
       },
-      metadata: type === 'cocktail' ? { glass, method, garnish, spiritFamily: spiritFamily || undefined } : {},
+      metadata: type === 'cocktail'
+        ? { glass, method, garnish, spiritFamily: spiritFamily || undefined }
+        : type === 'service'
+        ? { glass: glass || undefined, garnish: garnish || undefined }
+        : type === 'milk_punch'
+        ? { glass: glass || undefined, garnish: garnish || undefined, clarifyingAgent: clarifyingAgent || undefined, clarifyingAgentId: clarifyingAgentId || undefined, clarifyingPct: clarifyingPct > 0 ? clarifyingPct : 15 }
+        : {},
       updated_at: new Date().toISOString(),
     };
 
@@ -294,19 +308,25 @@ export default function RecipeForm({ initialData, userIngredients, userRecipes =
       {/* Type */}
       <div className="space-y-1.5">
         <label className="text-xs font-medium text-[var(--text-dim)] uppercase tracking-wide">Type</label>
-        <div className="flex gap-2">
-          {(['cocktail', 'coffee', 'cuisine'] as const).map((v) => (
+        <div className="flex flex-wrap gap-2">
+          {([
+            ['cocktail', 'Cocktail'],
+            ['coffee', 'Café'],
+            ['cuisine', 'Cuisine'],
+            ['service', 'Service'],
+            ['milk_punch', 'Milk Punch'],
+          ] as const).map(([v, label]) => (
             <button
               key={v}
               type="button"
               onClick={() => setType(v)}
-              className={`flex-1 py-2 text-sm font-medium rounded-lg border transition-all ${
+              className={`flex-1 min-w-[calc(33%-4px)] py-2 text-sm font-medium rounded-lg border transition-all ${
                 type === v
                   ? 'bg-[var(--gold)] text-[#0A0E1A] border-[var(--gold)]'
                   : 'bg-transparent text-[var(--text-dim)] border-[var(--border)] hover:border-[var(--gold-dim)]'
               }`}
             >
-              {v === 'cocktail' ? 'Cocktail' : v === 'coffee' ? 'Café' : 'Cuisine'}
+              {label}
             </button>
           ))}
         </div>
@@ -545,6 +565,109 @@ export default function RecipeForm({ initialData, userIngredients, userRecipes =
         </div>
         <p className="text-xs text-[var(--text-dim)]">Affiché comme minuteur interactif dans la recette</p>
       </div>
+
+      {/* Milk Punch — casse section */}
+      {type === 'milk_punch' && (
+        <div className="card space-y-4">
+          <h3 className="text-sm font-semibold text-[var(--text)] flex items-center gap-2">
+            <Milk size={14} className="text-purple-400" />
+            Casse (clarification)
+          </h3>
+
+          {/* Clarifying agent picker */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-[var(--text-dim)] uppercase tracking-wide">Ingrédient de casse</label>
+            <div className="relative">
+              <input
+                type="text"
+                value={clarifyingAgent}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setClarifyingAgent(v);
+                  setClarifyingAgentId(undefined);
+                  setClarSuggestions(v.trim() ? userIngredients.filter((i) => matchesIngredient(i, v) && !i.isPreparation).slice(0, 6) : []);
+                  setClarActive(true);
+                }}
+                onFocus={() => clarifyingAgent.trim() && setClarActive(true)}
+                onBlur={() => setTimeout(() => { setClarSuggestions([]); setClarActive(false); }, 150)}
+                placeholder="ex. Lait entier, Lait de coco…"
+                className="field-input w-full"
+              />
+              {clarActive && clarSuggestions.length > 0 && (
+                <div className="absolute left-0 right-0 top-full mt-1 z-50 card p-1 shadow-lg">
+                  {clarSuggestions.map((opt) => (
+                    <button key={opt.id} type="button"
+                      onMouseDown={(e) => { e.preventDefault(); setClarifyingAgent(opt.name); setClarifyingAgentId(opt.id); setClarSuggestions([]); setClarActive(false); }}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-[var(--text)] hover:bg-[var(--surface2)] rounded-md transition-colors text-left">
+                      <span className={`w-2 h-2 rounded-full shrink-0 ${opt.homemade ? 'bg-blue-400' : 'bg-emerald-400'}`} />
+                      <span className="truncate">{opt.name}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* % input */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-[var(--text-dim)] uppercase tracking-wide">% du volume total de la préparation</label>
+            <div className="flex items-center gap-3">
+              <input
+                type="number"
+                min="1"
+                max="100"
+                step="0.5"
+                value={clarifyingPct}
+                onChange={(e) => setClarifyingPct(parseFloat(e.target.value) || 0)}
+                className="field-input w-24"
+              />
+              <span className="text-sm text-[var(--text-dim)]">%</span>
+            </div>
+          </div>
+
+          {/* Calculated quantity */}
+          {(() => {
+            const totalMl = ingredients.reduce((s, i) => {
+              const q = i.qty;
+              if (i.unit === 'ml') return s + q;
+              if (i.unit === 'cl') return s + q * 10;
+              if (i.unit === 'L') return s + q * 1000;
+              return s;
+            }, 0);
+            if (totalMl <= 0) return null;
+            const qty = Math.round(totalMl * clarifyingPct / 100 * 10) / 10;
+            return (
+              <div className="bg-purple-400/10 border border-purple-400/20 rounded-lg px-3 py-2.5 space-y-1">
+                <p className="text-xs text-[var(--text-dim)]">Volume liquide estimé : {totalMl} ml</p>
+                <p className="text-sm font-semibold text-purple-400">
+                  {clarifyingAgent || 'Ingrédient de casse'} : <span className="font-mono">{qty} ml</span>
+                </p>
+              </div>
+            );
+          })()}
+        </div>
+      )}
+
+      {/* Service & Milk Punch — verre + garniture */}
+      {(type === 'service' || type === 'milk_punch') && (
+        <div className="card space-y-4">
+          <h3 className="text-sm font-semibold text-[var(--text)] flex items-center gap-2">
+            <GlassWater size={14} className="text-[var(--gold)]" />
+            {type === 'service' ? 'Détails service' : 'Service'}
+          </h3>
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-[var(--text-dim)] uppercase tracking-wide">Verre</label>
+            <select value={glass} onChange={(e) => setGlass(e.target.value)} className="field-input">
+              <option value="">— Choisir un verre —</option>
+              {GLASSES.map((g) => <option key={g} value={g}>{g}</option>)}
+            </select>
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-[var(--text-dim)] uppercase tracking-wide">Garniture</label>
+            <input type="text" value={garnish} onChange={(e) => setGarnish(e.target.value)} placeholder="ex. Zeste de citron" className="field-input" />
+          </div>
+        </div>
+      )}
 
       {/* Cocktail details */}
       {type === 'cocktail' && (

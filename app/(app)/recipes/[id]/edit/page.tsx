@@ -60,6 +60,9 @@ export default async function EditRecipePage({
     method?: string | string[];
     garnish?: string;
     spiritFamily?: string;
+    clarifyingAgent?: string;
+    clarifyingAgentId?: string;
+    clarifyingPct?: number;
   } | null;
 
   // Normalize legacy ingredients (no ingredientId) by matching name; preserve recipe refs
@@ -79,7 +82,7 @@ export default async function EditRecipePage({
   const initialData = {
     id: recipe.id as string,
     name: recipeData?.name ?? '',
-    type: (recipe.type as 'cocktail' | 'coffee' | 'cuisine') ?? 'cocktail',
+    type: (recipe.type as 'cocktail' | 'coffee' | 'cuisine' | 'service' | 'milk_punch') ?? 'cocktail',
     ingredients: normalizedIngredients,
     steps: recipeData?.steps ?? '',
     glass: recipeMetadata?.glass ?? '',
@@ -87,6 +90,9 @@ export default async function EditRecipePage({
     garnish: recipeMetadata?.garnish ?? '',
     spiritFamily: recipeMetadata?.spiritFamily ?? '',
     timerSeconds: recipeData?.timerSeconds ?? 0,
+    clarifyingAgent: recipeMetadata?.clarifyingAgent,
+    clarifyingAgentId: recipeMetadata?.clarifyingAgentId,
+    clarifyingPct: recipeMetadata?.clarifyingPct,
   };
 
   return (
