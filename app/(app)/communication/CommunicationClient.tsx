@@ -115,8 +115,10 @@ export default function CommunicationClient({
   const [stockInputs, setStockInputs] = useState<Record<string, string>>({});
   const [showNotifPrompt, setShowNotifPrompt] = useState(false);
   const [notifGranted, setNotifGranted] = useState<boolean>(() => {
-    if (typeof window === 'undefined' || !('Notification' in window)) return false;
-    return Notification.permission === 'granted';
+    try {
+      if (typeof window === 'undefined' || !('Notification' in window)) return false;
+      return Notification.permission === 'granted';
+    } catch { return false; }
   });
   const prevRemainingRef = useRef<Record<string, number>>({});
 
@@ -156,9 +158,11 @@ export default function CommunicationClient({
         const remaining = getRemaining(timer);
         const prev = prevRemainingRef.current[tk];
         if (prev !== undefined && prev > 0 && remaining <= 0 && timer.startedAt) {
-          if (typeof window !== 'undefined' && 'Notification' in window) {
-            new Notification(`⏱ ${timer.label}`, { silent: true, body: 'Timer terminé !' });
-          }
+          try {
+            if (typeof window !== 'undefined' && 'Notification' in window) {
+              new Notification(`⏱ ${timer.label}`, { silent: true, body: 'Timer terminé !' });
+            }
+          } catch { /* ignore */ }
         }
         nowMap[tk] = remaining;
       }
@@ -196,9 +200,11 @@ export default function CommunicationClient({
       newEntry = { ...entry, durationSec: Math.max(0, entry.durationSec - elapsed), startedAt: null };
     } else {
       newEntry = { ...entry, startedAt: new Date().toISOString() };
-      if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'default' && !localStorage.getItem('notif-denied')) {
-        setShowNotifPrompt(true);
-      }
+      try {
+        if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'default' && !localStorage.getItem('notif-denied')) {
+          setShowNotifPrompt(true);
+        }
+      } catch { /* ignore */ }
     }
     const updatedTimers = { ...batch.timers, [timerKey]: newEntry };
     setLiveBatches((prev) => prev.map((b) => b.id === batchId ? { ...b, timers: updatedTimers } : b));
@@ -1224,10 +1230,12 @@ export default function CommunicationClient({
           <p className="flex-1 text-sm text-[var(--text)]">Recevoir une notification quand un timer se termine ?</p>
           <button
             onClick={async () => {
-              if ('Notification' in window) {
-                const perm = await Notification.requestPermission();
-                setNotifGranted(perm === 'granted');
-              }
+              try {
+                if (typeof window !== 'undefined' && 'Notification' in window) {
+                  const perm = await Notification.requestPermission();
+                  setNotifGranted(perm === 'granted');
+                }
+              } catch { /* ignore */ }
               setShowNotifPrompt(false);
             }}
             className="btn-primary px-3 py-1.5 text-xs shrink-0">
