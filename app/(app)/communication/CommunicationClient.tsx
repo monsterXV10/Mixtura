@@ -25,7 +25,9 @@ interface BatchRow {
   id: string; user_id: string; team_id: string | null; name: string;
   items: Array<{ key: string; recipeName: string; qty: number; qtyUnit: string; ingredients?: Array<{ ingredientId?: string; qty: number; name: string; unit: string; type?: string; homemade?: boolean }>; steps?: string | null }>;
   timers: Record<string, { durationSec: number; startedAt: string | null; label: string }>;
-  checked: string[]; status: string; created_at: string; updated_at: string;
+  checked: string[];
+  checked_by?: Record<string, { name: string; userId: string }>;
+  status: string; created_at: string; updated_at: string;
 }
 
 interface Props {
@@ -107,6 +109,7 @@ export default function CommunicationClient({
   const [liveBatches, setLiveBatches] = useState<BatchRow[]>(teamBatches);
   const [tick, setTick] = useState(0);
   const [collapsedBatches, setCollapsedBatches] = useState<Set<string>>(new Set());
+  const [expandedRecipes, setExpandedRecipes] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     setLiveBatches(teamBatches);
@@ -139,12 +142,15 @@ export default function CommunicationClient({
     const batch = liveBatches.find((b) => b.id === batchId);
     if (!batch) return;
     const current = batch.checked ?? [];
-    const updated = current.includes(itemKey)
-      ? current.filter((k) => k !== itemKey)
-      : [...current, itemKey];
-    setLiveBatches((prev) => prev.map((b) => b.id === batchId ? { ...b, checked: updated } : b));
+    const isChecked = current.includes(itemKey);
+    const updated = isChecked ? current.filter((k) => k !== itemKey) : [...current, itemKey];
+    const currentBy = batch.checked_by ?? {};
+    const updatedBy: Record<string, { name: string; userId: string }> = isChecked
+      ? Object.fromEntries(Object.entries(currentBy).filter(([k]) => k !== itemKey))
+      : { ...currentBy, [itemKey]: { name: myName, userId } };
+    setLiveBatches((prev) => prev.map((b) => b.id === batchId ? { ...b, checked: updated, checked_by: updatedBy } : b));
     const supabase = createClient();
-    await supabase.from('batches').update({ checked: updated, updated_at: new Date().toISOString() }).eq('id', batchId);
+    await supabase.from('batches').update({ checked: updated, checked_by: updatedBy, updated_at: new Date().toISOString() }).eq('id', batchId);
   }
 
   async function toggleBatchTimer(batchId: string, timerKey: string) {
@@ -377,6 +383,48 @@ export default function CommunicationClient({
     if (!joinUrl) return;
     navigator.clipboard?.writeText(joinUrl);
     setCopiedLink(true); setTimeout(() => setCopiedLink(false), 1500);
+  }
+
+  // ── PDF helpers ───────────────────────────────────────────────────────────
+  function calcPortions(item: { qty: number; qtyUnit: string; ingredients?: Array<{ qty: number; unit: string }> }): number {
+    if (item.qtyUnit === 'portions') return item.qty;
+    if (!item.ingredients?.length) return item.qty;
+    const vol = item.ingredients.reduce((s, i) => {
+      const u = i.unit.toLowerCase();
+      return s + (u === 'cl' ? i.qty : u === 'ml' ? i.qty / 10 : u === 'l' ? i.qty * 100 : i.qty);
+    }, 0);
+    if (vol <= 0) return item.qty;
+    const target = item.qtyUnit === 'cl' ? item.qty : item.qtyUnit === 'L' ? item.qty * 100 : item.qtyUnit === 'btl70' ? item.qty * 70 : item.qty * 100;
+    return target / vol;
+  }
+
+  function downloadBatchPdf(batch: BatchRow) {
+    const ingMap = new Map<string, { name: string; qty: number; unit: string }>();
+    for (const item of batch.items ?? []) {
+      const p = calcPortions(item);
+      for (const ing of item.ingredients ?? []) {
+        const k = ing.name.toLowerCase();
+        const qty = Math.round(ing.qty * p * 100) / 100;
+        if (ingMap.has(k)) { ingMap.get(k)!.qty += qty; }
+        else { ingMap.set(k, { name: ing.name, qty, unit: ing.unit }); }
+      }
+    }
+    const allIngredients = [...ingMap.values()].sort((a, b) => a.name.localeCompare(b.name));
+    const dateStr = new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' });
+    const css = 'body{font-family:-apple-system,Arial,sans-serif;max-width:800px;margin:0 auto;padding:2rem;color:#1a1a2e}h1{font-size:1.5rem;margin-bottom:.25rem}.date{color:#888;font-size:.85rem;margin-bottom:2rem}h2{font-size:1rem;text-transform:uppercase;letter-spacing:.1em;color:#888;margin:2rem 0 .75rem;border-top:1px solid #eee;padding-top:1rem}table{width:100%;border-collapse:collapse;margin-bottom:1rem}td{padding:.4rem .5rem;border-bottom:1px solid #f0f0f0;font-size:.9rem}td:last-child{text-align:right;font-weight:500}.recipe-title{font-weight:700;font-size:1rem;margin:1.5rem 0 .5rem}.recipe-qty{color:#888;font-size:.85rem;margin-left:.5rem;font-weight:normal}.steps{font-style:italic;color:#555;margin-top:.5rem;font-size:.85rem;white-space:pre-wrap}@media print{body{padding:0}}';
+    const ingRows = allIngredients.map((ing) => `<tr><td>${ing.name}</td><td>${ing.qty} ${ing.unit}</td></tr>`).join('');
+    const recipeBlocks = (batch.items ?? []).map((item) => {
+      const p = calcPortions(item);
+      const rows = (item.ingredients ?? []).map((ing) => `<tr><td>${ing.name}</td><td>${Math.round(ing.qty * p * 100) / 100} ${ing.unit}</td></tr>`).join('');
+      const stepsHtml = item.steps ? `<p class="steps">${item.steps}</p>` : '';
+      return `<div class="recipe-title">${item.recipeName}<span class="recipe-qty">${item.qty} ${item.qtyUnit}</span></div><table>${rows}</table>${stepsHtml}`;
+    }).join('');
+    const html = `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><title>${batch.name || 'Batch'}</title><style>${css}</style></head><body><h1>${batch.name || 'Batch sans titre'}</h1><p class="date">Généré le ${dateStr}</p><h2>Liste consolidée des produits</h2><table>${ingRows}</table><h2>Recettes</h2>${recipeBlocks}</body></html>`;
+    const w = window.open('', '_blank');
+    if (!w) { alert('Autorisez les pop-ups pour télécharger le PDF.'); return; }
+    w.document.write(html);
+    w.document.close();
+    setTimeout(() => { w.focus(); w.print(); }, 400);
   }
 
   // ── render: no team ──────────────────────────────────────────────────────
@@ -671,22 +719,31 @@ export default function CommunicationClient({
             const isOpen = !collapsedBatches.has(batch.id);
             return (
               <div key={batch.id} className="card p-0 overflow-hidden">
-                {/* Clickable header */}
-                <button type="button"
-                  onClick={() => setCollapsedBatches((prev) => { const n = new Set(prev); n.has(batch.id) ? n.delete(batch.id) : n.add(batch.id); return n; })}
-                  className="w-full px-4 pt-3 pb-3 text-left hover:bg-[var(--surface2)]/30 transition-colors">
+                {/* Header */}
+                <div className="px-4 pt-3 pb-2">
                   <div className="flex items-start justify-between gap-2">
-                    <div className="flex-1 min-w-0">
+                    <button type="button"
+                      onClick={() => setCollapsedBatches((prev) => { const n = new Set(prev); n.has(batch.id) ? n.delete(batch.id) : n.add(batch.id); return n; })}
+                      className="flex-1 min-w-0 text-left">
                       <p className="font-semibold text-[var(--text)]">{batch.name || 'Batch sans titre'}</p>
                       <p className="text-xs text-[var(--text-dim)] mt-0.5">
                         {checkedCount}/{totalItems} recette{totalItems !== 1 ? 's' : ''} préparée{checkedCount !== 1 ? 's' : ''}
                       </p>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
+                    </button>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button type="button" onClick={() => downloadBatchPdf(batch)}
+                        className="p-1.5 rounded-lg text-[var(--text-dim)] hover:text-[var(--gold)] hover:bg-[var(--gold)]/10 transition-colors"
+                        title="Télécharger en PDF">
+                        <Download size={15} />
+                      </button>
                       <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${canInteract ? 'bg-emerald-400/10 text-emerald-400' : 'bg-[var(--surface2)] text-[var(--text-dim)]'}`}>
                         {canInteract ? 'Actif' : 'Lecture'}
                       </span>
-                      <ChevronDown size={15} className={`text-[var(--text-dim)] transition-transform ${isOpen ? '' : '-rotate-90'}`} />
+                      <button type="button"
+                        onClick={() => setCollapsedBatches((prev) => { const n = new Set(prev); n.has(batch.id) ? n.delete(batch.id) : n.add(batch.id); return n; })}
+                        className="p-1">
+                        <ChevronDown size={15} className={`text-[var(--text-dim)] transition-transform ${isOpen ? '' : '-rotate-90'}`} />
+                      </button>
                     </div>
                   </div>
                   {totalItems > 0 && (
@@ -697,7 +754,7 @@ export default function CommunicationClient({
                       />
                     </div>
                   )}
-                </button>
+                </div>
 
                 {isOpen && (
                   <>
@@ -707,20 +764,13 @@ export default function CommunicationClient({
                         {batch.items.map((item) => {
                           const isDone = batch.checked?.includes(item.key);
                           const hasIngredients = (item.ingredients?.length ?? 0) > 0;
-                          const portions = (() => {
-                            if (item.qtyUnit === 'portions') return item.qty;
-                            if (!item.ingredients?.length) return item.qty;
-                            const vol = item.ingredients.reduce((s, i) => {
-                              const u = i.unit.toLowerCase();
-                              return s + (u === 'cl' ? i.qty : u === 'ml' ? i.qty / 10 : u === 'l' ? i.qty * 100 : i.qty);
-                            }, 0);
-                            if (vol <= 0) return item.qty;
-                            const target = item.qtyUnit === 'cl' ? item.qty : item.qtyUnit === 'L' ? item.qty * 100
-                              : item.qtyUnit === 'btl70' ? item.qty * 70 : item.qty * 100;
-                            return target / vol;
-                          })();
+                          const hasContent = hasIngredients || !!item.steps;
+                          const recipeKey = `${batch.id}:${item.key}`;
+                          const isExpanded = expandedRecipes.has(recipeKey);
+                          const checkerName = isDone ? (batch.checked_by?.[item.key]?.name ?? null) : null;
+                          const portions = calcPortions(item);
                           return (
-                            <div key={item.key} className={`border-t border-[var(--border)] ${isDone ? 'opacity-50' : ''}`}>
+                            <div key={item.key} className={`border-t border-[var(--border)] ${isDone ? 'opacity-60' : ''}`}>
                               <div className="flex items-center gap-3 px-4 py-2.5">
                                 {canInteract ? (
                                   <button type="button" onClick={() => toggleBatchChecked(batch.id, item.key)}
@@ -730,21 +780,35 @@ export default function CommunicationClient({
                                 ) : (
                                   <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${isDone ? 'bg-emerald-400' : 'bg-[var(--border)]'}`} />
                                 )}
-                                <span className={`flex-1 text-sm font-medium text-[var(--text)] truncate ${isDone ? 'line-through' : ''}`}>{item.recipeName}</span>
+                                {hasContent ? (
+                                  <button type="button"
+                                    onClick={() => toggle(expandedRecipes, setExpandedRecipes, recipeKey)}
+                                    className="flex-1 flex items-center gap-1 min-w-0 text-left">
+                                    <span className={`text-sm font-medium text-[var(--text)] truncate ${isDone ? 'line-through' : ''}`}>{item.recipeName}</span>
+                                    <ChevronDown size={12} className={`shrink-0 text-[var(--text-dim)] transition-transform ${isExpanded ? '' : '-rotate-90'}`} />
+                                  </button>
+                                ) : (
+                                  <span className={`flex-1 text-sm font-medium text-[var(--text)] truncate ${isDone ? 'line-through' : ''}`}>{item.recipeName}</span>
+                                )}
+                                {checkerName && (
+                                  <span className="text-[10px] text-emerald-400 shrink-0">{checkerName}</span>
+                                )}
                                 <span className="text-xs text-[var(--text-dim)] tabular-nums shrink-0">{item.qty} {item.qtyUnit}</span>
                               </div>
-                              {hasIngredients && (
+                              {isExpanded && hasContent && (
                                 <div className="px-4 pb-3">
-                                  <div className="space-y-1 pl-8">
-                                    {item.ingredients!.map((ing, idx) => (
-                                      <div key={idx} className="flex justify-between gap-2">
-                                        <span className="text-xs text-[var(--text-dim)] truncate">{ing.name}</span>
-                                        <span className="text-xs font-mono text-[var(--text-dim)] shrink-0 tabular-nums">
-                                          {Math.round(ing.qty * portions * 100) / 100} {ing.unit}
-                                        </span>
-                                      </div>
-                                    ))}
-                                  </div>
+                                  {hasIngredients && (
+                                    <div className="space-y-1 pl-8">
+                                      {item.ingredients!.map((ing, idx) => (
+                                        <div key={idx} className="flex justify-between gap-2">
+                                          <span className="text-xs text-[var(--text-dim)] truncate">{ing.name}</span>
+                                          <span className="text-xs font-mono text-[var(--text-dim)] shrink-0 tabular-nums">
+                                            {Math.round(ing.qty * portions * 100) / 100} {ing.unit}
+                                          </span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
                                   {item.steps && (
                                     <p className="text-xs text-[var(--text-dim)] italic mt-1.5 pl-8 leading-relaxed whitespace-pre-line">{item.steps}</p>
                                   )}
