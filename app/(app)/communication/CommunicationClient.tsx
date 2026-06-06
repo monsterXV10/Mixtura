@@ -769,6 +769,9 @@ export default function CommunicationClient({
                           const isExpanded = expandedRecipes.has(recipeKey);
                           const checkerName = isDone ? (batch.checked_by?.[item.key]?.name ?? null) : null;
                           const portions = calcPortions(item);
+                          const maisonIngs = (item.ingredients ?? []).filter((i) => i.homemade);
+                          const autreIngs = (item.ingredients ?? []).filter((i) => !i.homemade);
+                          const hasGroups = maisonIngs.length > 0 && autreIngs.length > 0;
                           return (
                             <div key={item.key} className={`border-t border-[var(--border)] ${isDone ? 'opacity-60' : ''}`}>
                               <div className="flex items-center gap-3 px-4 py-2.5">
@@ -796,21 +799,46 @@ export default function CommunicationClient({
                                 <span className="text-xs text-[var(--text-dim)] tabular-nums shrink-0">{item.qty} {item.qtyUnit}</span>
                               </div>
                               {isExpanded && hasContent && (
-                                <div className="px-4 pb-3">
+                                <div className="px-4 pb-3 space-y-2">
                                   {hasIngredients && (
-                                    <div className="space-y-1 pl-8">
-                                      {item.ingredients!.map((ing, idx) => (
-                                        <div key={idx} className="flex justify-between gap-2">
-                                          <span className="text-xs text-[var(--text-dim)] truncate">{ing.name}</span>
-                                          <span className="text-xs font-mono text-[var(--text-dim)] shrink-0 tabular-nums">
-                                            {Math.round(ing.qty * portions * 100) / 100} {ing.unit}
-                                          </span>
+                                    hasGroups ? (
+                                      <>
+                                        <div>
+                                          <p className="text-[9px] font-bold uppercase tracking-widest text-[var(--gold)]/70 pl-8 mb-1">Maison</p>
+                                          <div className="space-y-1 pl-8">
+                                            {maisonIngs.map((ing, idx) => (
+                                              <div key={idx} className="flex justify-between gap-2">
+                                                <span className="text-xs text-[var(--text-dim)] truncate">{ing.name}</span>
+                                                <span className="text-xs font-mono text-[var(--text-dim)] shrink-0 tabular-nums">{Math.round(ing.qty * portions * 100) / 100} {ing.unit}</span>
+                                              </div>
+                                            ))}
+                                          </div>
                                         </div>
-                                      ))}
-                                    </div>
+                                        <div>
+                                          <p className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-dim)] pl-8 mb-1">Autre</p>
+                                          <div className="space-y-1 pl-8">
+                                            {autreIngs.map((ing, idx) => (
+                                              <div key={idx} className="flex justify-between gap-2">
+                                                <span className="text-xs text-[var(--text-dim)] truncate">{ing.name}</span>
+                                                <span className="text-xs font-mono text-[var(--text-dim)] shrink-0 tabular-nums">{Math.round(ing.qty * portions * 100) / 100} {ing.unit}</span>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      </>
+                                    ) : (
+                                      <div className="space-y-1 pl-8">
+                                        {item.ingredients!.map((ing, idx) => (
+                                          <div key={idx} className="flex justify-between gap-2">
+                                            <span className="text-xs text-[var(--text-dim)] truncate">{ing.name}</span>
+                                            <span className="text-xs font-mono text-[var(--text-dim)] shrink-0 tabular-nums">{Math.round(ing.qty * portions * 100) / 100} {ing.unit}</span>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )
                                   )}
                                   {item.steps && (
-                                    <p className="text-xs text-[var(--text-dim)] italic mt-1.5 pl-8 leading-relaxed whitespace-pre-line">{item.steps}</p>
+                                    <p className="text-xs text-[var(--text-dim)] italic pl-8 leading-relaxed whitespace-pre-line">{item.steps}</p>
                                   )}
                                 </div>
                               )}
