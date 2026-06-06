@@ -114,11 +114,8 @@ export default function TeamClient({
     if (!code) return;
     setBusy('join');
     setError('');
-    const { data: team } = await supabase
-      .from('teams')
-      .select('*')
-      .eq('code', code)
-      .maybeSingle();
+    const { data: teamRaw } = await supabase.rpc('get_team_by_code', { p_code: code }).maybeSingle();
+    const team = teamRaw as { id: string; name: string; settings: Record<string, unknown> } | null;
     if (!team) {
       setError('Aucune équipe avec ce code.');
       setBusy(null);

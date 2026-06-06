@@ -299,7 +299,8 @@ export default function CommunicationClient({
     const code = joinCode.trim().toUpperCase();
     if (!code) return;
     setBusy('join'); setError('');
-    const { data: team } = await supabase.from('teams').select('*').eq('code', code).maybeSingle();
+    const { data: teamRaw } = await supabase.rpc('get_team_by_code', { p_code: code }).maybeSingle();
+    const team = teamRaw as { id: string; name: string; settings: Record<string, unknown> } | null;
     if (!team) { setError('Aucune équipe avec ce code.'); setBusy(null); return; }
     const already = members.some((m) => m.team_id === team.id && m.user_id === userId);
     if (already) { setError('Vous êtes déjà dans cette équipe.'); setBusy(null); return; }
