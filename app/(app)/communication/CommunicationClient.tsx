@@ -44,6 +44,7 @@ interface Props {
   myRecipes: MyRecipe[];
   pendingInvites: Array<TeamInvitation & { team_name: string }>;
   teamBatches?: BatchRow[];
+  homemadeData?: Record<string, { composition?: Array<{ name: string; qty: number; unit: string }>; steps?: string }>;
 }
 
 type MainTab = 'shares' | 'members' | 'batches';
@@ -67,7 +68,7 @@ function getRemaining(entry: { durationSec: number; startedAt: string | null }):
 export default function CommunicationClient({
   userId, userEmail, myName, canCreateTeam, teamPlanName,
   teams, members, invitations, sharedItems, notes, myRecipes, pendingInvites,
-  teamBatches = [],
+  teamBatches = [], homemadeData = {},
 }: Props) {
   const router = useRouter();
   const supabase = createClient();
@@ -110,6 +111,7 @@ export default function CommunicationClient({
   const [tick, setTick] = useState(0);
   const [collapsedBatches, setCollapsedBatches] = useState<Set<string>>(new Set());
   const [expandedRecipes, setExpandedRecipes] = useState<Set<string>>(new Set());
+  const [expandedHomemadeIngs, setExpandedHomemadeIngs] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     setLiveBatches(teamBatches);
@@ -811,23 +813,83 @@ export default function CommunicationClient({
                                             </div>
                                           ))}
                                         </div>
-                                        <div className="border-t border-dashed border-[var(--border)] pt-2 space-y-1 pl-8">
-                                          {maisonIngs.map((ing, idx) => (
-                                            <div key={idx} className="flex justify-between gap-2">
-                                              <span className="text-xs text-[var(--text-dim)] truncate">{ing.name}</span>
-                                              <span className="text-xs font-mono text-[var(--text-dim)] shrink-0 tabular-nums">{Math.round(ing.qty * portions * 100) / 100} {ing.unit}</span>
-                                            </div>
-                                          ))}
+                                        <div className="border-t border-dashed border-[var(--border)] pt-2 space-y-2 pl-8">
+                                          {maisonIngs.map((ing, idx) => {
+                                            const ingKey = `${recipeKey}:${ing.ingredientId ?? idx}`;
+                                            const hmData = ing.ingredientId ? homemadeData[ing.ingredientId] : null;
+                                            const hasSubContent = !!(hmData?.composition?.length || hmData?.steps);
+                                            const ingExpanded = hasSubContent && expandedHomemadeIngs.has(ingKey);
+                                            return (
+                                              <div key={idx}>
+                                                <div className="flex justify-between gap-2">
+                                                  {hasSubContent ? (
+                                                    <button type="button"
+                                                      onClick={() => toggle(expandedHomemadeIngs, setExpandedHomemadeIngs, ingKey)}
+                                                      className="flex items-center gap-1 min-w-0 flex-1 text-left">
+                                                      <ChevronDown size={10} className={`shrink-0 text-[var(--text-dim)] transition-transform ${ingExpanded ? '' : '-rotate-90'}`} />
+                                                      <span className="text-xs text-[var(--text-dim)] truncate">{ing.name}</span>
+                                                    </button>
+                                                  ) : (
+                                                    <span className="text-xs text-[var(--text-dim)] truncate flex-1">{ing.name}</span>
+                                                  )}
+                                                  <span className="text-xs font-mono text-[var(--text-dim)] shrink-0 tabular-nums">{Math.round(ing.qty * portions * 100) / 100} {ing.unit}</span>
+                                                </div>
+                                                {ingExpanded && (
+                                                  <div className="ml-3 mt-0.5 space-y-0.5 border-l-2 border-[var(--gold)]/20 pl-2">
+                                                    {(hmData!.composition ?? []).map((sub, si) => (
+                                                      <div key={si} className="flex justify-between gap-2">
+                                                        <span className="text-[11px] text-[var(--text-dim)]/80 truncate">{sub.name}</span>
+                                                        <span className="text-[11px] font-mono text-[var(--text-dim)]/80 shrink-0">{sub.qty} {sub.unit}</span>
+                                                      </div>
+                                                    ))}
+                                                    {hmData!.steps && (
+                                                      <p className="text-[11px] text-[var(--text-dim)]/80 italic leading-relaxed">→ {hmData!.steps}</p>
+                                                    )}
+                                                  </div>
+                                                )}
+                                              </div>
+                                            );
+                                          })}
                                         </div>
                                       </>
                                     ) : (
-                                      <div className="space-y-1 pl-8">
-                                        {item.ingredients!.map((ing, idx) => (
-                                          <div key={idx} className="flex justify-between gap-2">
-                                            <span className="text-xs text-[var(--text-dim)] truncate">{ing.name}</span>
-                                            <span className="text-xs font-mono text-[var(--text-dim)] shrink-0 tabular-nums">{Math.round(ing.qty * portions * 100) / 100} {ing.unit}</span>
-                                          </div>
-                                        ))}
+                                      <div className="space-y-2 pl-8">
+                                        {item.ingredients!.map((ing, idx) => {
+                                          const ingKey = `${recipeKey}:${ing.ingredientId ?? idx}`;
+                                          const hmData = ing.homemade && ing.ingredientId ? homemadeData[ing.ingredientId] : null;
+                                          const hasSubContent = !!(hmData?.composition?.length || hmData?.steps);
+                                          const ingExpanded = hasSubContent && expandedHomemadeIngs.has(ingKey);
+                                          return (
+                                            <div key={idx}>
+                                              <div className="flex justify-between gap-2">
+                                                {hasSubContent ? (
+                                                  <button type="button"
+                                                    onClick={() => toggle(expandedHomemadeIngs, setExpandedHomemadeIngs, ingKey)}
+                                                    className="flex items-center gap-1 min-w-0 flex-1 text-left">
+                                                    <ChevronDown size={10} className={`shrink-0 text-[var(--text-dim)] transition-transform ${ingExpanded ? '' : '-rotate-90'}`} />
+                                                    <span className="text-xs text-[var(--text-dim)] truncate">{ing.name}</span>
+                                                  </button>
+                                                ) : (
+                                                  <span className="text-xs text-[var(--text-dim)] truncate flex-1">{ing.name}</span>
+                                                )}
+                                                <span className="text-xs font-mono text-[var(--text-dim)] shrink-0 tabular-nums">{Math.round(ing.qty * portions * 100) / 100} {ing.unit}</span>
+                                              </div>
+                                              {ingExpanded && (
+                                                <div className="ml-3 mt-0.5 space-y-0.5 border-l-2 border-[var(--gold)]/20 pl-2">
+                                                  {(hmData!.composition ?? []).map((sub, si) => (
+                                                    <div key={si} className="flex justify-between gap-2">
+                                                      <span className="text-[11px] text-[var(--text-dim)]/80 truncate">{sub.name}</span>
+                                                      <span className="text-[11px] font-mono text-[var(--text-dim)]/80 shrink-0">{sub.qty} {sub.unit}</span>
+                                                    </div>
+                                                  ))}
+                                                  {hmData!.steps && (
+                                                    <p className="text-[11px] text-[var(--text-dim)]/80 italic leading-relaxed">→ {hmData!.steps}</p>
+                                                  )}
+                                                </div>
+                                              )}
+                                            </div>
+                                          );
+                                        })}
                                       </div>
                                     )
                                   )}
