@@ -56,6 +56,7 @@ export default async function BatchPage() {
     price?: number; format?: number; stock?: number; homemade?: boolean;
     composition?: Array<{ ingredientId?: string; name: string; qty: number; unit: string }>;
     yield?: number; yieldUnit?: string; steps?: string;
+    weightConversion?: { referenceQty: number; unit: string; grams: number };
   };
   const stockMap: Record<string, StockEntry> = {};
   const sourcePrepIds = new Map<string, string>(); // ingredientId -> sourcePreparationId
@@ -65,11 +66,13 @@ export default async function BatchPage() {
       stock?: number; homemade?: boolean; sourcePreparationId?: string;
       composition?: Array<{ ingredientId?: string; name: string; qty: number; unit: string }>;
       yield?: number; yieldUnit?: string; steps?: string;
+      weightConversion?: { referenceQty: number; unit: string; grams: number };
     } | null;
     stockMap[row.id as string] = {
       id: row.id as string, name: d?.name ?? '', type: d?.type, unit: d?.unit ?? '',
       price: d?.price, format: d?.format, stock: d?.stock, homemade: d?.homemade,
       composition: d?.composition, yield: d?.yield, yieldUnit: d?.yieldUnit, steps: d?.steps,
+      weightConversion: d?.weightConversion,
     };
     if (d?.sourcePreparationId && !d?.composition?.length && !d?.steps) {
       sourcePrepIds.set(row.id as string, d.sourcePreparationId);

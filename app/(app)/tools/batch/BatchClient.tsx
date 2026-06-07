@@ -8,12 +8,14 @@ import {
 } from 'lucide-react';
 
 type BatchQtyUnit = 'portions' | 'cl' | 'L' | 'btl70' | 'btl100';
+type DisplayUnit = 'auto' | 'ml' | 'cl' | 'L';
 
 interface IngredientStock {
   id: string; name: string; type?: string; unit: string;
   price?: number; format?: number; stock?: number; homemade?: boolean;
   composition?: Array<{ ingredientId?: string; name: string; qty: number; unit: string }>;
   yield?: number; yieldUnit?: string; steps?: string;
+  weightConversion?: { referenceQty: number; unit: string; grams: number };
 }
 
 interface RecipeIngredient {
@@ -99,6 +101,16 @@ function fmt(qty: number, unit: string): string {
   return `${Math.round(qty * 100) / 100} ${unit}`;
 }
 
+function fmtDisplay(qty: number, unit: string, displayUnit: DisplayUnit): string {
+  const u = unit.toLowerCase();
+  if (displayUnit === 'auto' || !['ml', 'cl', 'l'].includes(u)) return fmt(qty, unit);
+  const toMl: Record<string, number> = { ml: 1, cl: 10, l: 1000 };
+  const qtyMl = qty * toMl[u];
+  if (displayUnit === 'ml') return `${Math.round(qtyMl * 100) / 100} ml`;
+  if (displayUnit === 'cl') return `${Math.round(qtyMl / 10 * 100) / 100} cl`;
+  return `${Math.round(qtyMl / 1000 * 1000) / 1000} L`;
+}
+
 function fmtTime(totalSec: number): string {
   const sec = Math.max(0, totalSec);
   const h = Math.floor(sec / 3600);
@@ -169,6 +181,7 @@ export default function BatchClient({ recipes, stockMap, userId, teams }: Props)
     timers: Record<string, TimerEntry>; checked: string[];
   }>>([]);
   const [showSaved, setShowSaved]   = useState(false);
+  const [displayUnit, setDisplayUnit] = useState<DisplayUnit>('auto');
 
   // Stable boolean so the interval is only recreated when active state flips, not on every timer update
   const hasActiveTimers = Object.values(timers).some((t) => t.startedAt !== null && getRemaining(t) > 0);
@@ -578,6 +591,21 @@ export default function BatchClient({ recipes, stockMap, userId, teams }: Props)
             ))}
           </div>
 
+          {/* ── Display unit selector ── */}
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-[var(--text-dim)] shrink-0">Unité :</span>
+            {(['auto', 'ml', 'cl', 'L'] as DisplayUnit[]).map((u) => (
+              <button key={u} type="button" onClick={() => setDisplayUnit(u)}
+                className={`px-2.5 py-1 text-xs rounded-full border transition-all ${
+                  displayUnit === u
+                    ? 'bg-[var(--gold)] text-[#0A0E1A] border-[var(--gold)]'
+                    : 'text-[var(--text-dim)] border-[var(--border)] hover:border-[var(--gold-dim)]'
+                }`}>
+                {u}
+              </button>
+            ))}
+          </div>
+
           {/* ── RECETTES TAB ── */}
           {view === 'recipes' && (
             <div className="space-y-3">
@@ -660,7 +688,7 @@ export default function BatchClient({ recipes, stockMap, userId, teams }: Props)
                                         </button>
                                         <span className="flex-1 text-sm text-[var(--text)] truncate">{info?.name ?? ing.name}</span>
                                         <span className="text-sm font-mono font-medium text-[var(--text)] shrink-0 tabular-nums">
-                                          {fmt(scaledQty, ing.unit)}
+                                          {fmtDisplay(scaledQty, ing.unit, displayUnit)}
                                         </span>
                                       </div>
                                       {isExpanded && (
@@ -762,9 +790,28 @@ export default function BatchClient({ recipes, stockMap, userId, teams }: Props)
                           </p>
                         )}
                       </div>
-                      <span className="text-sm font-mono font-semibold text-[var(--text)] shrink-0 tabular-nums">
-                        {fmt(line.totalQty, line.unit)}
-                      </span>
+                      <div className="flex flex-col items-end shrink-0">
+                        <span className="text-sm font-mono font-semibold text-[var(--text)] tabular-nums">
+                          {fmtDisplay(line.totalQty, line.unit, displayUnit)}
+                        </span>
+                        {(() => {
+                          const wc = line.stockInfo?.weightConversion;
+                          if (!wc || wc.referenceQty <= 0 || wc.grams <= 0) return null;
+                          const toMl: Record<string, number> = { ml: 1, cl: 10, l: 1000 };
+                          const ingU = line.unit.toLowerCase();
+                          const wcU = wc.unit.toLowerCase();
+                          let qty = line.totalQty;
+                          if (ingU !== wcU && toMl[ingU] && toMl[wcU]) {
+                            qty = line.totalQty * toMl[ingU] / toMl[wcU];
+                          }
+                          const grams = (qty / wc.referenceQty) * wc.grams;
+                          return (
+                            <span className="text-[10px] text-[var(--text-dim)] tabular-nums">
+                              ≈ {grams >= 1000 ? `${Math.round(grams / 10) / 100} kg` : `${Math.round(grams)} g`}
+                            </span>
+                          );
+                        })()}
+                      </div>
                     </button>
                   );
                 })}
