@@ -56,6 +56,7 @@ interface IngredientFormProps {
     fruitLabel?: string;
     juicePerFruit?: number;
     yieldVariance?: number;
+    weightConversion?: { referenceQty: number; grams: number };
   };
 }
 
@@ -144,6 +145,8 @@ export default function IngredientForm({ userId, userIngredients, visibleCategor
   const [fruitLabel,       setFruitLabel]       = useState(initialData?.fruitLabel ?? '');
   const [juicePerFruit,    setJuicePerFruit]    = useState(initialData?.juicePerFruit ?? 0);
   const [yieldVariance,    setYieldVariance]    = useState(initialData?.yieldVariance ?? 10);
+  const [weightConvRef,    setWeightConvRef]    = useState(initialData?.weightConversion?.referenceQty ?? 100);
+  const [weightConvGrams,  setWeightConvGrams]  = useState(initialData?.weightConversion?.grams ?? 0);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -238,6 +241,7 @@ export default function IngredientForm({ userId, userIngredients, visibleCategor
             ...(cfg.sugarRatio       && { sugarRatio, ...(sugarRatio === 'Sur mesure' && sugarRatioCustom && { sugarRatioCustom }) }),
             ...(cfg.quantityInBottle && quantityInBottle > 0 && { quantityInBottle }),
             ...(cfg.yieldCalc        && { fruitLabel, juicePerFruit, yieldVariance }),
+            ...(weightConvGrams > 0  && { weightConversion: { referenceQty: weightConvRef, grams: weightConvGrams } }),
           };
       const payload = { user_id: userId, data, updated_at: new Date().toISOString() };
       const result = initialData
@@ -641,6 +645,26 @@ export default function IngredientForm({ userId, userIngredients, visibleCategor
                       placeholder="0" className="field-input" />
                   </div>
                 )}
+              </div>
+
+              {/* Conversion poids */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-[var(--text-dim)] uppercase tracking-wide">
+                  Conversion poids (optionnel)
+                </label>
+                <div className="flex items-center gap-2">
+                  <input type="number" min="1" step="any"
+                    value={weightConvRef}
+                    onChange={(e) => setWeightConvRef(parseFloat(e.target.value) || 100)}
+                    className="field-input w-20 text-center" />
+                  <span className="text-sm text-[var(--text-dim)] shrink-0">{unit}</span>
+                  <span className="text-sm text-[var(--text-dim)]">=</span>
+                  <input type="number" min="0" step="any"
+                    value={weightConvGrams === 0 ? '' : weightConvGrams}
+                    onChange={(e) => setWeightConvGrams(parseFloat(e.target.value) || 0)}
+                    placeholder="?" className="field-input w-24" />
+                  <span className="text-sm text-[var(--text-dim)] shrink-0">g</span>
+                </div>
               </div>
 
               {/* Date de péremption */}

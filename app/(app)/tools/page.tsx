@@ -1,6 +1,6 @@
 import { TopBar } from '@/components/layout/TopBar';
 import Link from 'next/link';
-import { Package, TrendingUp, ArrowLeftRight, Percent, Droplets, Scale } from 'lucide-react';
+import { Package, TrendingUp, ArrowLeftRight, Percent, Droplets } from 'lucide-react';
 
 const tools = [
   {
@@ -42,14 +42,6 @@ const tools = [
     desc: "Estimez l'eau de dilution selon la méthode (Shake / Stir / Build)",
     color: 'text-sky-400',
     bg: 'bg-sky-400/10',
-  },
-  {
-    href: '/tools/conversions',
-    icon: Scale,
-    title: 'Conversions poids',
-    desc: 'Définissez l\'équivalent grammes par produit (100 gouttes = X g)',
-    color: 'text-rose-400',
-    bg: 'bg-rose-400/10',
   },
 ];
 
