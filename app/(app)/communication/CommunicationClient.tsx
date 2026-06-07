@@ -50,6 +50,7 @@ interface Props {
 
 type MainTab = 'shares' | 'members' | 'batches';
 type ShareTab = 'recipe' | 'ingredient' | 'menu';
+type DisplayUnit = 'auto' | 'ml' | 'cl' | 'L';
 
 function fmtTime(totalSec: number): string {
   const sec = Math.max(0, totalSec);
@@ -116,6 +117,7 @@ export default function CommunicationClient({
 
   const [mainTab, setMainTab] = useState<MainTab>('shares');
   const [shareTab, setShareTab] = useState<ShareTab>('recipe');
+  const [displayUnit, setDisplayUnit] = useState<DisplayUnit>('auto');
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState('');
 
@@ -786,6 +788,19 @@ export default function CommunicationClient({
       {/* ── BATCHES TAB ── */}
       {mainTab === 'batches' && (
         <div className="space-y-3">
+          {teamBatchesForActiveTeam.length > 0 && (
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-[var(--text-dim)]">Afficher en</span>
+              <div className="flex items-center gap-0.5 bg-[var(--surface2)] rounded-lg p-0.5">
+                {(['auto', 'ml', 'cl', 'L'] as const).map((u) => (
+                  <button key={u} type="button" onClick={() => setDisplayUnit(u)}
+                    className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${displayUnit === u ? 'bg-[var(--surface)] text-[var(--gold)] shadow-sm' : 'text-[var(--text-dim)]'}`}>
+                    {u}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           {teamBatchesForActiveTeam.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 gap-3 text-center">
               <Timer size={36} className="text-[var(--text-dim)] opacity-30" />
@@ -888,7 +903,7 @@ export default function CommunicationClient({
                                         <div className="space-y-1.5 pl-8">
                                           {autreIngs.map((ing, idx) => {
                                             const sk = `${batch.id}:${item.key}:${ing.ingredientId ?? ing.name}`;
-                                            const { needed, unit: dispUnit } = ingNeeded(ing, item.ingredients ?? [], portions, preferredUnit);
+                                            const { needed, unit: dispUnit } = ingNeeded(ing, item.ingredients ?? [], portions, displayUnit === 'auto' ? preferredUnit : displayUnit);
                                             const have = parseFloat(stockInputs[sk] ?? '');
                                             const ok = !isNaN(have) && have >= needed;
                                             return (
@@ -914,7 +929,7 @@ export default function CommunicationClient({
                                             const hasSubContent = !!(hmData?.composition?.length || hmData?.steps);
                                             const ingExpanded = hasSubContent && expandedHomemadeIngs.has(ingKey);
                                             const sk = `${batch.id}:${item.key}:${ing.ingredientId ?? ing.name}`;
-                                            const { needed, unit: dispUnit } = ingNeeded(ing, item.ingredients ?? [], portions, preferredUnit);
+                                            const { needed, unit: dispUnit } = ingNeeded(ing, item.ingredients ?? [], portions, displayUnit === 'auto' ? preferredUnit : displayUnit);
                                             const have = parseFloat(stockInputs[sk] ?? '');
                                             const ok = !isNaN(have) && have >= needed;
                                             return (
@@ -980,7 +995,7 @@ export default function CommunicationClient({
                                           const hasSubContent = !!(hmData?.composition?.length || hmData?.steps);
                                           const ingExpanded = hasSubContent && expandedHomemadeIngs.has(ingKey);
                                           const sk = `${batch.id}:${item.key}:${ing.ingredientId ?? ing.name}`;
-                                          const { needed, unit: dispUnit } = ingNeeded(ing, item.ingredients ?? [], portions, preferredUnit);
+                                          const { needed, unit: dispUnit } = ingNeeded(ing, item.ingredients ?? [], portions, displayUnit === 'auto' ? preferredUnit : displayUnit);
                                           const have = parseFloat(stockInputs[sk] ?? '');
                                           const ok = !isNaN(have) && have >= needed;
                                           return (

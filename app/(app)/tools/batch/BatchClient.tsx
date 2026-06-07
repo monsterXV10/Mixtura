@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 
 type BatchQtyUnit = 'portions' | 'cl' | 'L' | 'btl70' | 'btl100' | 'btl_cl' | 'btl_ml';
+type DisplayUnit = 'auto' | 'ml' | 'cl' | 'L';
 
 interface IngredientStock {
   id: string; name: string; type?: string; unit: string;
@@ -101,6 +102,20 @@ function effectivePortions(qty: number, unit: BatchQtyUnit, recipe: Recipe, btlS
   return target / vol;
 }
 
+function fmtDisplay(qty: number, fromUnit: string, displayUnit: DisplayUnit): string {
+  const u = fromUnit.toLowerCase();
+  if (displayUnit === 'auto' || !['ml', 'cl', 'l'].includes(u)) return fmt(qty, fromUnit);
+  let qtyMl: number;
+  if (u === 'ml') qtyMl = qty;
+  else if (u === 'cl') qtyMl = qty * 10;
+  else qtyMl = qty * 1000;
+  let result: number; let label: string;
+  if (displayUnit === 'ml') { result = qtyMl; label = 'ml'; }
+  else if (displayUnit === 'cl') { result = qtyMl / 10; label = 'cl'; }
+  else { result = qtyMl / 1000; label = 'L'; }
+  return `${Math.round(result * 100) / 100} ${label}`;
+}
+
 function fmt(qty: number, unit: string): string {
   if (unit === 'ml' && qty >= 1000) { const l = qty / 1000; return `${l % 1 === 0 ? l : l.toFixed(1)} L`; }
   if (unit === 'cl' && qty >= 100)  { const l = qty / 100;  return `${l % 1 === 0 ? l : l.toFixed(1)} L`; }
@@ -156,6 +171,7 @@ const GLOBAL_TIMER_KEY = '__global';
 
 export default function BatchClient({ recipes, stockMap, userId, teams }: Props) {
   const [batchName, setBatchName]   = useState('');
+  const [displayUnit, setDisplayUnit] = useState<DisplayUnit>('auto');
   const [items, setItems]           = useState<BatchItem[]>([]);
   const [search, setSearch]         = useState('');
   const [open, setOpen]             = useState(false);
@@ -593,6 +609,19 @@ export default function BatchClient({ recipes, stockMap, userId, teams }: Props)
             ))}
           </div>
 
+          {/* ── Unit display selector ── */}
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-[var(--text-dim)]">Afficher en</span>
+            <div className="flex items-center gap-0.5 bg-[var(--surface2)] rounded-lg p-0.5">
+              {(['auto', 'ml', 'cl', 'L'] as const).map((u) => (
+                <button key={u} type="button" onClick={() => setDisplayUnit(u)}
+                  className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${displayUnit === u ? 'bg-[var(--surface)] text-[var(--gold)] shadow-sm' : 'text-[var(--text-dim)]'}`}>
+                  {u}
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* ── RECETTES TAB ── */}
           {view === 'recipes' && (
             <div className="space-y-3">
@@ -681,7 +710,7 @@ export default function BatchClient({ recipes, stockMap, userId, teams }: Props)
                                         </button>
                                         <span className="flex-1 text-sm text-[var(--text)] truncate">{info?.name ?? ing.name}</span>
                                         <span className="text-sm font-mono font-medium text-[var(--text)] shrink-0 tabular-nums">
-                                          {fmt(scaledQty, ing.unit)}
+                                          {fmtDisplay(scaledQty, ing.unit, displayUnit)}
                                         </span>
                                       </div>
                                       {isExpanded && (
@@ -689,7 +718,7 @@ export default function BatchClient({ recipes, stockMap, userId, teams }: Props)
                                           {composition?.map((c, ci) => (
                                             <div key={ci} className="flex justify-between gap-2 text-xs">
                                               <span className="text-[var(--text-dim)] truncate">{c.name}</span>
-                                              <span className="font-mono text-[var(--text-dim)] shrink-0 tabular-nums">{refRecipe ? `${c.qty} ${c.unit}` : fmt(c.qty * scale, c.unit)}</span>
+                                              <span className="font-mono text-[var(--text-dim)] shrink-0 tabular-nums">{refRecipe ? `${c.qty} ${c.unit}` : fmtDisplay(c.qty * scale, c.unit, displayUnit)}</span>
                                             </div>
                                           ))}
                                           {steps && (
@@ -785,7 +814,7 @@ export default function BatchClient({ recipes, stockMap, userId, teams }: Props)
                         )}
                       </div>
                       <span className="text-sm font-mono font-semibold text-[var(--text)] shrink-0 tabular-nums">
-                        {fmt(line.totalQty, line.unit)}
+                        {fmtDisplay(line.totalQty, line.unit, displayUnit)}
                       </span>
                     </button>
                   );
