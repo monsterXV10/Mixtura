@@ -23,7 +23,7 @@ interface MyRecipe {
 
 interface BatchRow {
   id: string; user_id: string; team_id: string | null; name: string;
-  items: Array<{ key: string; recipeName: string; qty: number; qtyUnit: string; ingredients?: Array<{ ingredientId?: string; recipeRef?: string; qty: number; name: string; unit: string; type?: string; homemade?: boolean }>; steps?: string | null }>;
+  items: Array<{ key: string; recipeName: string; qty: number; qtyUnit: string; btlSize?: number; ingredients?: Array<{ ingredientId?: string; recipeRef?: string; qty: number; name: string; unit: string; type?: string; homemade?: boolean }>; steps?: string | null }>;
   timers: Record<string, { durationSec: number; startedAt: string | null; label: string }>;
   checked: string[];
   checked_by?: Record<string, { name: string; userId: string }>;
@@ -51,6 +51,17 @@ interface Props {
 type MainTab = 'shares' | 'members' | 'batches';
 type ShareTab = 'recipe' | 'ingredient' | 'menu';
 type DisplayUnit = 'auto' | 'ml' | 'cl' | 'L';
+
+function fmtQtyUnit(qty: number, qtyUnit: string, btlSize?: number): string {
+  if (qtyUnit === 'portions') return `${qty} portion${qty > 1 ? 's' : ''}`;
+  if (qtyUnit === 'cl') return `${qty} cl`;
+  if (qtyUnit === 'L') return `${qty} L`;
+  if (qtyUnit === 'btl70') return `${qty} btl 70cl`;
+  if (qtyUnit === 'btl100') return `${qty} btl 100cl`;
+  if (qtyUnit === 'btl_cl') return `${qty} btl ${btlSize ?? '?'} cl`;
+  if (qtyUnit === 'btl_ml') return `${qty} btl ${btlSize ?? '?'} ml`;
+  return `${qty} ${qtyUnit}`;
+}
 
 function fmtTime(totalSec: number): string {
   const sec = Math.max(0, totalSec);
@@ -478,7 +489,15 @@ export default function CommunicationClient({
       return s;
     }, 0);
     if (vol <= 0) return item.qty;
-    const target = item.qtyUnit === 'cl' ? item.qty : item.qtyUnit === 'L' ? item.qty * 100 : item.qtyUnit === 'btl70' ? item.qty * 70 : item.qty * 100;
+    const q = item as { qty: number; qtyUnit: string; btlSize?: number };
+    let target: number;
+    if (q.qtyUnit === 'cl') target = q.qty;
+    else if (q.qtyUnit === 'L') target = q.qty * 100;
+    else if (q.qtyUnit === 'btl70') target = q.qty * 70;
+    else if (q.qtyUnit === 'btl100') target = q.qty * 100;
+    else if (q.qtyUnit === 'btl_cl') target = q.qty * (q.btlSize ?? 70);
+    else if (q.qtyUnit === 'btl_ml') target = q.qty * (q.btlSize ?? 700) / 10;
+    else target = q.qty;
     return target / vol;
   }
 
@@ -893,7 +912,7 @@ export default function CommunicationClient({
                                 {checkerName && (
                                   <span className="text-[10px] text-emerald-400 shrink-0">{checkerName}</span>
                                 )}
-                                <span className="text-xs text-[var(--text-dim)] tabular-nums shrink-0">{item.qty} {item.qtyUnit}</span>
+                                <span className="text-xs text-[var(--text-dim)] tabular-nums shrink-0">{fmtQtyUnit(item.qty, item.qtyUnit, item.btlSize)}</span>
                               </div>
                               {isExpanded && hasContent && (
                                 <div className="px-4 pb-3 space-y-2">
