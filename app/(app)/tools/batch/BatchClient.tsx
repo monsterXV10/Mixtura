@@ -15,6 +15,7 @@ interface IngredientStock {
   price?: number; format?: number; stock?: number; homemade?: boolean; unlimitedStock?: boolean;
   composition?: Array<{ ingredientId?: string; name: string; qty: number; unit: string }>;
   yield?: number; yieldUnit?: string; steps?: string;
+  weightConversion?: { referenceQty: number; grams: number };
 }
 
 interface RecipeIngredient {
@@ -813,9 +814,21 @@ export default function BatchClient({ recipes, stockMap, userId, teams }: Props)
                           </p>
                         )}
                       </div>
-                      <span className="text-sm font-mono font-semibold text-[var(--text)] shrink-0 tabular-nums">
-                        {fmtDisplay(line.totalQty, line.unit, displayUnit)}
-                      </span>
+                      <div className="text-right shrink-0">
+                        <span className="text-sm font-mono font-semibold text-[var(--text)] tabular-nums block">
+                          {fmtDisplay(line.totalQty, line.unit, displayUnit)}
+                        </span>
+                        {(() => {
+                          const wc = line.stockInfo?.weightConversion;
+                          if (!wc || wc.referenceQty <= 0) return null;
+                          const grams = (line.totalQty / wc.referenceQty) * wc.grams;
+                          return (
+                            <span className="text-[10px] text-[var(--text-dim)] tabular-nums">
+                              ≈ {grams >= 1000 ? `${Math.round(grams / 10) / 100} kg` : `${Math.round(grams)} g`}
+                            </span>
+                          );
+                        })()}
+                      </div>
                     </button>
                   );
                 })}
