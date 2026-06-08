@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { redirect, notFound } from 'next/navigation';
 import { TopBar } from '@/components/layout/TopBar';
 import Link from 'next/link';
-import { Pencil, FlaskConical, BookOpen } from 'lucide-react';
+import { Pencil, FlaskConical, BookOpen, Layers, ChevronDown } from 'lucide-react';
 import { GlassIcon } from '@/components/ui/GlassIcon';
 import { RecipeDeleteButton } from '../RecipeDeleteButton';
 import { RecipeTimer } from '../RecipeTimer';
@@ -55,6 +55,16 @@ const METHOD_DEFAULT_STEPS: Record<string, string[]> = {
     'Verser les ingrédients directement dans le verre.',
   ],
 };
+
+const TYPE_NAMES: Record<string, string> = {
+  spirit: 'Alcool', liqueur: 'Liqueur', wine: 'Vin', syrup: 'Sirop',
+  juice: 'Jus', fresh: 'Frais', dry: 'Sec', water: 'Eau', other: 'Autre',
+};
+
+function fmtStock(stock: number, unit: string, unlimitedStock?: boolean): string {
+  if (unlimitedStock) return '∞';
+  return `${stock} ${unit}`;
+}
 
 export default async function RecipeDetailPage({
   params,
@@ -116,7 +126,7 @@ export default async function RecipeDetailPage({
       ? (recipeData!.timerSeconds as number)
       : (METHOD_TIMER_DEFAULTS[method] ?? 0);
 
-  // Fetch stock info to color-code ingredients
+  // Fetch full stock info for linked ingredients
   const linkedIds = ingredients
     .flatMap((i) => [
       i.ingredientId,
@@ -128,8 +138,16 @@ export default async function RecipeDetailPage({
     .filter((i) => i.type === 'recipe' && i.recipeRef)
     .map((i) => i.recipeRef as string);
 
-  const stockMap = new Map<string, { homemade?: boolean }>();
-  const recipeRefNames = new Map<string, string>(); // recipeId → name
+  type IngInfo = {
+    homemade?: boolean; type?: string; unit?: string;
+    stock?: number; unlimitedStock?: boolean;
+    brand?: string; family?: string;
+    composition?: Array<{ name: string; qty: number; unit: string }>;
+    yield?: number; yieldUnit?: string; steps?: string;
+  };
+
+  const stockMap = new Map<string, IngInfo>();
+  const recipeRefNames = new Map<string, string>();
   const ingredientSharePayloads: Array<{ name: string; ingredientData: Record<string, unknown> }> = [];
 
   await Promise.all([
@@ -137,7 +155,19 @@ export default async function RecipeDetailPage({
       ? supabase.from('ingredients').select('id, data').eq('user_id', user.id).in('id', linkedIds).then(({ data: stockRows }) => {
           for (const row of stockRows ?? []) {
             const d = row.data as Record<string, unknown> | null;
-            stockMap.set(row.id as string, { homemade: (d?.homemade as boolean | undefined) });
+            stockMap.set(row.id as string, {
+              homemade: d?.homemade as boolean | undefined,
+              type: d?.type as string | undefined,
+              unit: d?.unit as string | undefined,
+              stock: d?.stock as number | undefined,
+              unlimitedStock: d?.unlimitedStock as boolean | undefined,
+              brand: d?.brand as string | undefined,
+              family: d?.family as string | undefined,
+              composition: d?.composition as IngInfo['composition'] | undefined,
+              yield: d?.yield as number | undefined,
+              yieldUnit: d?.yieldUnit as string | undefined,
+              steps: d?.steps as string | undefined,
+            });
             if (d) ingredientSharePayloads.push({ name: (d.name as string | undefined) ?? '', ingredientData: d });
           }
         })
@@ -145,8 +175,7 @@ export default async function RecipeDetailPage({
     recipeRefIds.length > 0
       ? supabase.from('recipes').select('id, data').eq('user_id', user.id).in('id', recipeRefIds).then(({ data: refRows }) => {
           for (const row of refRows ?? []) {
-            const n = ((row.data as { name?: string })?.name) ?? 'Recette';
-            recipeRefNames.set(row.id as string, n);
+            recipeRefNames.set(row.id as string, ((row.data as { name?: string })?.name) ?? 'Recette');
           }
         })
       : Promise.resolve(),
@@ -211,6 +240,13 @@ export default async function RecipeDetailPage({
               ingredientsToShare={ingredientSharePayloads}
             />
             <Link
+              href={`/tools/batch?recipe=${id}`}
+              className="btn-ghost px-3 py-1.5 text-sm flex items-center gap-1.5"
+            >
+              <Layers size={14} />
+              Batch
+            </Link>
+            <Link
               href={`/recipes/${id}/edit`}
               className="btn-ghost px-3 py-1.5 text-sm flex items-center gap-1.5"
             >
@@ -274,61 +310,104 @@ export default async function RecipeDetailPage({
             <p className="text-[var(--text-dim)] text-sm">Aucun ingrédient.</p>
           ) : (
             <ul className="space-y-0">
-              {ingredients.map(
-                (ing, i) => {
-                  // Recipe-as-ingredient
-                  if (ing.type === 'recipe' && ing.recipeRef) {
-                    return (
-                      <li key={i} className="flex items-center gap-3 py-2.5 border-b border-[var(--border)] last:border-0">
-                        <span className="w-2 h-2 rounded-full shrink-0 bg-purple-400" />
-                        <span className="flex-1 text-[var(--text)] text-sm flex items-center gap-1.5 min-w-0">
-                          <Link href={`/recipes/${ing.recipeRef}`} className="hover:text-purple-400 transition-colors truncate">
-                            {recipeRefNames.get(ing.recipeRef) ?? ing.name}
-                          </Link>
-                          <BookOpen size={11} className="text-purple-400 shrink-0" />
-                        </span>
-                        <span className="text-[var(--gold)] text-sm font-medium tabular-nums shrink-0">
-                          {ing.qty} {ing.unit}
-                        </span>
-                      </li>
-                    );
-                  }
-
-                  const primaryInfo = ing.ingredientId ? stockMap.get(ing.ingredientId) : undefined;
-                  const linkedAltId = !primaryInfo
-                    ? ing.alternatives?.find((a) => a.ingredientId && stockMap.has(a.ingredientId))?.ingredientId
-                    : undefined;
-                  const info = primaryInfo ?? (linkedAltId ? stockMap.get(linkedAltId) : undefined);
-                  const hasLink = ing.ingredientId ?? linkedAltId;
-                  const dotColor = hasLink
-                    ? info
-                      ? info.homemade ? 'bg-blue-400' : 'bg-emerald-400'
-                      : 'bg-orange-400'
-                    : 'bg-[var(--border)]';
-                  const isHomemade = info?.homemade;
-
+              {ingredients.map((ing, i) => {
+                // Recipe-as-ingredient
+                if (ing.type === 'recipe' && ing.recipeRef) {
                   return (
-                    <li
-                      key={i}
-                      className="flex items-center gap-3 py-2.5 border-b border-[var(--border)] last:border-0"
-                    >
-                      <span className={`w-2 h-2 rounded-full shrink-0 ${dotColor}`} />
-                      <span className="flex-1 text-[var(--text)] text-sm">
-                        {ing.name}
-                        {(ing.alternatives ?? []).filter(a => a.name).map((alt, ai) => (
-                          <span key={ai} className="text-[var(--text-dim)] text-xs"> ou {alt.name}</span>
-                        ))}
-                        {isHomemade && (
-                          <FlaskConical size={11} className="text-blue-400 shrink-0 inline ml-1" />
-                        )}
+                    <li key={i} className="flex items-center gap-3 py-2.5 border-b border-[var(--border)] last:border-0">
+                      <span className="w-2 h-2 rounded-full shrink-0 bg-purple-400" />
+                      <span className="flex-1 text-[var(--text)] text-sm flex items-center gap-1.5 min-w-0">
+                        <Link href={`/recipes/${ing.recipeRef}`} className="hover:text-purple-400 transition-colors truncate">
+                          {recipeRefNames.get(ing.recipeRef) ?? ing.name}
+                        </Link>
+                        <BookOpen size={11} className="text-purple-400 shrink-0" />
                       </span>
-                      <span className="text-[var(--gold)] text-sm font-medium tabular-nums">
+                      <span className="text-[var(--gold)] text-sm font-medium tabular-nums shrink-0">
                         {ing.qty} {ing.unit}
                       </span>
                     </li>
                   );
                 }
-              )}
+
+                const primaryInfo = ing.ingredientId ? stockMap.get(ing.ingredientId) : undefined;
+                const linkedAltId = !primaryInfo
+                  ? ing.alternatives?.find((a) => a.ingredientId && stockMap.has(a.ingredientId))?.ingredientId
+                  : undefined;
+                const info = primaryInfo ?? (linkedAltId ? stockMap.get(linkedAltId) : undefined);
+                const hasLink = ing.ingredientId ?? linkedAltId;
+                const dotColor = hasLink
+                  ? info
+                    ? info.homemade ? 'bg-blue-400' : 'bg-emerald-400'
+                    : 'bg-orange-400'
+                  : 'bg-[var(--border)]';
+                const isHomemade = info?.homemade;
+                const hasComposition = isHomemade && (info?.composition?.length ?? 0) > 0;
+                const typeName = info?.type ? (TYPE_NAMES[info.type] ?? info.type) : null;
+                const hasStock = info?.unlimitedStock || info?.stock !== undefined;
+                const stockStr = hasStock
+                  ? fmtStock(info!.stock ?? 0, info!.unit ?? '', info!.unlimitedStock)
+                  : null;
+
+                return (
+                  <li key={i} className="border-b border-[var(--border)] last:border-0 py-2.5">
+                    <div className="flex items-start gap-3">
+                      <span className={`w-2 h-2 rounded-full shrink-0 mt-1.5 ${dotColor}`} />
+                      <div className="flex-1 min-w-0">
+                        {/* Name row */}
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-[var(--text)] text-sm">
+                            {ing.name}
+                            {(ing.alternatives ?? []).filter(a => a.name).map((alt, ai) => (
+                              <span key={ai} className="text-[var(--text-dim)] text-xs"> ou {alt.name}</span>
+                            ))}
+                          </span>
+                          {isHomemade && <FlaskConical size={11} className="text-blue-400 shrink-0" />}
+                          {typeName && !isHomemade && (
+                            <span className="text-[10px] text-[var(--text-dim)] bg-[var(--surface2)] px-1.5 py-0.5 rounded shrink-0">
+                              {typeName}
+                            </span>
+                          )}
+                        </div>
+                        {/* Info line */}
+                        {(stockStr || info?.brand || info?.family) && (
+                          <p className="text-xs text-[var(--text-dim)] mt-0.5 flex items-center gap-2 flex-wrap">
+                            {stockStr && <span>Stock · {stockStr}</span>}
+                            {(info?.brand || info?.family) && (
+                              <span className="opacity-60">{[info.family, info.brand].filter(Boolean).join(' · ')}</span>
+                            )}
+                          </p>
+                        )}
+                        {/* MAISON composition */}
+                        {hasComposition && (
+                          <details className="mt-1.5 group">
+                            <summary className="text-xs text-[var(--text-dim)] cursor-pointer list-none flex items-center gap-1 select-none">
+                              <ChevronDown size={11} className="transition-transform group-open:rotate-180" />
+                              {info!.composition!.length} sous-ingrédients
+                              {info?.yield && (
+                                <span className="opacity-60 ml-1">· {info.yield} {info.yieldUnit ?? info.unit ?? ''} de yield</span>
+                              )}
+                            </summary>
+                            <ul className="mt-1.5 pl-3 border-l-2 border-[var(--border)] space-y-1">
+                              {info!.composition!.map((c, ci) => (
+                                <li key={ci} className="flex justify-between gap-4 text-xs text-[var(--text-dim)]">
+                                  <span className="truncate">{c.name}</span>
+                                  <span className="tabular-nums shrink-0">{c.qty} {c.unit}</span>
+                                </li>
+                              ))}
+                              {info?.steps && (
+                                <li className="text-xs text-[var(--text-dim)] italic pt-0.5">→ {info.steps}</li>
+                              )}
+                            </ul>
+                          </details>
+                        )}
+                      </div>
+                      <span className="text-[var(--gold)] text-sm font-medium tabular-nums shrink-0 mt-0.5">
+                        {ing.qty} {ing.unit}
+                      </span>
+                    </div>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </div>
@@ -409,13 +488,22 @@ export default async function RecipeDetailPage({
         </div>
 
         {/* Actions */}
-        <Link
-          href={`/recipes/${id}/edit`}
-          className="btn-primary w-full py-3 flex items-center justify-center gap-2"
-        >
-          <Pencil size={16} />
-          Modifier cette recette
-        </Link>
+        <div className="flex gap-3">
+          <Link
+            href={`/tools/batch?recipe=${id}`}
+            className="btn-secondary flex-1 py-3 flex items-center justify-center gap-2"
+          >
+            <Layers size={16} />
+            Lancer en batch
+          </Link>
+          <Link
+            href={`/recipes/${id}/edit`}
+            className="btn-primary flex-1 py-3 flex items-center justify-center gap-2"
+          >
+            <Pencil size={16} />
+            Modifier
+          </Link>
+        </div>
         <RecipeDeleteButton recipeId={id} userId={user.id} />
       </main>
     </>

@@ -5,7 +5,12 @@ import BatchClient from './BatchClient';
 
 export const dynamic = 'force-dynamic';
 
-export default async function BatchPage() {
+export default async function BatchPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ recipe?: string }>;
+}) {
+  const { recipe: preloadRecipeId } = await searchParams;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login');
@@ -99,7 +104,7 @@ export default async function BatchPage() {
     <>
       <TopBar title="Batch" backHref="/tools" />
       <main className="px-4 py-5 pb-24">
-        <BatchClient recipes={recipes} stockMap={stockMap} userId={user.id} teams={teams} />
+        <BatchClient recipes={recipes} stockMap={stockMap} userId={user.id} teams={teams} preloadRecipeId={preloadRecipeId} />
       </main>
     </>
   );

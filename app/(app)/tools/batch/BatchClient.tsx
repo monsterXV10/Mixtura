@@ -1,5 +1,5 @@
 'use client';
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import {
   Search, ChevronDown, Minus, Plus, FlaskConical, Package,
@@ -49,6 +49,7 @@ interface Props {
   stockMap: Record<string, IngredientStock>;
   userId: string;
   teams: Array<{ id: string; name: string; batchMode: string }>;
+  preloadRecipeId?: string;
 }
 
 const CATEGORY_GROUPS: Record<string, { label: string; bar: string; text: string }> = {
@@ -202,16 +203,28 @@ function groupByCategory(ings: RecipeIngredient[], stockMap: Record<string, Ingr
 let counter = 0;
 const GLOBAL_TIMER_KEY = '__global';
 
-export default function BatchClient({ recipes, stockMap, userId, teams }: Props) {
+export default function BatchClient({ recipes, stockMap, userId, teams, preloadRecipeId }: Props) {
   const [batchName, setBatchName]   = useState('');
   const [displayUnit, setDisplayUnit] = useState<DisplayUnit>('auto');
-  const [items, setItems]           = useState<BatchItem[]>([]);
+  const [items, setItems]           = useState<BatchItem[]>(() => {
+    if (!preloadRecipeId) return [];
+    const r = recipes.find((r) => r.id === preloadRecipeId);
+    if (!r) return [];
+    counter++;
+    return [{ key: `i${counter}`, recipe: r, qty: 1, qtyUnit: 'portions' }];
+  });
   const [search, setSearch]         = useState('');
   const [open, setOpen]             = useState(false);
   const [view, setView]             = useState<'recipes' | 'total'>('recipes');
   const [checked, setChecked]       = useState<Set<string>>(new Set());
   const [expanded, setExpanded]     = useState<Set<string>>(new Set());
-  const [timers, setTimers]         = useState<Record<string, TimerEntry>>({});
+  const [timers, setTimers]         = useState<Record<string, TimerEntry>>(() => {
+    if (!preloadRecipeId) return {};
+    const r = recipes.find((r) => r.id === preloadRecipeId);
+    if (!r?.timerSeconds || r.timerSeconds <= 0) return {};
+    const t: Record<string, TimerEntry> = { 'i1': { durationSec: r.timerSeconds, startedAt: null, label: r.method ?? 'Technique' } };
+    return t;
+  });
   const [globalInput, setGlobalInput] = useState(''); // "HH:MM" or "MM:SS"
   const [producing, setProducing]   = useState(false);
   const [error, setError]           = useState('');
