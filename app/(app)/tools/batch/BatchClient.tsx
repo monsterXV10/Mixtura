@@ -82,13 +82,37 @@ function toBase(qty: number, unit: string): number {
   return qty;
 }
 
-function effectivePortions(qty: number, unit: BatchQtyUnit, recipe: Recipe, refIngIdx?: number): number {
+interface RefOption {
+  label: string;
+  unit: string;
+  qtyPerPortion: number;
+}
+
+function buildRefOptions(recipe: Recipe, stockMap: Record<string, IngredientStock>): RefOption[] {
+  const opts: RefOption[] = [];
+  const byName: Record<string, IngredientStock> = {};
+  for (const s of Object.values(stockMap)) { if (s.name) byName[s.name.toLowerCase()] = s; }
+  for (const ing of recipe.ingredients) {
+    opts.push({ label: ing.name, unit: ing.unit, qtyPerPortion: ing.qty });
+    const info = ing.ingredientId ? stockMap[ing.ingredientId] : byName[ing.name.toLowerCase()];
+    if (!info?.homemade || !info.composition?.length) continue;
+    const yieldBase = toBase(info.yield ?? 0, info.yieldUnit ?? ing.unit);
+    if (yieldBase <= 0) continue;
+    const scale = toBase(ing.qty, ing.unit) / yieldBase;
+    for (const c of info.composition) {
+      opts.push({ label: `↳ ${c.name} (via ${ing.name})`, unit: c.unit, qtyPerPortion: c.qty * scale });
+    }
+  }
+  return opts;
+}
+
+function effectivePortions(qty: number, unit: BatchQtyUnit, recipe: Recipe, refIngIdx?: number, refOpts?: RefOption[]): number {
   if (unit === 'portions') return qty;
   if (unit === 'ingredient') {
     if (refIngIdx === undefined) return qty;
-    const ref = recipe.ingredients[refIngIdx];
-    if (!ref || ref.qty <= 0) return qty;
-    return qty / ref.qty;
+    const perPortion = refOpts ? (refOpts[refIngIdx]?.qtyPerPortion ?? 0) : (recipe.ingredients[refIngIdx]?.qty ?? 0);
+    if (perPortion <= 0) return qty;
+    return qty / perPortion;
   }
   const vol = recipe.ingredients.reduce((s, i) => {
     const u = i.unit.toLowerCase();
@@ -280,7 +304,7 @@ export default function BatchClient({ recipes, stockMap, userId, teams }: Props)
   const lines = useMemo((): ConsolidatedLine[] => {
     const map = new Map<string, ConsolidatedLine>();
     for (const item of items) {
-      const portions = effectivePortions(item.qty, item.qtyUnit, item.recipe, item.refIngIdx);
+      const portions = effectivePortions(item.qty, item.qtyUnit, item.recipe, item.refIngIdx, buildRefOptions(item.recipe, stockMap));
       for (const ing of item.recipe.ingredients) {
         const byName: Record<string, IngredientStock> = {};
         for (const s of Object.values(stockMap)) { if (s.name) byName[s.name.toLowerCase()] = s; }
@@ -622,7 +646,8 @@ export default function BatchClient({ recipes, stockMap, userId, teams }: Props)
           {view === 'recipes' && (
             <div className="space-y-3">
               {items.map((item) => {
-                const portions = effectivePortions(item.qty, item.qtyUnit, item.recipe, item.refIngIdx);
+                const refOpts  = buildRefOptions(item.recipe, stockMap);
+                const portions = effectivePortions(item.qty, item.qtyUnit, item.recipe, item.refIngIdx, refOpts);
                 const groups   = groupByCategory(item.recipe.ingredients, stockMap);
                 const cats     = CATEGORY_ORDER.filter((c) => groups[c]);
                 const recipeTimer = timers[item.key];
@@ -661,7 +686,7 @@ export default function BatchClient({ recipes, stockMap, userId, teams }: Props)
                         </select>
                         {item.qtyUnit === 'ingredient' && item.refIngIdx !== undefined && (
                           <span className="text-xs text-[var(--text-dim)] shrink-0">
-                            {item.recipe.ingredients[item.refIngIdx]?.unit}
+                            {refOpts[item.refIngIdx]?.unit}
                           </span>
                         )}
                       </div>
@@ -669,11 +694,11 @@ export default function BatchClient({ recipes, stockMap, userId, teams }: Props)
                         <select
                           value={item.refIngIdx ?? ''}
                           onChange={(e) => updateRefIng(item.key, parseInt(e.target.value))}
-                          className="field-input text-sm"
+                          className="field-input text-sm mt-2"
                         >
                           <option value="">Choisir un ingrédient de référence…</option>
-                          {item.recipe.ingredients.map((ing, i) => (
-                            <option key={i} value={i}>{ing.name} ({ing.qty} {ing.unit})</option>
+                          {refOpts.map((opt, i) => (
+                            <option key={i} value={i}>{opt.label} — {fmt(opt.qtyPerPortion, opt.unit)}/portion</option>
                           ))}
                         </select>
                       )}
