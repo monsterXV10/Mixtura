@@ -23,7 +23,7 @@ interface MyRecipe {
 
 interface BatchRow {
   id: string; user_id: string; team_id: string | null; name: string;
-  items: Array<{ key: string; recipeName: string; qty: number; qtyUnit: string; ingredients?: Array<{ ingredientId?: string; recipeRef?: string; qty: number; name: string; unit: string; type?: string; homemade?: boolean }>; steps?: string | null }>;
+  items: Array<{ key: string; recipeName: string; qty: number; qtyUnit: string; btlSize?: number; refIngIdx?: number; ingredients?: Array<{ ingredientId?: string; recipeRef?: string; qty: number; name: string; unit: string; type?: string; homemade?: boolean }>; steps?: string | null }>;
   timers: Record<string, { durationSec: number; startedAt: string | null; label: string }>;
   checked: string[];
   checked_by?: Record<string, { name: string; userId: string }>;
@@ -464,8 +464,25 @@ export default function CommunicationClient({
   }
 
   // ── PDF helpers ───────────────────────────────────────────────────────────
-  function calcPortions(item: { qty: number; qtyUnit: string; ingredients?: Array<{ qty: number; unit: string }> }): number {
+  function fmtQtyUnit(qty: number, qtyUnit: string, btlSize?: number): string {
+    if (qtyUnit === 'portions') return `${qty} portion${qty > 1 ? 's' : ''}`;
+    if (qtyUnit === 'cl')       return `${qty} cl`;
+    if (qtyUnit === 'L')        return `${qty} L`;
+    if (qtyUnit === 'btl70')    return `${qty} btl 70cl`;
+    if (qtyUnit === 'btl100')   return `${qty} btl 100cl`;
+    if (qtyUnit === 'btl_cl')   return `${qty} btl ${btlSize ?? '?'}cl`;
+    if (qtyUnit === 'btl_ml')   return `${qty} btl ${btlSize ?? '?'}ml`;
+    return `${qty} ${qtyUnit}`;
+  }
+
+  function calcPortions(item: { qty: number; qtyUnit: string; btlSize?: number; refIngIdx?: number; ingredients?: Array<{ qty: number; unit: string }> }): number {
     if (item.qtyUnit === 'portions') return item.qty;
+    if (item.qtyUnit === 'ingredient') {
+      if (item.refIngIdx === undefined || !item.ingredients?.length) return item.qty;
+      const ref = item.ingredients[item.refIngIdx];
+      if (!ref || ref.qty <= 0) return item.qty;
+      return item.qty / ref.qty;
+    }
     if (!item.ingredients?.length) return item.qty;
     const vol = item.ingredients.reduce((s, i) => {
       const u = i.unit.toLowerCase();
@@ -475,8 +492,13 @@ export default function CommunicationClient({
       return s;
     }, 0);
     if (vol <= 0) return item.qty;
-    const target = item.qtyUnit === 'cl' ? item.qty : item.qtyUnit === 'L' ? item.qty * 100 : item.qtyUnit === 'btl70' ? item.qty * 70 : item.qty * 100;
-    return target / vol;
+    if (item.qtyUnit === 'cl')     return item.qty / vol;
+    if (item.qtyUnit === 'L')      return item.qty * 100 / vol;
+    if (item.qtyUnit === 'btl70')  return item.qty * 70 / vol;
+    if (item.qtyUnit === 'btl100') return item.qty * 100 / vol;
+    if (item.qtyUnit === 'btl_cl') return item.qty * (item.btlSize ?? 70) / vol;
+    if (item.qtyUnit === 'btl_ml') return item.qty * (item.btlSize ?? 700) / 10 / vol;
+    return item.qty;
   }
 
   function downloadBatchPdf(batch: BatchRow) {
@@ -498,7 +520,7 @@ export default function CommunicationClient({
       const p = calcPortions(item);
       const rows = (item.ingredients ?? []).map((ing) => `<tr><td>${ing.name}</td><td>${Math.round(ing.qty * p * 100) / 100} ${ing.unit}</td></tr>`).join('');
       const stepsHtml = item.steps ? `<p class="steps">${item.steps}</p>` : '';
-      return `<div class="recipe-title">${item.recipeName}<span class="recipe-qty">${item.qty} ${item.qtyUnit}</span></div><table>${rows}</table>${stepsHtml}`;
+      return `<div class="recipe-title">${item.recipeName}<span class="recipe-qty">${fmtQtyUnit(item.qty, item.qtyUnit, item.btlSize)}</span></div><table>${rows}</table>${stepsHtml}`;
     }).join('');
     const html = `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><title>${batch.name || 'Batch'}</title><style>${css}</style></head><body><h1>${batch.name || 'Batch sans titre'}</h1><p class="date">Généré le ${dateStr}</p><h2>Liste consolidée des produits</h2><table>${ingRows}</table><h2>Recettes</h2>${recipeBlocks}</body></html>`;
     const w = window.open('', '_blank');
@@ -877,7 +899,7 @@ export default function CommunicationClient({
                                 {checkerName && (
                                   <span className="text-[10px] text-emerald-400 shrink-0">{checkerName}</span>
                                 )}
-                                <span className="text-xs text-[var(--text-dim)] tabular-nums shrink-0">{item.qty} {item.qtyUnit}</span>
+                                <span className="text-xs text-[var(--text-dim)] tabular-nums shrink-0">{fmtQtyUnit(item.qty, item.qtyUnit, item.btlSize)}</span>
                               </div>
                               {isExpanded && hasContent && (
                                 <div className="px-4 pb-3 space-y-2">
