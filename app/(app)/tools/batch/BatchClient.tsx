@@ -7,7 +7,7 @@ import {
   RotateCcw, Share2, Users, ChevronRight, Save, FolderOpen, Trash2,
 } from 'lucide-react';
 
-type BatchQtyUnit = 'portions' | 'cl' | 'L' | 'btl70' | 'btl100';
+type BatchQtyUnit = 'portions' | 'cl' | 'L' | 'btl70' | 'btl100' | 'ingredient';
 type DisplayUnit = 'auto' | 'ml' | 'cl' | 'L';
 
 interface IngredientStock {
@@ -30,6 +30,7 @@ interface Recipe {
 
 interface BatchItem {
   key: string; recipe: Recipe; qty: number; qtyUnit: BatchQtyUnit;
+  refIngIdx?: number;
 }
 
 interface ConsolidatedLine {
@@ -64,11 +65,12 @@ const CATEGORY_GROUPS: Record<string, { label: string; bar: string; text: string
 const CATEGORY_ORDER = ['spirit', 'liqueur', 'wine', 'syrup', 'juice', 'fresh', 'dry', 'homemade', 'other'];
 
 const QTY_UNIT_OPTIONS: { value: BatchQtyUnit; label: string }[] = [
-  { value: 'portions', label: 'portions' },
-  { value: 'cl',       label: 'cl' },
-  { value: 'L',        label: 'L' },
-  { value: 'btl70',    label: 'btl 70cl' },
-  { value: 'btl100',   label: 'btl 100cl' },
+  { value: 'portions',    label: 'portions' },
+  { value: 'cl',          label: 'cl' },
+  { value: 'L',           label: 'L' },
+  { value: 'btl70',       label: 'btl 70cl' },
+  { value: 'btl100',      label: 'btl 100cl' },
+  { value: 'ingredient',  label: 'par ingrédient' },
 ];
 
 function toBase(qty: number, unit: string): number {
@@ -80,8 +82,14 @@ function toBase(qty: number, unit: string): number {
   return qty;
 }
 
-function effectivePortions(qty: number, unit: BatchQtyUnit, recipe: Recipe): number {
+function effectivePortions(qty: number, unit: BatchQtyUnit, recipe: Recipe, refIngIdx?: number): number {
   if (unit === 'portions') return qty;
+  if (unit === 'ingredient') {
+    if (refIngIdx === undefined) return qty;
+    const ref = recipe.ingredients[refIngIdx];
+    if (!ref || ref.qty <= 0) return qty;
+    return qty / ref.qty;
+  }
   const vol = recipe.ingredients.reduce((s, i) => {
     const u = i.unit.toLowerCase();
     if (u === 'cl') return s + i.qty;
@@ -222,7 +230,11 @@ export default function BatchClient({ recipes, stockMap, userId, teams }: Props)
   }
 
   function updateUnit(key: string, unit: BatchQtyUnit) {
-    setItems((p) => p.map((i) => i.key === key ? { ...i, qtyUnit: unit } : i));
+    setItems((p) => p.map((i) => i.key === key ? { ...i, qtyUnit: unit, ...(unit !== 'ingredient' && { refIngIdx: undefined }) } : i));
+  }
+
+  function updateRefIng(key: string, idx: number) {
+    setItems((p) => p.map((i) => i.key === key ? { ...i, refIngIdx: idx } : i));
   }
 
   function toggleTimer(key: string) {
@@ -268,7 +280,7 @@ export default function BatchClient({ recipes, stockMap, userId, teams }: Props)
   const lines = useMemo((): ConsolidatedLine[] => {
     const map = new Map<string, ConsolidatedLine>();
     for (const item of items) {
-      const portions = effectivePortions(item.qty, item.qtyUnit, item.recipe);
+      const portions = effectivePortions(item.qty, item.qtyUnit, item.recipe, item.refIngIdx);
       for (const ing of item.recipe.ingredients) {
         const byName: Record<string, IngredientStock> = {};
         for (const s of Object.values(stockMap)) { if (s.name) byName[s.name.toLowerCase()] = s; }
@@ -610,7 +622,7 @@ export default function BatchClient({ recipes, stockMap, userId, teams }: Props)
           {view === 'recipes' && (
             <div className="space-y-3">
               {items.map((item) => {
-                const portions = effectivePortions(item.qty, item.qtyUnit, item.recipe);
+                const portions = effectivePortions(item.qty, item.qtyUnit, item.recipe, item.refIngIdx);
                 const groups   = groupByCategory(item.recipe.ingredients, stockMap);
                 const cats     = CATEGORY_ORDER.filter((c) => groups[c]);
                 const recipeTimer = timers[item.key];
@@ -647,7 +659,24 @@ export default function BatchClient({ recipes, stockMap, userId, teams }: Props)
                           className="field-input text-sm flex-1">
                           {QTY_UNIT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                         </select>
+                        {item.qtyUnit === 'ingredient' && item.refIngIdx !== undefined && (
+                          <span className="text-xs text-[var(--text-dim)] shrink-0">
+                            {item.recipe.ingredients[item.refIngIdx]?.unit}
+                          </span>
+                        )}
                       </div>
+                      {item.qtyUnit === 'ingredient' && (
+                        <select
+                          value={item.refIngIdx ?? ''}
+                          onChange={(e) => updateRefIng(item.key, parseInt(e.target.value))}
+                          className="field-input text-sm"
+                        >
+                          <option value="">Choisir un ingrédient de référence…</option>
+                          {item.recipe.ingredients.map((ing, i) => (
+                            <option key={i} value={i}>{ing.name} ({ing.qty} {ing.unit})</option>
+                          ))}
+                        </select>
+                      )}
                     </div>
 
                     {/* Ingredient groups */}
