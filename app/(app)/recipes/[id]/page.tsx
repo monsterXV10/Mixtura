@@ -2,11 +2,12 @@ import { createClient } from '@/lib/supabase/server';
 import { redirect, notFound } from 'next/navigation';
 import { TopBar } from '@/components/layout/TopBar';
 import Link from 'next/link';
-import { Pencil, FlaskConical, BookOpen, Layers, ChevronDown } from 'lucide-react';
+import { Pencil, FlaskConical, BookOpen, Layers, ChevronDown, ScrollText } from 'lucide-react';
 import { GlassIcon } from '@/components/ui/GlassIcon';
 import { RecipeDeleteButton } from '../RecipeDeleteButton';
 import { RecipeTimer } from '../RecipeTimer';
 import { ShareToTeamButton } from '@/components/shared/ShareToTeamButton';
+import { AddToMenuButton } from '../AddToMenuButton';
 
 const METHOD_TIMER_DEFAULTS: Record<string, number> = {
   'Shake': 10,
@@ -150,6 +151,8 @@ export default async function RecipeDetailPage({
   const recipeRefNames = new Map<string, string>();
   const ingredientSharePayloads: Array<{ name: string; ingredientData: Record<string, unknown> }> = [];
 
+  let allMenus: Array<{ id: string; name: string; hasRecipe: boolean }> = [];
+
   await Promise.all([
     linkedIds.length > 0
       ? supabase.from('ingredients').select('id, data').eq('user_id', user.id).in('id', linkedIds).then(({ data: stockRows }) => {
@@ -179,6 +182,13 @@ export default async function RecipeDetailPage({
           }
         })
       : Promise.resolve(),
+    supabase.from('menus').select('id, data').eq('user_id', user.id).then(({ data: menuRows }) => {
+      allMenus = (menuRows ?? []).map((m) => {
+        const d = m.data as { name?: string; sections?: Array<{ items?: Array<{ recipeId?: string }> }> } | null;
+        const hasRecipe = (d?.sections ?? []).some((s) => (s.items ?? []).some((item) => item.recipeId === id));
+        return { id: m.id as string, name: d?.name ?? 'Sans titre', hasRecipe };
+      });
+    }),
   ]);
 
   const TYPE_LABELS: Record<string, string> = {
@@ -485,6 +495,33 @@ export default async function RecipeDetailPage({
               Pas d&apos;instructions. Modifie la recette pour en ajouter.
             </p>
           )}
+        </div>
+
+        {/* Menus */}
+        <div className="card space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="font-semibold text-[var(--text)] text-sm flex items-center gap-2">
+              <ScrollText size={14} className="text-[var(--text-dim)]" />
+              Menus
+            </h2>
+          </div>
+          {allMenus.filter((m) => m.hasRecipe).length > 0 ? (
+            <div className="flex flex-wrap gap-2">
+              {allMenus.filter((m) => m.hasRecipe).map((m) => (
+                <Link
+                  key={m.id}
+                  href={`/menus/${m.id}`}
+                  className="text-xs px-2.5 py-1 rounded-full bg-[var(--surface2)] text-[var(--gold)] hover:bg-[var(--border)] transition-colors flex items-center gap-1"
+                >
+                  <ScrollText size={10} />
+                  {m.name}
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-[var(--text-dim)]">Pas encore dans un menu.</p>
+          )}
+          <AddToMenuButton recipeId={id} recipeName={name} menus={allMenus} />
         </div>
 
         {/* Actions */}
