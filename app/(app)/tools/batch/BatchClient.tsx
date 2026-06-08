@@ -7,7 +7,7 @@ import {
   RotateCcw, Share2, Users, ChevronRight, Save, FolderOpen, Trash2,
 } from 'lucide-react';
 
-type BatchQtyUnit = 'portions' | 'cl' | 'L' | 'btl70' | 'btl100' | 'btl_cl' | 'btl_ml';
+type BatchQtyUnit = 'portions' | 'cl' | 'L' | 'btl70' | 'btl100' | 'btl_cl' | 'btl_ml' | 'ingredient';
 type DisplayUnit = 'auto' | 'ml' | 'cl' | 'L';
 
 interface IngredientStock {
@@ -15,7 +15,7 @@ interface IngredientStock {
   price?: number; format?: number; stock?: number; homemade?: boolean; unlimitedStock?: boolean;
   composition?: Array<{ ingredientId?: string; name: string; qty: number; unit: string }>;
   yield?: number; yieldUnit?: string; steps?: string;
-  weightConversion?: { referenceQty: number; grams: number };
+  weightConversion?: { referenceQty: number; unit: string; grams: number };
 }
 
 interface RecipeIngredient {
@@ -30,6 +30,7 @@ interface Recipe {
 
 interface BatchItem {
   key: string; recipe: Recipe; qty: number; qtyUnit: BatchQtyUnit; btlSize?: number;
+  refIngIdx?: number;
 }
 
 interface ConsolidatedLine {
@@ -69,8 +70,9 @@ const QTY_UNIT_OPTIONS: { value: BatchQtyUnit; label: string }[] = [
   { value: 'L',        label: 'L' },
   { value: 'btl70',    label: 'btl 70cl' },
   { value: 'btl100',   label: 'btl 100cl' },
-  { value: 'btl_cl',   label: 'btl ? cl' },
-  { value: 'btl_ml',   label: 'btl ? ml' },
+  { value: 'btl_cl',      label: 'btl ? cl' },
+  { value: 'btl_ml',      label: 'btl ? ml' },
+  { value: 'ingredient',  label: 'par ingrédient' },
 ];
 
 function toBase(qty: number, unit: string): number {
@@ -82,8 +84,38 @@ function toBase(qty: number, unit: string): number {
   return qty;
 }
 
-function effectivePortions(qty: number, unit: BatchQtyUnit, recipe: Recipe, btlSize?: number): number {
+interface RefOption {
+  label: string;
+  unit: string;
+  qtyPerPortion: number;
+}
+
+function buildRefOptions(recipe: Recipe, stockMap: Record<string, IngredientStock>): RefOption[] {
+  const opts: RefOption[] = [];
+  const byName: Record<string, IngredientStock> = {};
+  for (const s of Object.values(stockMap)) { if (s.name) byName[s.name.toLowerCase()] = s; }
+  for (const ing of recipe.ingredients) {
+    opts.push({ label: ing.name, unit: ing.unit, qtyPerPortion: ing.qty });
+    const info = ing.ingredientId ? stockMap[ing.ingredientId] : byName[ing.name.toLowerCase()];
+    if (!info?.homemade || !info.composition?.length) continue;
+    const yieldBase = toBase(info.yield ?? 0, info.yieldUnit ?? ing.unit);
+    if (yieldBase <= 0) continue;
+    const scale = toBase(ing.qty, ing.unit) / yieldBase;
+    for (const c of info.composition) {
+      opts.push({ label: `↳ ${c.name} (via ${ing.name})`, unit: c.unit, qtyPerPortion: c.qty * scale });
+    }
+  }
+  return opts;
+}
+
+function effectivePortions(qty: number, unit: BatchQtyUnit, recipe: Recipe, btlSize?: number, refIngIdx?: number, refOpts?: RefOption[]): number {
   if (unit === 'portions') return qty;
+  if (unit === 'ingredient') {
+    if (refIngIdx === undefined) return qty;
+    const perPortion = refOpts ? (refOpts[refIngIdx]?.qtyPerPortion ?? 0) : (recipe.ingredients[refIngIdx]?.qty ?? 0);
+    if (perPortion <= 0) return qty;
+    return qty / perPortion;
+  }
   const vol = recipe.ingredients.reduce((s, i) => {
     const u = i.unit.toLowerCase();
     if (u === 'cl') return s + i.qty;
@@ -237,7 +269,11 @@ export default function BatchClient({ recipes, stockMap, userId, teams }: Props)
   }
 
   function updateUnit(key: string, unit: BatchQtyUnit) {
-    setItems((p) => p.map((i) => i.key === key ? { ...i, qtyUnit: unit } : i));
+    setItems((p) => p.map((i) => i.key === key ? { ...i, qtyUnit: unit, ...(unit !== 'ingredient' && { refIngIdx: undefined }) } : i));
+  }
+
+  function updateRefIng(key: string, idx: number) {
+    setItems((p) => p.map((i) => i.key === key ? { ...i, refIngIdx: idx } : i));
   }
 
   function updateBtlSize(key: string, size: number) {
@@ -287,7 +323,8 @@ export default function BatchClient({ recipes, stockMap, userId, teams }: Props)
   const lines = useMemo((): ConsolidatedLine[] => {
     const map = new Map<string, ConsolidatedLine>();
     for (const item of items) {
-      const portions = effectivePortions(item.qty, item.qtyUnit, item.recipe, item.btlSize);
+      const refOpts  = buildRefOptions(item.recipe, stockMap);
+      const portions = effectivePortions(item.qty, item.qtyUnit, item.recipe, item.btlSize, item.refIngIdx, refOpts);
       for (const ing of item.recipe.ingredients) {
         const byName: Record<string, IngredientStock> = {};
         for (const s of Object.values(stockMap)) { if (s.name) byName[s.name.toLowerCase()] = s; }
@@ -359,7 +396,7 @@ export default function BatchClient({ recipes, stockMap, userId, teams }: Props)
     const supabase = createClient();
     const payload = {
       name: batchName || 'Batch sans titre',
-      items: items.map((i) => ({ key: i.key, recipeId: i.recipe.id, recipeName: i.recipe.name, qty: i.qty, qtyUnit: i.qtyUnit, btlSize: i.btlSize, ingredients: i.recipe.ingredients, steps: i.recipe.steps ?? null })),
+      items: items.map((i) => ({ key: i.key, recipeId: i.recipe.id, recipeName: i.recipe.name, qty: i.qty, qtyUnit: i.qtyUnit, btlSize: i.btlSize, refIngIdx: i.refIngIdx, ingredients: i.recipe.ingredients, steps: i.recipe.steps ?? null })),
       timers,
       checked: [...checked],
       status: 'active' as const,
@@ -627,7 +664,8 @@ export default function BatchClient({ recipes, stockMap, userId, teams }: Props)
           {view === 'recipes' && (
             <div className="space-y-3">
               {items.map((item) => {
-                const portions = effectivePortions(item.qty, item.qtyUnit, item.recipe, item.btlSize);
+                const refOpts  = buildRefOptions(item.recipe, stockMap);
+                const portions = effectivePortions(item.qty, item.qtyUnit, item.recipe, item.btlSize, item.refIngIdx, refOpts);
                 const groups   = groupByCategory(item.recipe.ingredients, stockMap);
                 const cats     = CATEGORY_ORDER.filter((c) => groups[c]);
                 const recipeTimer = timers[item.key];
@@ -670,7 +708,24 @@ export default function BatchClient({ recipes, stockMap, userId, teams }: Props)
                             placeholder={item.qtyUnit === 'btl_ml' ? 'ml' : 'cl'}
                             className="field-input text-sm w-20" />
                         )}
+                        {item.qtyUnit === 'ingredient' && item.refIngIdx !== undefined && (
+                          <span className="text-xs text-[var(--text-dim)] shrink-0">
+                            {refOpts[item.refIngIdx]?.unit}
+                          </span>
+                        )}
                       </div>
+                      {item.qtyUnit === 'ingredient' && (
+                        <select
+                          value={item.refIngIdx ?? ''}
+                          onChange={(e) => updateRefIng(item.key, parseInt(e.target.value))}
+                          className="field-input text-sm mt-2"
+                        >
+                          <option value="">Choisir un ingrédient de référence…</option>
+                          {refOpts.map((opt, i) => (
+                            <option key={i} value={i}>{opt.label} — {fmt(opt.qtyPerPortion, opt.unit)}/portion</option>
+                          ))}
+                        </select>
+                      )}
                     </div>
 
                     {/* Ingredient groups */}
@@ -821,7 +876,9 @@ export default function BatchClient({ recipes, stockMap, userId, teams }: Props)
                         {(() => {
                           const wc = line.stockInfo?.weightConversion;
                           if (!wc || wc.referenceQty <= 0) return null;
-                          const grams = (line.totalQty / wc.referenceQty) * wc.grams;
+                          const refBase = toBase(wc.referenceQty, wc.unit ?? line.unit);
+                          const lineBase = toBase(line.totalQty, line.unit);
+                          const grams = refBase > 0 ? (lineBase / refBase) * wc.grams : 0;
                           return (
                             <span className="text-[10px] text-[var(--text-dim)] tabular-nums">
                               ≈ {grams >= 1000 ? `${Math.round(grams / 10) / 100} kg` : `${Math.round(grams)} g`}

@@ -23,7 +23,7 @@ interface MyRecipe {
 
 interface BatchRow {
   id: string; user_id: string; team_id: string | null; name: string;
-  items: Array<{ key: string; recipeName: string; qty: number; qtyUnit: string; btlSize?: number; ingredients?: Array<{ ingredientId?: string; recipeRef?: string; qty: number; name: string; unit: string; type?: string; homemade?: boolean }>; steps?: string | null }>;
+  items: Array<{ key: string; recipeName: string; qty: number; qtyUnit: string; btlSize?: number; refIngIdx?: number; ingredients?: Array<{ ingredientId?: string; recipeRef?: string; qty: number; name: string; unit: string; type?: string; homemade?: boolean }>; steps?: string | null }>;
   timers: Record<string, { durationSec: number; startedAt: string | null; label: string }>;
   checked: string[];
   checked_by?: Record<string, { name: string; userId: string }>;
@@ -478,8 +478,14 @@ export default function CommunicationClient({
   }
 
   // ── PDF helpers ───────────────────────────────────────────────────────────
-  function calcPortions(item: { qty: number; qtyUnit: string; ingredients?: Array<{ qty: number; unit: string }> }): number {
+  function calcPortions(item: { qty: number; qtyUnit: string; btlSize?: number; refIngIdx?: number; ingredients?: Array<{ qty: number; unit: string }> }): number {
     if (item.qtyUnit === 'portions') return item.qty;
+    if (item.qtyUnit === 'ingredient') {
+      if (item.refIngIdx === undefined || !item.ingredients?.length) return item.qty;
+      const ref = item.ingredients[item.refIngIdx];
+      if (!ref || ref.qty <= 0) return item.qty;
+      return item.qty / ref.qty;
+    }
     if (!item.ingredients?.length) return item.qty;
     const vol = item.ingredients.reduce((s, i) => {
       const u = i.unit.toLowerCase();

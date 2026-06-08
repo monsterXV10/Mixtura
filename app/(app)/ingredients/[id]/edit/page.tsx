@@ -41,7 +41,7 @@ export default async function EditIngredientPage({
     sugarRatio?: string; sugarRatioCustom?: string;
     quantityInBottle?: number;
     fruitLabel?: string; juicePerFruit?: number; yieldVariance?: number;
-    weightConversion?: { referenceQty: number; grams: number };
+    weightConversion?: { referenceQty: number; unit: string; grams: number };
   };
 
   const initialData = {

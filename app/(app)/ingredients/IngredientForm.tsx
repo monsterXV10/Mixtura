@@ -56,7 +56,7 @@ interface IngredientFormProps {
     fruitLabel?: string;
     juicePerFruit?: number;
     yieldVariance?: number;
-    weightConversion?: { referenceQty: number; grams: number };
+    weightConversion?: { referenceQty: number; unit: string; grams: number };
   };
 }
 
@@ -146,6 +146,7 @@ export default function IngredientForm({ userId, userIngredients, visibleCategor
   const [juicePerFruit,    setJuicePerFruit]    = useState(initialData?.juicePerFruit ?? 0);
   const [yieldVariance,    setYieldVariance]    = useState(initialData?.yieldVariance ?? 10);
   const [weightConvRef,    setWeightConvRef]    = useState(initialData?.weightConversion?.referenceQty ?? 100);
+  const [weightConvUnit,   setWeightConvUnit]   = useState(initialData?.weightConversion?.unit ?? initialData?.unit ?? 'cl');
   const [weightConvGrams,  setWeightConvGrams]  = useState(initialData?.weightConversion?.grams ?? 0);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -241,7 +242,7 @@ export default function IngredientForm({ userId, userIngredients, visibleCategor
             ...(cfg.sugarRatio       && { sugarRatio, ...(sugarRatio === 'Sur mesure' && sugarRatioCustom && { sugarRatioCustom }) }),
             ...(cfg.quantityInBottle && quantityInBottle > 0 && { quantityInBottle }),
             ...(cfg.yieldCalc        && { fruitLabel, juicePerFruit, yieldVariance }),
-            ...(weightConvGrams > 0  && { weightConversion: { referenceQty: weightConvRef, grams: weightConvGrams } }),
+            ...(weightConvGrams > 0  && { weightConversion: { referenceQty: weightConvRef, unit: weightConvUnit, grams: weightConvGrams } }),
           };
       const payload = { user_id: userId, data, updated_at: new Date().toISOString() };
       const result = initialData
@@ -657,7 +658,9 @@ export default function IngredientForm({ userId, userIngredients, visibleCategor
                     value={weightConvRef}
                     onChange={(e) => setWeightConvRef(parseFloat(e.target.value) || 100)}
                     className="field-input w-20 text-center" />
-                  <span className="text-sm text-[var(--text-dim)] shrink-0">{unit}</span>
+                  <select value={weightConvUnit} onChange={(e) => setWeightConvUnit(e.target.value)} className="field-input w-28">
+                    {UNITS.filter((u) => u !== '%').map((u) => <option key={u} value={u}>{u}</option>)}
+                  </select>
                   <span className="text-sm text-[var(--text-dim)]">=</span>
                   <input type="number" min="0" step="any"
                     value={weightConvGrams === 0 ? '' : weightConvGrams}
